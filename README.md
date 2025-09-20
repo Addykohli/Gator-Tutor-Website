@@ -16,7 +16,7 @@
 |    Student Name    |      School Email      | GitHub Username |
 |    :---:           |     :---:              |     :---:       |
 | Kojiro Miura       | kmiura@sfsu.edu        | KM336           |
-| Walawalkar Atharva | awalawalkar@sfsu.edu   | Atharva209      |
+| Walawalkar Atharva | awalawalkar@sfsu.edu   | Atharva2099     |
 | Kohli Addy         | akohli@sfsu.edu        | addykohli       |
 | Basnet Krinjal     | kbasnet1@sfsu.edu      | SScodesKrinjal  |
 | Tobgyal Sonam      | stobgyal@mail.sfsu.edu | stststststststs |
