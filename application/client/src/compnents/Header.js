@@ -1,11 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showPeople, setShowPeople] = useState(false);
+  const navigate = useNavigate();
+
+  const toggleMenu = () => {
+    setIsMenuOpen(!isMenuOpen);
+    if (!isMenuOpen) {
+      setShowPeople(false);
+    }
+  };
+
+  const handlePeopleClick = (e) => {
+    e.stopPropagation();
+    setShowPeople(!showPeople);
+  };
   const headerContent = {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    maxWidth: '1200px',
     margin: '0 auto',
     width: '100%',
     height: '100%',
@@ -15,6 +29,7 @@ const Header = () => {
     margin: 0,
     fontSize: '45px',
     fontWeight: '500',
+    paddingLeft: '40px',
   };
 
   const divider = {
@@ -30,6 +45,7 @@ const Header = () => {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
+    padding: '0px 40px',
   };
 
   const infoItem = {
@@ -57,27 +73,72 @@ const Header = () => {
     alignItems: 'center',
     padding: '0 20px',
     boxSizing: 'border-box',
+    position: 'relative',
   };
 
   const menuButtonStyle = {
     padding: '8px 16px',
     backgroundColor: '#FFDC70',
     color: 'black',
-    border: '2px solid black',
+    border: '1px solid black',
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '20px',
     position: 'absolute',
-    right: '20px'
+    right: '20px',
+    zIndex: 1001
   };
 
-  const handleMenuClick = () => {
-
-    console.log('Menu button clicked');
+  const dropdownMenuStyle = {
+    position: 'relative',
+    backgroundColor: '#FFDC70',
+    borderTop: isMenuOpen ? '1px solid black' : 'none',
+    borderBottom: isMenuOpen ? '10px solid #FFDC70' : 'none',
+    width: '100%',
+    zIndex: 1000,
+    maxHeight: isMenuOpen ? '1000px' : '0',
+    overflow: 'hidden',
+    transition: 'max-height 0.3s ease-in-out'
   };
+
+  const menuItemStyle = {
+    display: 'block',
+    width: '100%',
+    margin: '0 auto',
+    padding: '15px 20px',
+    textAlign: 'left',
+    backgroundColor: 'transparent',
+    border: 'none',
+    borderBottom: '1px solid rgba(0,0,0,0.0)',
+    cursor: 'pointer',
+    fontSize: '18px',
+    color: 'black',
+    textDecoration: 'none',
+    boxSizing: 'border-box',
+    transition: 'background-color 0.2s',
+    textTransform: 'uppercase',
+    letterSpacing: '1px'
+  };
+
+
+
+  const subMenuStyle = {
+    backgroundColor: 'white',
+    width: '100%',
+    display: showPeople ? 'block' : 'none'
+  };
+
+  const subMenuItemStyle = {
+    ...menuItemStyle,
+    paddingLeft: '50px',
+    fontSize: '16px',
+    textTransform: 'capitalize',
+    letterSpacing: 'normal'
+  };
+
 
   return (
-    <>
+    <div>
       <header style={headerStyle}>
         <div style={headerContent}>
           <h1 style={classTitle}>SOFTWARE ENGINEERING CLASS SFSU</h1>
@@ -90,12 +151,103 @@ const Header = () => {
         </div>
       </header>
       <div style={navBarStyle}>
-        <button style={menuButtonStyle} onClick={handleMenuClick}>
+        <button style={menuButtonStyle} onClick={toggleMenu}>
           <i className="fas fa-bars" style={{ marginRight: '8px' }}></i>
           Menu
         </button>
       </div>
-    </>
+      <div style={dropdownMenuStyle}>
+        <div style={{margin: '0 auto' }}>
+          <button 
+            style={menuItemStyle}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+            onClick={() => {
+              navigate('/');
+              setIsMenuOpen(false);
+            }}
+          >
+            Home Page
+          </button>
+          <button 
+            style={menuItemStyle}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+            onClick={handlePeopleClick}
+          >
+            People ▼
+          </button>
+          <div style={subMenuStyle}>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/addy');
+                setIsMenuOpen(false);
+              }}
+            >
+              Addy
+            </button>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/kojiro');
+                setIsMenuOpen(false);
+              }}
+            >
+              Kojiro
+            </button>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/atharva');
+                setIsMenuOpen(false);
+              }}
+            >
+              Atharva
+            </button>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/krinjal');
+                setIsMenuOpen(false);
+              }}
+            >
+              Krinjal
+            </button>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/sonam');
+                setIsMenuOpen(false);
+              }}
+            >
+              Sonam
+            </button>
+            <button 
+              style={subMenuItemStyle}
+              onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+              onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+              onClick={() => {
+                navigate('/aketzali');
+                setIsMenuOpen(false);
+              }}
+            >
+              Aketzali
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
