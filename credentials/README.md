@@ -24,48 +24,57 @@
 ## You may store the most of the above in this README.md file. DO NOT Store the SSH key or any keys in this README.md file.
 
 ---
-
 # CSC 648 Team 08 – Credentials
 
 ## Server Information
-- **Server IP**: 3.101.155.82
+- **Server IP**: 3.101.155.82  
 - **SSH Access**: via SSH keys only (no password authentication)
-- **SSH Users with sudo access**: 
-  - profsouza (sudo)
-  - ubuntu (sudo) 
-  - atharva (sudo)
-- **SSH Users without sudo access**:
-  - sonam, sally, addy, koji, krinjal
+
+### SSH Users with sudo access
+- `profsouza` (professor/CTO)  
+- `ubuntu` (default AWS admin user)  
+- `atharva` (team member)  
+
+### SSH Users without sudo access
+- `sonam`  
+- `sally`  
+- `addy`  
+- `koji`  
+- `krinjal`  
+
+---
 
 ## Database Information
-- **Host**: 127.0.0.1 (localhost only)
-- **Port**: 3306
-- **Database Username**: root
-- **Database Password**: CSC648
-- **Database Name**: team08_db
-- **Additional DB User**: profsouza (full privileges)
-- **Database Version**: MySQL 8.0.43
+- **Host**: 127.0.0.1 (localhost only)  
+- **Port**: 3306  
+- **Database Username**: root  
+- **Database Password**: CSC648  
+- **Database Name**: team08_db  
+- **Additional User**: profsouza (full privileges)  
+- **Database Version**: MySQL 8.0.43  
+
+---
 
 ## Authentication
-- All users authenticate using SSH keys only
-- Each user's public key is stored as a separate `.pub` file in this folder
-- Private keys are **NOT** stored in this repository
-- SSH Key Type: ED25519
+- All users authenticate using SSH keys only.  
+- Each user’s **public key** is stored in the `access_keys/` subfolder of this directory.  
+- The AWS EC2 **launch key** (`team08.pem`) is included here only because required for grading.    
+- SSH Key Type: ED25519  
+
+---
 
 ## Instructions for Access
 
-### SSH Connection:
+### SSH
 ```bash
-# For team members (replace <username> with actual username):
+# General form
 ssh -i <path-to-your-private-key> <username>@3.101.155.82
 
-# Examples:
+# Examples
 ssh -i ~/.ssh/id_ed25519 ubuntu@3.101.155.82
 ssh -i ~/.ssh/id_ed25519 atharva@3.101.155.82
 ssh -i ~/.ssh/id_ed25519 profsouza@3.101.155.82
-
-## Database Connection:
-
+Database
 # From the server (after SSH connection):
 mysql -u root -p team08_db
 # Password: CSC648
