@@ -19,17 +19,32 @@ const Header = () => {
   };
   const headerContent = {
     display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    margin: '0 auto',
+    maxWidth: '1200px',
     width: '100%',
-    height: '100%',
+    margin: '0 auto',
+    gap: '20px',
+    padding: '20px 0',
+    '@media (max-width: 768px)': {
+      flexDirection: 'column',
+      textAlign: 'center',
+      gap: '15px',
+    }
   };
 
   const classTitle = {
     margin: 0,
-    fontSize: '45px',
+    fontSize: 'clamp(24px, 4vw, 45px)',
     fontWeight: '500',
-    paddingLeft: '40px',
+    padding: '0 20px',
+    whiteSpace: 'normal',
+    textAlign: 'center',
+    '@media (min-width: 769px)': {
+      paddingLeft: '40px',
+      textAlign: 'left',
+    }
   };
 
   const divider = {
@@ -37,6 +52,11 @@ const Header = () => {
     width: '2px',
     backgroundColor: 'rgba(255,255,255,0.7)',
     margin: '0 20px',
+    '@media (max-width: 768px)': {
+      height: '2px',
+      width: '80%',
+      margin: '10px 0',
+    }
   };
 
   const infoSection = {
@@ -45,7 +65,11 @@ const Header = () => {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
-    padding: '0px 40px',
+    padding: '0 20px',
+    minWidth: 'fit-content',
+    '@media (min-width: 769px)': {
+      padding: '0 40px'
+    }
   };
 
   const infoItem = {
@@ -56,13 +80,16 @@ const Header = () => {
   const headerStyle = {
     backgroundColor: '#231161',
     color: 'white',
-    height: '200px',
+    minHeight: '200px',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     padding: '20px',
     boxSizing: 'border-box',
     width: '100%',
+    '@media (max-width: 768px)': {
+      padding: '20px 10px',
+    }
   };
 
   const navBarStyle = {
