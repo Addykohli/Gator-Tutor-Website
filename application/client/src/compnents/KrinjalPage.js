@@ -68,15 +68,28 @@ const styles = {
   content: {
     display: 'flex',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: '40px',
     marginTop: '20px',
+    '@media (max-width: 768px)': {
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '20px',
+    },
   },
   imageContainer: {
     flex: '0 0 250px',
+    display: 'flex',
+    justifyContent: 'center',
+    '@media (max-width: 768px)': {
+      width: '100%',
+      maxWidth: '300px',
+    },
   },
   profileImage: {
     width: '100%',
-    height: 'auto',
+    maxHeight: '400px',
+    objectFit: 'contain',
     borderRadius: '4px',
     boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
   },
@@ -88,6 +101,12 @@ const styles = {
     alignItems: 'center',
     marginBottom: '20px',
     fontSize: '20px',
+    '@media (max-width: 768px)': {
+      justifyContent: 'center',
+      textAlign: 'center',
+      flexDirection: 'column',
+      gap: '5px',
+    },
   },
   icon: {
     width: '28px',
@@ -97,6 +116,9 @@ const styles = {
   },
   aboutSection: {
     margin: '30px 0',
+    '@media (max-width: 768px)': {
+      textAlign: 'center',
+    },
   },
   sectionTitle: {
     color: '#333',
@@ -110,6 +132,9 @@ const styles = {
     color: '#555',
     fontSize: '18px',
     marginTop: '10px',
+    '@media (max-width: 480px)': {
+      fontSize: '16px',
+    },
   },
 };
 

@@ -72,29 +72,52 @@ const styles = {
   content: {
     display: "flex",
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: "40px",
     marginTop: "20px",
     "@media (max-width: 768px)": {
       flexDirection: "column",
+      alignItems: "center",
+      gap: "30px",
     },
   },
   imageContainer: {
     flex: "0 0 250px",
+    display: "flex",
+    justifyContent: "center",
+    height: "fit-content",
+    "@media (max-width: 768px)": {
+      width: "100%",
+      maxWidth: "300px",
+    }
   },
   profileImage: {
     width: "100%",
     height: "auto",
+    maxHeight: "400px",
+    objectFit: "contain",
+    aspectRatio: "auto",
     borderRadius: "4px",
     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
   },
   details: {
     flex: 1,
+    minWidth: "250px",
+    "@media (max-width: 768px)": {
+      width: "100%",
+      textAlign: "center",
+    }
   },
   detailItem: {
     display: "flex",
     alignItems: "center",
     marginBottom: "20px",
     fontSize: "20px",
+    "@media (max-width: 768px)": {
+      justifyContent: "center",
+      flexWrap: "wrap",
+      textAlign: "center",
+    }
   },
   icon: {
     width: "28px",
@@ -117,6 +140,10 @@ const styles = {
     color: "#555",
     fontSize: "18px",
     marginTop: "10px",
+    textAlign: "left",
+    "@media (max-width: 768px)": {
+      textAlign: "center",
+    }
   },
   skillsSection: {
     margin: "30px 0",
