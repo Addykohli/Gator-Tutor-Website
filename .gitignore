@@ -5,6 +5,7 @@
 dist/
 build/
 venv/
+.venv/
 __pycache__/
 .env
 *.log
