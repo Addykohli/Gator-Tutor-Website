@@ -20,8 +20,8 @@ function KrinjalPage() {
 
           <div style={styles.details}>
             <div style={styles.detailItem}>
-              <i className="fas fa-user-shield" style={styles.icon}></i>
-              <span>Cybersecurity & Systems Enthusiast</span>
+              <i className="fas fa-briefcase" style={styles.icon}></i>
+              <span>Frontend Developer</span>
             </div>
 
             <div style={styles.detailItem}>

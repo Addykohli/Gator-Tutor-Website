@@ -40,7 +40,7 @@ function HomePage() {
       id: 4,
       firstName: 'Krinjal',
       lastName: 'Basnet',
-      role: '',
+      role: 'Frontwnd Developer',
       imageKey: 'Krinjal'
     },
     {
@@ -54,7 +54,7 @@ function HomePage() {
       id: 6,
       firstName: 'Aketzali',
       lastName: 'Zeledon',
-      role: '',
+      role: 'Backend Developer',
       imageKey: 'Aketzali'
     }
   ];

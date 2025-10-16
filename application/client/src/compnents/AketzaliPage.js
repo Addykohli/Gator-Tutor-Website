@@ -17,6 +17,12 @@ function AketzaliPage() {
           </div>
 
           <div style={styles.details}>
+
+            <div style={styles.detailItem}>
+              <i className="fas fa-briefcase" style={styles.icon}></i>
+              <span>Backend Developer</span>
+            </div>
+            
             <div style={styles.detailItem}>
               <i className="fas fa-phone" style={styles.icon}></i>
               <span>(123) 456-7890</span>
