@@ -17,6 +17,8 @@ const Header = () => {
     e.stopPropagation();
     setShowPeople(!showPeople);
   };
+
+
   const headerContent = {
     display: 'flex',
     flexDirection: 'row',
@@ -24,7 +26,7 @@ const Header = () => {
     alignItems: 'center',
     maxWidth: '1200px',
     width: '100%',
-    margin: '0 auto',
+    margin: '0 40px',
     gap: '20px',
     padding: '20px 0',
     '@media (max-width: 768px)': {
@@ -41,6 +43,14 @@ const Header = () => {
     padding: '0 20px',
     whiteSpace: 'normal',
     textAlign: 'center',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    color: 'inherit',
+    '&:hover': {
+      color: '#9A2250',
+      textDecoration: 'underline'
+    },
     '@media (min-width: 769px)': {
       paddingLeft: '40px',
       textAlign: 'left',
@@ -147,8 +157,6 @@ const Header = () => {
     letterSpacing: '1px'
   };
 
-
-
   const subMenuStyle = {
     backgroundColor: 'white',
     width: '100%',
@@ -168,7 +176,12 @@ const Header = () => {
     <div>
       <header style={headerStyle}>
         <div style={headerContent}>
-          <h1 style={classTitle}>SOFTWARE ENGINEERING CLASS SFSU</h1>
+          <button 
+            onClick={() => navigate('/')}
+            style={classTitle}
+          >
+            SOFTWARE ENGINEERING CLASS SFSU
+          </button>
           <div style={divider}></div>
           <div style={infoSection}>
             <h2 style={infoItem}>Fall 2025</h2>
@@ -185,7 +198,7 @@ const Header = () => {
       </div>
       <div style={dropdownMenuStyle}>
         <div style={{margin: '0 auto' }}>
-          <button 
+        <button 
             style={menuItemStyle}
             onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
             onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
@@ -195,6 +208,17 @@ const Header = () => {
             }}
           >
             Home Page
+          </button>
+          <button 
+            style={menuItemStyle}
+            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+            onClick={() => {
+              navigate('/people');
+              setIsMenuOpen(false);
+            }}
+          >
+            People Page
           </button>
           <button 
             style={menuItemStyle}
