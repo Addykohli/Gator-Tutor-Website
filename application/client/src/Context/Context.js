@@ -92,7 +92,7 @@ export const ContextProvider = ({ children }) => {
       dispatch({
         type: 'LOGIN',
         payload: {
-id: userData.id,
+          id: userData.id,
           firstName: userData.firstName,
           lastName: userData.lastName,
           isTutor: userData.isTutor || false

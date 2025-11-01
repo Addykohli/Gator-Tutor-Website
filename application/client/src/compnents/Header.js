@@ -24,6 +24,7 @@ const Header = () => {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
+    justifyContent: 'center',
     maxWidth: '1200px',
     width: '100%',
     margin: '0 40px',
@@ -33,6 +34,31 @@ const Header = () => {
       flexDirection: 'column',
       textAlign: 'center',
       gap: '15px',
+    }
+  };
+
+  const loginLinkStyle = {
+    position: 'absolute',
+    top: '20px',
+    right: '40px',
+    color: 'white',
+    textDecoration: 'none',
+    fontSize: '16px',
+    fontWeight: '500',
+    padding: '8px 16px',
+    borderRadius: '4px',
+    transition: 'background-color 0.2s',
+    zIndex: 1,
+    '&:hover': {
+      textDecoration: 'underline',
+      backgroundColor: 'rgba(255, 255, 255, 0.1)'
+    },
+    '@media (max-width: 768px)': {
+      position: 'static',
+      display: 'block',
+      margin: '10px auto',
+      textAlign: 'center',
+      width: 'fit-content'
     }
   };
 
@@ -97,6 +123,7 @@ const Header = () => {
     padding: '20px',
     boxSizing: 'border-box',
     width: '100%',
+    position: 'relative',
     '@media (max-width: 768px)': {
       padding: '20px 10px',
     }
@@ -172,9 +199,21 @@ const Header = () => {
   };
 
 
+
   return (
     <div>
       <header style={headerStyle}>
+        <a 
+          href="/login" 
+          style={loginLinkStyle}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/login');
+          }}
+        >
+          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
+          Login
+        </a>
         <div style={headerContent}>
           <button 
             onClick={() => navigate('/')}

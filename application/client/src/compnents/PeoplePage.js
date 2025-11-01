@@ -117,11 +117,23 @@ const styles = {
   },
   teamContainer: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-    gap: '20px',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: '30px',
     width: '100%',
-    padding: '0 10px',
+    maxWidth: '1200px',
+    padding: '0 20px',
+    margin: '0 auto',
     boxSizing: 'border-box',
+    '@media (max-width: 1024px)': {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gap: '20px',
+      padding: '0 15px',
+    },
+    '@media (max-width: 600px)': {
+      gridTemplateColumns: '1fr',
+      gap: '15px',
+      padding: '0 10px',
+    }
   },
   teamMember: {
     display: 'flex',
