@@ -103,7 +103,7 @@ const Header = () => {
   };
 
   const navBarStyle = {
-    backgroundColor: '#FFDC70',
+    backgroundColor: 'rgb(255, 220, 112)',
     height: '60px',
     width: '100%',
     display: 'flex',
@@ -115,7 +115,7 @@ const Header = () => {
 
   const menuButtonStyle = {
     padding: '8px 16px',
-    backgroundColor: '#FFDC70',
+    backgroundColor: 'transparent',
     color: 'black',
     border: '1px solid black',
     borderRadius: '4px',
@@ -123,7 +123,7 @@ const Header = () => {
     fontSize: '20px',
     position: 'absolute',
     right: '20px',
-    zIndex: 1001
+    zIndex: 1001,
   };
 
   const dropdownMenuStyle = {
@@ -191,7 +191,12 @@ const Header = () => {
         </div>
       </header>
       <div style={navBarStyle}>
-        <button style={menuButtonStyle} onClick={toggleMenu}>
+        <button 
+          style={menuButtonStyle}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          onClick={toggleMenu}
+        >
           <i className="fas fa-bars" style={{ marginRight: '8px' }}></i>
           Menu
         </button>

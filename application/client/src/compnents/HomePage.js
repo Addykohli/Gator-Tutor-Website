@@ -9,6 +9,8 @@ const HomePage = () => {
       flexDirection: 'column',
       minHeight: '100vh',
       fontFamily: 'Arial, sans-serif',
+      width: '100%',
+      overflowX: 'hidden',
     },
     heading: {
       color: "#333",
@@ -26,6 +28,7 @@ const HomePage = () => {
       margin: '0 auto',
       padding: '20px',
       flex: 1,
+      boxSizing: 'border-box',
     },
     title: {
       textAlign: 'left',
@@ -70,14 +73,19 @@ const HomePage = () => {
     },
     columnsContainer: {
       display: 'flex',
-      gap: '5%',
+      gap: '20px',
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
     },
     leftColumn: {
-      width: '60%',
-      padding: '20px'
+      flex: '3',
+      minWidth: 0, // Prevents flex items from overflowing
+      padding: '20px',
     },
     rightColumn: {
-      width: '35%',
+      flex: '1',
+      minWidth: 0, // Prevents flex items from overflowing
       padding: '20px',
     },
     '@media (max-width: 768px)': {
