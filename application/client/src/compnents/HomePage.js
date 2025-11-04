@@ -8,7 +8,6 @@ const HomePage = () => {
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
-      fontFamily: 'Arial, sans-serif',
       width: '100%',
       overflowX: 'hidden',
     },
