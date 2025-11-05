@@ -18,7 +18,7 @@ const LoginPage = () => {
         color: "#333",
         textAlign: "center",
         paddingBottom: "3px",
-        borderBottom: "4px solid #9A2250",
+        borderBottom: "8px solid #9A2250",
         display: "block",
         margin: "20px auto",
         fontSize: "45px",

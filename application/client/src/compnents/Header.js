@@ -46,29 +46,9 @@ const Header = () => {
     // Save search query to localStorage
     localStorage.setItem('searchQuery', searchQuery);
     
-    // Construct the SQL query based on the selected category
-    let query = '';
+
+    // api for returning searchCategory and searchQuery
     
-    if (searchCategory === 'course') {
-      query = `SELECT NAME FROM courses 
-               WHERE (name LIKE '%${searchQuery}%')`;
-    } else if (searchCategory === 'tutor') {
-      query = `SELECT NAME FROM tutors 
-               WHERE (name LIKE '%${searchQuery}%')`;
-    } else {
-      // Default search across both tables
-      query = `(SELECT 'course' as type, id, title as name, description 
-               FROM courses 
-               WHERE title LIKE '%${searchQuery}%' 
-               OR description LIKE '%${searchQuery}%')
-               UNION
-               (SELECT 'tutor' as type, id, name, bio as description 
-               FROM tutors 
-               WHERE name LIKE '%${searchQuery}%' 
-               OR bio LIKE '%${searchQuery}%')`;
-    }
-    
-    console.log('Executing search query:', query);
   };
   
   const toggleCategory = () => {
@@ -128,18 +108,12 @@ const Header = () => {
 
   // Search container style
   const searchContainerStyle = {
-    position: isMobile ? 'static' : 'absolute',
-    top: isMobile ? 'auto' : '20px',
-    right: isMobile ? 'auto' : '115px',
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    zIndex: 1,
-    order: isMobile ? 1 : 'unset',
-    width: isMobile ? '100%' : 'auto',
-    margin: isMobile ? '10px 0' : '0',
-    padding: isMobile ? '0' : ' 20px 0 0 0',
-    justifyContent: isMobile ? 'center' : 'flex-start',
+    marginLeft: '20px',
+    flex: isMobile ? '1 1 100%' : '0 1 auto',
+    maxWidth: isMobile ? '100%' : '400px',
   };
 
   // Category dropdown styles
@@ -183,6 +157,7 @@ const Header = () => {
     listStyle: 'none',
     margin: 0,
     padding: 0,
+
   };
 
   const categoryItemStyle = {
@@ -237,12 +212,12 @@ const Header = () => {
   const loginLinkStyle = {
     position: 'absolute',
     top: '20px',
-    right: '30px',
+    right: '40px',
     color: 'white',
     textDecoration: 'none',
     fontSize: '16px',
     fontWeight: '500',
-    padding: '25px 0px',
+    padding: '8px 16px',
     borderRadius: '4px',
     transition: 'background-color 0.2s',
     zIndex: 1,
@@ -307,6 +282,7 @@ const Header = () => {
     padding: '0 20px',
     boxSizing: 'border-box',
     position: 'relative',
+    justifyContent: 'space-between',
   };
 
   const menuButtonStyle = {
@@ -317,9 +293,8 @@ const Header = () => {
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '20px',
-    position: 'absolute',
-    right: '20px',
     zIndex: 1001,
+    whiteSpace: 'nowrap',
   };
 
   const dropdownMenuStyle = {
@@ -328,7 +303,7 @@ const Header = () => {
     borderTop: isMenuOpen ? '1px solid black' : 'none',
     borderBottom: isMenuOpen ? '10px solid #FFDC70' : 'none',
     width: '100%',
-    zIndex: 1000,
+    zIndex: 10,
     maxHeight: isMenuOpen ? '1000px' : '0',
     overflow: 'hidden',
     transition: 'max-height 0.3s ease-in-out'
@@ -372,6 +347,35 @@ const Header = () => {
   return (
     <div>
       <header style={headerStyle}>
+        <a 
+          href="/login" 
+          style={loginLinkStyle}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/login');
+          }}
+        >
+          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
+          Login
+        </a>
+        <div style={headerContent}>
+          <button 
+            onClick={() => navigate('/')}
+            style={classTitle}
+          >
+            SOFTWARE ENGINEERING CLASS SFSU
+          </button>
+
+          <div style={infoSection}>
+            <span>Fall 2025</span>
+            <span style={{ opacity: 0.7 }}>|</span>
+            <span>Section 01</span>
+            <span style={{ opacity: 0.7 }}>|</span>
+            <span>Team 8</span>
+          </div>
+        </div>
+      </header>
+      <div style={navBarStyle}>
         <div style={searchContainerStyle}>
           <div style={categoryDropdownStyle} ref={categoryRef}>
             <button 
@@ -407,52 +411,24 @@ const Header = () => {
               </li>
             </ul>
           </div>
-          <form onSubmit={handleSearch} style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', flex: 1 }}>
             <input
               type="text"
               value={searchQuery}
               onChange={handleSearchQueryChange}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
               placeholder={searchCategory === 'default' ? 'Search...' : `Search ${searchCategory}...`}
-              style={searchInputStyle}
+              style={{ ...searchInputStyle, flex: 1 }}
             />
             <button 
-              type="submit" 
+              type="button" 
               style={searchButtonStyle}
               onClick={handleSearch}
             >
               <i className="fas fa-search"></i>
             </button>
-          </form>
-        </div>
-        <a 
-          href="/login" 
-          style={loginLinkStyle}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/login');
-          }}
-        >
-          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
-          Login
-        </a>
-        <div style={headerContent}>
-          <button 
-            onClick={() => navigate('/')}
-            style={classTitle}
-          >
-            SOFTWARE ENGINEERING CLASS SFSU
-          </button>
-
-          <div style={infoSection}>
-            <span>Fall 2025</span>
-            <span style={{ opacity: 0.7 }}>|</span>
-            <span>Section 01</span>
-            <span style={{ opacity: 0.7 }}>|</span>
-            <span>Team 8</span>
           </div>
         </div>
-      </header>
-      <div style={navBarStyle}>
         <button 
           style={menuButtonStyle}
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
