@@ -1,10 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showPeople, setShowPeople] = useState(false);
+  // Load search state from localStorage on component mount
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const saved = localStorage.getItem('searchQuery');
+    return saved || '';
+  });
+  
+  // Update search query in state and localStorage
+  const handleSearchQueryChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    localStorage.setItem('searchQuery', value);
+  };
+  
+  const [searchCategory, setSearchCategory] = useState(() => {
+    const saved = localStorage.getItem('searchCategory');
+    return saved || 'default';
+  });
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const navigate = useNavigate();
+  const categoryRef = useRef(null);
+
+  // Close category dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryRef.current && !categoryRef.current.contains(event.target)) {
+        setIsCategoryOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return;
+    
+    // Save search query to localStorage
+    localStorage.setItem('searchQuery', searchQuery);
+    
+
+    // api for returning searchCategory and searchQuery
+    
+  };
+  
+  const toggleCategory = () => {
+    setIsCategoryOpen(!isCategoryOpen);
+  };
+  
+  const selectCategory = (category) => {
+    setSearchCategory(category);
+    localStorage.setItem('searchCategory', category);
+    setIsCategoryOpen(false);
+  };
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -19,21 +74,138 @@ const Header = () => {
   };
 
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
+
+  // Handle window resize and load saved search state
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 1024);
+    };
+
+    // Load saved search state if it exists
+    const savedQuery = localStorage.getItem('searchQuery');
+    const savedCategory = localStorage.getItem('searchCategory');
+    
+    if (savedQuery) setSearchQuery(savedQuery);
+    if (savedCategory) setSearchCategory(savedCategory);
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const headerContent = {
     display: 'flex',
-    flexDirection: 'row',
+    flexDirection: isMobile ? 'column' : 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
-    justifyContent: 'center',
     maxWidth: '1200px',
     width: '100%',
-    margin: '0 40px',
-    gap: '20px',
-    padding: '20px 0',
-    '@media (max-width: 768px)': {
-      flexDirection: 'column',
-      textAlign: 'center',
-      gap: '15px',
+    margin: '0px',
+    gap: isMobile ? '15px' : '20px',
+    padding: isMobile ? '50px 0px 20px 0px' : '0px 0px 20px 0px',
+    textAlign: isMobile ? 'center' : 'left',
+  };
+
+  // Search container style
+  const searchContainerStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginLeft: '20px',
+    flex: isMobile ? '1 1 100%' : '0 1 auto',
+    maxWidth: isMobile ? '100%' : '400px',
+  };
+
+  // Category dropdown styles
+  const categoryDropdownStyle = {
+    position: 'relative',
+    display: 'inline-block',
+  };
+
+  const categoryButtonStyle = {
+    padding: '0 16px',
+    backgroundColor: '#f8f9fa',
+    border: '1px solid #ced4da',
+    borderRight: 'none',
+    borderRadius: isCategoryOpen ? '10px 10px 0px 0px' : '10px',
+    cursor: 'pointer',
+    minWidth: '90px',
+    height: '38px',
+    textAlign: 'left',
+    whiteSpace: 'nowrap',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    '&:hover': {
+      backgroundColor: '#e9ecef',
+    },
+  };
+
+  const categoryListStyle = {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    border: '1px solid #ced4da',
+    borderRadius: ' 0px 0px 4px 4px',
+    boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
+    zIndex: 1000,
+    display: isCategoryOpen ? 'block' : 'none',
+    width: '100%',
+    boxSizing: 'border-box',
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+
+  };
+
+  const categoryItemStyle = {
+    padding: '8px 16px',
+    cursor: 'pointer',
+    backgroundColor: 'white',
+    color: 'black',
+    textAlign: 'left',
+    width: '100%',
+    border: 'none',
+    '&:hover': {
+      backgroundColor: '#f8f9fa',
+    },
+  };
+
+  // Search input style
+  const searchInputStyle = {
+    padding: '10px 16px',
+    border: 'none',
+    borderRadius: '10px 0px 0px 10px',
+    minWidth: '100px',
+    height: '38px',
+    boxSizing: 'border-box',
+    fontSize: '16px',
+    '&:focus': {
+      outline: 'none',
+      borderColor: '#80bdff',
+      boxShadow: '0 0 0 0.2rem rgba(0,123,255,.25)',
+    },
+  };
+
+  // Search button style
+  const searchButtonStyle = {
+    padding: '0 20px',
+    backgroundColor: 'rgb(255, 255, 255)',
+    border: 'none',
+    color: 'gray',
+    borderRadius: '0px 10px 10px 0px',
+    cursor: 'pointer',
+    height: '38px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    '&:hover': {
+      backgroundColor: '#f8f9fa',
+    },
+    '& i': {
+      fontSize: '18px',
     }
   };
 
@@ -49,26 +221,23 @@ const Header = () => {
     borderRadius: '4px',
     transition: 'background-color 0.2s',
     zIndex: 1,
+    display: isMobile ? 'block' : 'inline-block',
+    margin: isMobile ? '10px auto' : '0',
+    textAlign: isMobile ? 'center' : 'left',
+    width: isMobile ? 'fit-content' : 'auto',
     '&:hover': {
       textDecoration: 'underline',
       backgroundColor: 'rgba(255, 255, 255, 0.1)'
-    },
-    '@media (max-width: 768px)': {
-      position: 'static',
-      display: 'block',
-      margin: '10px auto',
-      textAlign: 'center',
-      width: 'fit-content'
     }
   };
 
   const classTitle = {
     margin: 0,
-    fontSize: 'clamp(24px, 4vw, 45px)',
+    fontSize: 'clamp(20px, 3vw, 40px)',
     fontWeight: '500',
-    padding: '0 20px',
+    padding: '0px 0px 0px 20px',
     whiteSpace: 'normal',
-    textAlign: 'center',
+    textAlign: isMobile ? 'center' : 'left',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -76,43 +245,21 @@ const Header = () => {
     '&:hover': {
       color: '#9A2250',
       textDecoration: 'underline'
-    },
-    '@media (min-width: 769px)': {
-      paddingLeft: '40px',
-      textAlign: 'left',
-    }
-  };
-
-  const divider = {
-    height: '40px',
-    width: '2px',
-    backgroundColor: 'rgba(255,255,255,0.7)',
-    margin: '0 20px',
-    '@media (max-width: 768px)': {
-      height: '2px',
-      width: '80%',
-      margin: '10px 0',
     }
   };
 
   const infoSection = {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: '8px',
+    justifyContent: 'space-between',
+    width: '100%',
+    maxWidth: '500px',
+    margin: isMobile ? '8px auto 0px' : '8px 0px 0px 10%',
     padding: '0 20px',
-    minWidth: 'fit-content',
-    '@media (min-width: 769px)': {
-      padding: '0 40px'
-    }
+    color: 'rgba(255, 255, 255, 0.9)'
   };
 
-  const infoItem = {
-    margin: 0,
-    fontSize: '20px',
-    fontWeight: '500',
-  };
   const headerStyle = {
     backgroundColor: '#231161',
     color: 'white',
@@ -120,13 +267,10 @@ const Header = () => {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    padding: '20px',
+    padding: isMobile ? '20px 10px' : '20px',
     boxSizing: 'border-box',
     width: '100%',
     position: 'relative',
-    '@media (max-width: 768px)': {
-      padding: '20px 10px',
-    }
   };
 
   const navBarStyle = {
@@ -138,6 +282,7 @@ const Header = () => {
     padding: '0 20px',
     boxSizing: 'border-box',
     position: 'relative',
+    justifyContent: 'space-between',
   };
 
   const menuButtonStyle = {
@@ -148,9 +293,8 @@ const Header = () => {
     borderRadius: '4px',
     cursor: 'pointer',
     fontSize: '20px',
-    position: 'absolute',
-    right: '20px',
     zIndex: 1001,
+    whiteSpace: 'nowrap',
   };
 
   const dropdownMenuStyle = {
@@ -159,7 +303,7 @@ const Header = () => {
     borderTop: isMenuOpen ? '1px solid black' : 'none',
     borderBottom: isMenuOpen ? '10px solid #FFDC70' : 'none',
     width: '100%',
-    zIndex: 1000,
+    zIndex: 10,
     maxHeight: isMenuOpen ? '1000px' : '0',
     overflow: 'hidden',
     transition: 'max-height 0.3s ease-in-out'
@@ -221,15 +365,70 @@ const Header = () => {
           >
             SOFTWARE ENGINEERING CLASS SFSU
           </button>
-          <div style={divider}></div>
+
           <div style={infoSection}>
-            <h2 style={infoItem}>Fall 2025</h2>
-            <h3 style={infoItem}>Section 01</h3>
-            <h3 style={infoItem}>Team 8</h3>
+            <span>Fall 2025</span>
+            <span style={{ opacity: 0.7 }}>|</span>
+            <span>Section 01</span>
+            <span style={{ opacity: 0.7 }}>|</span>
+            <span>Team 8</span>
           </div>
         </div>
       </header>
       <div style={navBarStyle}>
+        <div style={searchContainerStyle}>
+          <div style={categoryDropdownStyle} ref={categoryRef}>
+            <button 
+              style={categoryButtonStyle}
+              onClick={toggleCategory}
+            >
+              {searchCategory === 'default' ? 'Filter' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+            </button>
+            <ul style={categoryListStyle}>
+              <li>
+                <button 
+                  style={categoryItemStyle}
+                  onClick={() => selectCategory('default')}
+                >
+                  Default
+                </button>
+              </li>
+              <li>
+                <button 
+                  style={categoryItemStyle}
+                  onClick={() => selectCategory('course')}
+                >
+                  Course
+                </button>
+              </li>
+              <li>
+                <button 
+                  style={categoryItemStyle}
+                  onClick={() => selectCategory('tutor')}
+                >
+                  Tutor
+                </button>
+              </li>
+            </ul>
+          </div>
+          <div style={{ display: 'flex', flex: 1 }}>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchQueryChange}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+              placeholder={searchCategory === 'default' ? 'Search...' : `Search ${searchCategory}...`}
+              style={{ ...searchInputStyle, flex: 1 }}
+            />
+            <button 
+              type="button" 
+              style={searchButtonStyle}
+              onClick={handleSearch}
+            >
+              <i className="fas fa-search"></i>
+            </button>
+          </div>
+        </div>
         <button 
           style={menuButtonStyle}
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}

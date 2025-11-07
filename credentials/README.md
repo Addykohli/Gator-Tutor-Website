@@ -49,8 +49,8 @@
 - **Port**: 3306  
 - **Database Username**: root  
 - **Database Password**: CSC648  
-- **Database Name**: team08_db  
-- **Additional User**: profsouza (full privileges)  
+- **Database Name**: csc648_dev / csc648_prod  
+- **Additional User**: profsouza (full privileges) or try teammate does not require priviledges
 - **Database Version**: MySQL 8.0.43  
 
 ---
@@ -76,9 +76,11 @@ ssh -i ~/.ssh/id_ed25519 atharva@3.101.155.82
 ssh -i ~/.ssh/id_ed25519 profsouza@3.101.155.82
 Database
 # From the server (after SSH connection):
-mysql -u root -p team08_db
+mysql -u root -p csc648_dev
 # Password: CSC648
 
 # For professor access:
-mysql -u profsouza -p team08_db
+mysql -u profsouza -p csc648_dev
+or
+mysql -u teammate -p csc648_dev
 # Password: CSC648

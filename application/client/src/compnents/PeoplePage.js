@@ -183,7 +183,7 @@ const styles = {
     color: '#464666',
     textAlign: 'center',
     paddingBottom: '3px',
-    borderBottom: '4px solid #9A2250',
+    borderBottom: '8px solid #9A2250',
     display: 'inline-block',
     margin: '20px auto',
     width: '100%',
