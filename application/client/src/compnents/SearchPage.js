@@ -33,11 +33,8 @@ export default function SearchPage() {
     const searchTerm = q.get("q") || "";
     const searchType = q.get("type") || "default";
     
-    if (!searchTerm) {
-      setResults([]);
-      setStatus("idle");
-      return;
-    }
+    // If no search term, we'll still fetch all items (empty search)
+    const isSearchEmpty = !searchTerm;
 
     const fetchResults = async () => {
       setStatus("loading");
@@ -48,31 +45,24 @@ export default function SearchPage() {
           (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api');
         
         // Build the appropriate endpoint and parameters based on search type
-        let endpoint, params;
+        let endpoint, params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        
+        // Only add 'q' parameter if there's a search term
+        if (searchTerm) {
+          params.set('q', searchTerm);
+        }
         
         if (searchType === 'tutor') {
           endpoint = '/search/tutors';
-          params = new URLSearchParams({
-            q: searchTerm,
-            limit: 20,
-            offset: 0
-          });
-        } 
+} 
         else if (searchType === 'course') {
           endpoint = '/search/courses';
-          params = new URLSearchParams({
-            q: searchTerm,
-            limit: 20,
-            offset: 0
-          });
         } 
         else { // default search (all)
-          endpoint = '/search/all';
-          params = new URLSearchParams({
-            q: searchTerm,
-            limit: 20,
-            offset: 0
-          });
+endpoint = '/search/all';
         }
         
         const response = await fetch(`${apiBaseUrl}${endpoint}?${params.toString()}`);
@@ -162,10 +152,10 @@ export default function SearchPage() {
       <div style={styles.content}>
         <div style={styles.columnsContainer}>
           <div style={styles.leftColumn}>
-            {status === "idle" && (
+            {status === "idle" && !q.get("q") && (
               <div style={{ color: "#6b7280", textAlign: 'center', padding: '40px 20px' }}>
-                <div style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Search for tutors or courses</div>
-                <div>Use the search bar at the top of the page to find tutors or courses</div>
+                <div style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Browse all {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'items'}</div>
+                <div>Use the search bar at the top to filter results</div>
               </div>
             )}
             

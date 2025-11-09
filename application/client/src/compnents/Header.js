@@ -41,10 +41,10 @@ const Header = () => {
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
     
-    // Save search query to localStorage
-    localStorage.setItem('searchQuery', searchQuery);
+    // Save search query to localStorage (even if empty)
+    const searchText = searchQuery.trim();
+    localStorage.setItem('searchQuery', searchText);
     
     // Determine API base URL
     const apiBaseUrl = window.location.hostname === 'localhost' 
@@ -65,24 +65,42 @@ const Header = () => {
       
       if (searchType === 'tutor') {
         // Call /api/search/tutors
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
         const response = await fetch(
-          `${apiBaseUrl}/search/tutors?q=${encodeURIComponent(searchQuery)}&limit=20&offset=0`
+          `${apiBaseUrl}/search/tutors?${params.toString()}`
         );
         const data = await response.json();
         results = data.items.map(item => ({ _kind: 'tutor', ...item }));
       } 
       else if (searchType === 'course') {
         // Call /api/search/courses
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
         const response = await fetch(
-          `${apiBaseUrl}/search/courses?q=${encodeURIComponent(searchQuery)}&limit=20&offset=0`
+          `${apiBaseUrl}/search/courses?${params.toString()}`
         );
         const data = await response.json();
         results = data.items.map(item => ({ _kind: 'course', ...item }));
       } 
       else {
         // type === 'all' - Call /api/search/all
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
         const response = await fetch(
-          `${apiBaseUrl}/search/all?q=${encodeURIComponent(searchQuery)}&limit=20&offset=0`
+          `${apiBaseUrl}/search/all?${params.toString()}`
         );
         const data = await response.json();
         
