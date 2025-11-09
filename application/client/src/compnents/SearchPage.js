@@ -47,7 +47,7 @@ export default function SearchPage() {
     try {
       // Determine API base URL for local vs production
       const apiBaseUrl = process.env.REACT_APP_API_URL || 
-        (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+        (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api');
 
       // Build API URL - backend returns {items: [...], total: ..., limit: ..., offset: ...}
       // All searches use /search/tutors endpoint (it searches by name and course)
