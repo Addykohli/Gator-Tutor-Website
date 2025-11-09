@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import Header from "./Header";
 
 function useQuery() {
@@ -24,84 +24,92 @@ export default function SearchPage() {
   };
 
   const q = useQuery();
-  const navigate = useNavigate();
-
-  const [type, setType] = useState(q.get("type") || "default"); // default | tutor | course
-  const [term, setTerm] = useState(q.get("q") || "");
   const [results, setResults] = useState([]);            // unified results
   const [status, setStatus] = useState("idle");          // idle | loading | done | error
   const [error, setError] = useState("");
 
-  const handleSearch = useCallback(async (selectedType = type, query = term) => {
-    const searchText = (query || "").trim();
-    if (!searchText) {
+  // Fetch results when URL query parameters change
+  useEffect(() => {
+    const searchTerm = q.get("q") || "";
+    const searchType = q.get("type") || "default";
+    
+    if (!searchTerm) {
       setResults([]);
       setStatus("idle");
       return;
     }
 
-    setStatus("loading");
-    setError("");
-    setResults([]);
-
-    try {
-      // Determine API base URL for local vs production
-      const apiBaseUrl = process.env.REACT_APP_API_URL || 
-        (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api');
-
-      // Build API URL - backend returns {items: [...], total: ..., limit: ..., offset: ...}
-      // All searches use /search/tutors endpoint (it searches by name and course)
-      const tutorURL = `${apiBaseUrl}/search/tutors?q=${encodeURIComponent(searchText)}&limit=20&offset=0`;
-
-      let payload = [];
-
-      // Fetch tutors (backend searches both tutor names and courses)
-      const r = await fetch(tutorURL);
-      if (!r.ok) throw new Error(`Search responded ${r.status}`);
+    const fetchResults = async () => {
+      setStatus("loading");
+      setError("");
       
-      const data = await r.json();
-      
-      // Handle backend response format: {items: [...], total: ..., limit: ..., offset: ...}
-      // Also handle legacy formats: array or {results: [...]}
-      let tutors = [];
-      if (Array.isArray(data)) {
-        tutors = data;
-      } else if (Array.isArray(data.items)) {
-        tutors = data.items;
-      } else if (Array.isArray(data.results)) {
-        tutors = data.results;
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || 
+          (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api');
+        
+        // Build the appropriate endpoint and parameters based on search type
+        let endpoint, params;
+        
+        if (searchType === 'tutor') {
+          endpoint = '/search/tutors';
+          params = new URLSearchParams({
+            q: searchTerm,
+            limit: 20,
+            offset: 0
+          });
+        } 
+        else if (searchType === 'course') {
+          endpoint = '/search/courses';
+          params = new URLSearchParams({
+            q: searchTerm,
+            limit: 20,
+            offset: 0
+          });
+        } 
+        else { // default search (all)
+          endpoint = '/search/all';
+          params = new URLSearchParams({
+            q: searchTerm,
+            limit: 20,
+            offset: 0
+          });
+        }
+        
+        const response = await fetch(`${apiBaseUrl}${endpoint}?${params.toString()}`);
+        if (!response.ok) throw new Error(`Search responded with status ${response.status}`);
+        
+        const data = await response.json();
+        
+        // Process the response based on the endpoint
+        if (endpoint.includes('tutors')) {
+          const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+          setResults(items.map(item => ({ _kind: "tutor", ...item })));
+        } 
+        else if (endpoint.includes('courses')) {
+          const items = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+          setResults(items.map(item => ({ _kind: "course", ...item })));
+        } 
+        else { // all
+          const tutors = Array.isArray(data.tutors) ? data.tutors : [];
+          const courses = Array.isArray(data.courses) ? data.courses : [];
+          setResults([
+            ...tutors.map(item => ({ _kind: "tutor", ...item })),
+            ...courses.map(item => ({ _kind: "course", ...item }))
+          ]);
+        }
+        
+        setStatus("done");
+      } catch (e) {
+        console.error("Search error:", e);
+        setError(e.message || "Failed to fetch search results");
+        setStatus("error");
       }
+    };
+    
+    fetchResults();
+  }, [q]);
 
-      // All results are tutors (backend only returns tutors)
-      // For course search, we show tutors that teach courses matching the search
-      payload = tutors.map(it => ({ _kind: "tutor", ...it }));
-
-      setResults(payload);
-      setStatus("done");
-      navigate(`/search?type=${encodeURIComponent(selectedType)}&q=${encodeURIComponent(searchText)}`, { replace: false });
-    } catch (e) {
-      setError(e.message || "Search failed");
-      setStatus("error");
-    }
-  }, [type, term, navigate]);
-
-  // On first mount, run if URL has q (run even when default)
-  useEffect(() => {
-    const initialType = q.get("type") || "default";
-    const initialTerm = q.get("q") || "";
-    setType(initialType);
-    setTerm(initialTerm);
-    if (initialTerm) {
-      handleSearch(initialType, initialTerm);
-    }
-  }, [q, handleSearch]);
-
-  function onSubmit(e) {
-    e.preventDefault();
-    handleSearch();
-  }
-
-  // Render a simple card for tutor or course (no external component)
+  // Render a card for tutor or course
   function ResultCard({ item }) {
     if (item._kind === "tutor") {
       const fullName = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.name || "Tutor";
@@ -116,20 +124,30 @@ export default function SearchPage() {
           <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{fullName}</div>
           {hourlyRate && <div style={{ color: "#6b7280", marginTop: 4 }}>Rate: {hourlyRate}</div>}
           {langs && <div style={{ color: "#6b7280", marginTop: 4 }}>Languages: {langs}</div>}
-          {item.avg_rating != null && <div style={{ color: "#6b7280", marginTop: 4 }}>Rating: {item.avg_rating.toFixed(1)} ⭐</div>}
-          {courses && <div style={{ color: "#6b7280", marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
-            <strong>Courses:</strong> {courses}
-          </div>}
+          {item.avg_rating != null && (
+            <div style={{ color: "#6b7280", marginTop: 4 }}>
+              Rating: {item.avg_rating.toFixed(1)} ⭐
+              {item.sessions_completed != null && ` (${item.sessions_completed} sessions)`}
+            </div>
+          )}
+          {courses && (
+            <div style={{ color: "#6b7280", marginTop: 8, paddingTop: 8, borderTop: "1px solid #e5e7eb" }}>
+              <strong>Teaches:</strong> {courses}
+            </div>
+          )}
         </div>
       );
-    } else {
-      // course (if we ever add course results)
-      const title = item.title || "Course";
-      const code = [item.department_code, item.course_number].filter(Boolean).join(" ");
+    } else if (item._kind === "course") {
+      const courseCode = `${item.department_code} ${item.course_number}`;
+      const tutorCount = item.tutor_count || 0;
+      
       return (
         <div style={styles.card}>
-          <div style={{ fontSize: 18, fontWeight: 600 }}>{title}</div>
-          {code && <div style={{ color: "#6b7280", marginTop: 4 }}>{code}</div>}
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>{item.title}</div>
+          <div style={{ color: "#6b7280", marginBottom: 8 }}>{courseCode}</div>
+          <div style={{ color: "#6b7280" }}>
+            {tutorCount} {tutorCount === 1 ? 'tutor' : 'tutors'} available
+          </div>
           {item.instructor && <div style={{ color: "#6b7280", marginTop: 4 }}>Instructor: {item.instructor}</div>}
         </div>
       );
@@ -144,44 +162,53 @@ export default function SearchPage() {
       <div style={styles.content}>
         <div style={styles.columnsContainer}>
           <div style={styles.leftColumn}>
-            <div style={styles.section}>
-              <h2 style={styles.title}>Find a course or tutor</h2>
-              <form onSubmit={onSubmit} style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px", gap: 12 }}>
-                <select
-                  value={type}
-                  onChange={e => setType(e.target.value)}
-                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db" }}
+            {status === "idle" && (
+              <div style={{ color: "#6b7280", textAlign: 'center', padding: '40px 20px' }}>
+                <div style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Search for tutors or courses</div>
+                <div>Use the search bar at the top of the page to find tutors or courses</div>
+              </div>
+            )}
+            
+            {status === "loading" && (
+              <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                <div>Searching for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}...</div>
+              </div>
+            )}
+            
+            {status === "error" && (
+              <div style={{ color: "#b91c1c", textAlign: 'center', padding: '40px 20px' }}>
+                <div>Error: {error}</div>
+                <button 
+                  onClick={() => window.location.reload()}
+                  style={{
+                    marginTop: '10px',
+                    padding: '8px 16px',
+                    backgroundColor: '#f4c542',
+                    border: '1px solid #caa530',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
                 >
-                  <option value="default">Default (both)</option>
-                  <option value="course">Course</option>
-                  <option value="tutor">Tutor</option>
-                </select>
-
-                <input
-                  value={term}
-                  onChange={e => setTerm(e.target.value)}
-                  placeholder="Search..."
-                  onKeyDown={(e) => { if (e.key === "Enter") onSubmit(e); }}
-                  style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db" }}
-                />
-
-                <button
-                  type="submit"
-                  style={{ padding: "10px 14px", borderRadius: 10, background: "#f4c542", border: "1px solid #caa530", cursor: "pointer", fontWeight: 600 }}
-                >
-                  Search
+                  Try Again
                 </button>
-              </form>
-            </div>
+              </div>
+            )}
+            
+            {status === "done" && results.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#6b7280' }}>
+                No results found for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}
+              </div>
+            )}
 
-            {status === "idle" && <div style={{ color: "#6b7280" }}>Type a term and press Search</div>}
-            {status === "loading" && <div>Searching…</div>}
-            {status === "error" && <div style={{ color: "#b91c1c" }}>Error: {error}</div>}
-            {status === "done" && results.length === 0 && <div>No results found</div>}
+            {status === "done" && results.length > 0 && (
+              <div style={{ marginBottom: '24px', color: '#6b7280' }}>
+                Found {results.length} {results.length === 1 ? 'result' : 'results'} for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}
+              </div>
+            )}
 
-            <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'grid', gap: '16px' }}>
               {results.map((item, idx) => (
-                <ResultCard key={item.id || item.email || item.code || `${item._kind}-${idx}`} item={item} />
+                <ResultCard key={item.id || item.course_id || `${item._kind}-${idx}`} item={item} />
               ))}
             </div>
           </div>
