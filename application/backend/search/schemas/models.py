@@ -33,3 +33,30 @@ class TutorSearchResponse(BaseModel):
     limit: int
     offset: int
 
+
+class CourseSearchResult(BaseModel):
+    """Individual course search result."""
+    course_id: int
+    department_code: str
+    course_number: str
+    title: str
+    tutor_count: int = 0
+
+
+class CourseSearchResponse(BaseModel):
+    """Course search response with pagination."""
+    items: List[CourseSearchResult]
+    total: int
+    limit: int
+    offset: int
+
+
+class SearchAllResponse(BaseModel):
+    """Aggregated search response with both tutors and courses."""
+    tutors: List[TutorSearchResult]
+    courses: List[CourseSearchResult]
+    tutor_total: int
+    course_total: int
+    limit: int
+    offset: int
+

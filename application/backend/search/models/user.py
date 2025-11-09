@@ -1,7 +1,7 @@
 """
 User model representing users in the system.
 """
-from sqlalchemy import Column, Integer, String, DateTime, Enum
+from sqlalchemy import Column, Integer, String, DateTime, Enum, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from ..database import Base
@@ -25,8 +25,8 @@ class User(Base):
 
     user_id = Column(Integer, primary_key=True, index=True)
     sfsu_email = Column(String(255), unique=True, nullable=False, index=True)
-    first_name = Column(String(100), nullable=False)
-    last_name = Column(String(100), nullable=False)
+    first_name = Column(String(100), nullable=False, index=True)
+    last_name = Column(String(100), nullable=False, index=True)
     role = Column(Enum("tutor", "student", "admin", name="user_role"), nullable=False)
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -34,6 +34,11 @@ class User(Base):
 
     # Relationships
     tutor_profile = relationship("TutorProfile", back_populates="user", uselist=False)
+
+    # Composite index for efficient full name searches
+    __table_args__ = (
+        Index('idx_users_full_name', 'first_name', 'last_name'),
+    )
 
     def __repr__(self):
         return f"<User(user_id={self.user_id}, email={self.sfsu_email}, name={self.first_name} {self.last_name})>"
