@@ -32,22 +32,26 @@ def search_tutors_endpoint(
     """
     Search for tutors by name.
     
-    - **q**: General search query that searches tutor names (first name, last name, or full name)
+    - **q**: General search query that searches tutor names (first name, last name, or full name).
+             If empty or whitespace, returns all approved tutors (paginated).
     - **tutor_name**: Search query specifically for tutor names
     - **department**: Filter tutors by department code of courses they teach
     - **course_number**: Filter tutors by course number of courses they teach
     
-    Note: The `q` parameter only searches tutor names, not courses. Use `department` and `course_number` 
-    parameters to filter tutors by the courses they teach.
-    
-    BREAKING CHANGE: As of this version, the `q` parameter no longer searches course titles.
-    To find tutors by course, use `/search/tutors?department=CSC` or `/search/courses?q=python`
-    followed by filtering tutors for specific courses.
+    Note: Empty or whitespace `q` parameter returns all approved tutors with default sorting and pagination.
     """
     try:
+        # Normalize q: treat empty/whitespace as None (no filter, returns all results)
+        q_norm = (q or "").strip()
+        q_norm = q_norm if q_norm else None
+        
+        # Normalize tutor_name: treat empty/whitespace as None
+        tutor_name_norm = (tutor_name or "").strip()
+        tutor_name_norm = tutor_name_norm if tutor_name_norm else None
+        
         params = {
-            "q": q.strip() if q else None,
-            "tutor_name": tutor_name.strip() if tutor_name else None,
+            "q": q_norm,
+            "tutor_name": tutor_name_norm,
             "department": department.upper() if department else None,
             "course_number": course_number,
             "limit": limit,
@@ -85,11 +89,18 @@ def search_courses_endpoint(
     """
     Search for courses by title, department, or course number.
     
+    - **q**: Search query for course title, department code, or course number.
+             If empty or whitespace, returns all active courses (paginated).
+    
     Returns courses with the count of approved tutors teaching each course.
     """
     try:
+        # Normalize q: treat empty/whitespace as None (no filter)
+        q_norm = (q or "").strip()
+        q_norm = q_norm if q_norm else None
+        
         params = {
-            "q": q.strip() if q else None,
+            "q": q_norm,
             "department": department.upper() if department else None,
             "course_number": course_number,
             "limit": limit,
@@ -125,6 +136,9 @@ def search_all_endpoint(
     """
     Search for both tutors and courses in a single request.
     
+    - **q**: Search query for both tutors (names) and courses (titles/codes).
+             If empty or whitespace, returns all approved tutors and active courses (paginated).
+    
     Returns aggregated results with both tutors and courses matching the query.
     The limit is split between tutors and courses (limit/2 each, minimum 1).
     
@@ -135,6 +149,10 @@ def search_all_endpoint(
     not just the returned items within the limit.
     """
     try:
+        # Normalize q: treat empty/whitespace as None (no filter)
+        q_norm = (q or "").strip()
+        q_norm = q_norm if q_norm else None
+        
         # Split limit between tutors and courses (min 1 each)
         # NOTE: Sequential execution - fine for now, but consider async parallelization later
         tutor_limit = max(1, limit // 2)
@@ -142,7 +160,7 @@ def search_all_endpoint(
         
         # Prepare params for both searches
         tutor_params = {
-            "q": q.strip() if q else None,
+            "q": q_norm,
             "tutor_name": None,
             "department": None,
             "course_number": None,
@@ -151,7 +169,7 @@ def search_all_endpoint(
         }
         
         course_params = {
-            "q": q.strip() if q else None,
+            "q": q_norm,
             "department": None,
             "course_number": None,
             "limit": course_limit,

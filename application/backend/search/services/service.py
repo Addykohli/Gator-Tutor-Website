@@ -168,22 +168,28 @@ def search_courses(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int
     courses = query.offset(params["offset"]).limit(params["limit"]).all()
     
     # Build results as dicts with tutor count
-    # NOTE: Counting tutors per course with a subquery for each course.
-    # At scale, consider:
-    # - Materialized views with pre-computed counts
-    # - Cached counters (Redis, etc.)
-    # - Batch counting with GROUP BY if course set is small
-    results = []
-    for course in courses:
-        # Count tutors teaching this course (approved tutors only)
-        tutor_count = db.query(func.count(TutorCourse.tutor_id)).join(
+    # OPTIMIZATION: Batch count tutors for all courses in one query instead of N+1 queries
+    course_ids = [course.course_id for course in courses]
+    tutor_counts = {}
+    
+    if course_ids:
+        # Single query to count tutors for all courses at once
+        counts = db.query(
+            TutorCourse.course_id,
+            func.count(TutorCourse.tutor_id).label('tutor_count')
+        ).join(
             TutorProfile, TutorCourse.tutor_id == TutorProfile.tutor_id
         ).filter(
-            and_(
-                TutorCourse.course_id == course.course_id,
-                TutorProfile.status == 'approved'
-            )
-        ).scalar() or 0
+            TutorCourse.course_id.in_(course_ids),
+            TutorProfile.status == 'approved'
+        ).group_by(TutorCourse.course_id).all()
+        
+        # Extract course_id and count from SQLAlchemy Row objects
+        tutor_counts = {row[0]: row[1] for row in counts}
+    
+    results = []
+    for course in courses:
+        tutor_count = tutor_counts.get(course.course_id, 0)
         
         results.append({
             "course_id": course.course_id,
