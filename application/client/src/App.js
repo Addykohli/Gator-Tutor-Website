@@ -10,6 +10,7 @@ import SonamPage from './compnents/SonamPage';
 import AketzaliPage from './compnents/AketzaliPage';
 import HomePage from './compnents/HomePage';
 import LoginPage from './compnents/LoginPage';
+import SearchPage from './compnents/SearchPage';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/people" element={<PeoplePage />} />
             <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/addy" element={<AddyPage />} />
             <Route path="/kojiro" element={<KojiroPage />} />
             <Route path="/atharva" element={<AtharvaPage />} />
