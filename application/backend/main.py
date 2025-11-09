@@ -8,7 +8,11 @@ app = FastAPI(title="Team08 API", version="0.1.0")
 # CORS middleware - allow React frontend to access API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React dev server
+    allow_origins=[
+        "http://localhost:3000",  # React dev server (local)
+        "http://3.101.155.82",    # Production server IP
+        "http://localhost",        # Local access on server
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +28,11 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.get("/healthz")
+def healthz():
+    """Lightweight health check endpoint for systemd/nginx (no DB hit)."""
+    return "ok"
 
 @app.get("/team")
 def team():

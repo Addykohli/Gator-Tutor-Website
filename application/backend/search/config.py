@@ -13,6 +13,8 @@ class Settings:
     """Application settings loaded from environment variables."""
     
     # Database configuration
+    # Default uses localhost (127.0.0.1) for server deployment
+    # For local development with SSH tunnel, set DATABASE_URL in .env file
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "mysql+pymysql://teammate:CSC648@127.0.0.1:3306/csc648_dev"

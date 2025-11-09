@@ -46,9 +46,16 @@ const Header = () => {
     // Save search query to localStorage
     localStorage.setItem('searchQuery', searchQuery);
     
-
-    // api for returning searchCategory and searchQuery
+    // Map searchCategory to SearchPage type parameter
+    const typeMap = {
+      'tutor': 'tutor',
+      'course': 'course',
+      'default': 'default'
+    };
     
+    // Navigate to SearchPage with query parameters
+    const searchType = typeMap[searchCategory] || 'default';
+    navigate(`/search?q=${encodeURIComponent(searchQuery)}&type=${searchType}`);
   };
   
   const toggleCategory = () => {
