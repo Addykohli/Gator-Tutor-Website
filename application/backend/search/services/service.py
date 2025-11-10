@@ -24,16 +24,19 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
     # Build filters
     conditions = [TutorProfile.status == 'approved']
     
-    # General search (q) - searches name and course
+    # General search (q) - only searches tutor names (not courses)
+    # NOTE: LIKE queries with leading % won't use indexes efficiently.
+    # For better performance at scale, consider:
+    # - Prefix matching (no leading %) when possible
+    # - MySQL FULLTEXT indexes
+    # - Search engines (Elasticsearch, etc.) for large datasets
     if params.get("q"):
         search_term = f"%{params['q'].lower()}%"
         conditions.append(
             or_(
                 func.lower(User.first_name).like(search_term),
                 func.lower(User.last_name).like(search_term),
-                func.lower(func.concat(User.first_name, ' ', User.last_name)).like(search_term),
-                func.lower(Course.title).like(search_term),
-                func.lower(func.concat(Course.department_code, Course.course_number)).like(search_term)
+                func.lower(func.concat(User.first_name, ' ', User.last_name)).like(search_term)
             )
         )
     
@@ -48,11 +51,11 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
             )
         )
     
-    # Department filter
+    # Department filter - filters tutors by courses they teach
     if params.get("department"):
         conditions.append(Course.department_code == params["department"])
     
-    # Course number filter
+    # Course number filter - filters tutors by courses they teach
     if params.get("course_number"):
         conditions.append(Course.course_number == params["course_number"])
     
@@ -112,6 +115,88 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
             "courses": courses,
             "profile_image_path_thumb": tutor.profile_image_path_thumb,
             "profile_image_path_full": tutor.profile_image_path_full
+        })
+    
+    return results, total_count
+
+
+def search_courses(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Search for courses based on provided parameters.
+    Returns tuple of (results as dicts, total_count).
+    """
+    # Base query: active courses only
+    query = db.query(Course)
+    
+    # Build filters
+    conditions = [Course.is_active == True]
+    
+    # General search (q) - searches course title, department, course number
+    # NOTE: LIKE queries with leading % won't use indexes efficiently.
+    # See note in search_tutors() for optimization strategies.
+    if params.get("q"):
+        search_term = f"%{params['q'].lower()}%"
+        conditions.append(
+            or_(
+                func.lower(Course.title).like(search_term),
+                func.lower(Course.department_code).like(search_term),
+                func.lower(Course.course_number).like(search_term),
+                func.lower(func.concat(Course.department_code, Course.course_number)).like(search_term),
+                func.lower(func.concat(Course.department_code, ' ', Course.course_number)).like(search_term)
+            )
+        )
+    
+    # Department filter
+    if params.get("department"):
+        conditions.append(Course.department_code == params["department"].upper())
+    
+    # Course number filter
+    if params.get("course_number"):
+        conditions.append(Course.course_number == params["course_number"])
+    
+    query = query.filter(and_(*conditions))
+    
+    # Get count of courses
+    total_count = query.count()
+    
+    # Order and paginate
+    query = query.order_by(
+        Course.department_code.asc(),
+        Course.course_number.asc()
+    )
+    
+    courses = query.offset(params["offset"]).limit(params["limit"]).all()
+    
+    # Build results as dicts with tutor count
+    # OPTIMIZATION: Batch count tutors for all courses in one query instead of N+1 queries
+    course_ids = [course.course_id for course in courses]
+    tutor_counts = {}
+    
+    if course_ids:
+        # Single query to count tutors for all courses at once
+        counts = db.query(
+            TutorCourse.course_id,
+            func.count(TutorCourse.tutor_id).label('tutor_count')
+        ).join(
+            TutorProfile, TutorCourse.tutor_id == TutorProfile.tutor_id
+        ).filter(
+            TutorCourse.course_id.in_(course_ids),
+            TutorProfile.status == 'approved'
+        ).group_by(TutorCourse.course_id).all()
+        
+        # Extract course_id and count from SQLAlchemy Row objects
+        tutor_counts = {row[0]: row[1] for row in counts}
+    
+    results = []
+    for course in courses:
+        tutor_count = tutor_counts.get(course.course_id, 0)
+        
+        results.append({
+            "course_id": course.course_id,
+            "department_code": course.department_code,
+            "course_number": course.course_number,
+            "title": course.title,
+            "tutor_count": tutor_count
         })
     
     return results, total_count

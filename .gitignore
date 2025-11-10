@@ -10,3 +10,6 @@ __pycache__/
 .env
 *.log
 .idea/
+# Build artifacts
+client-build-*.tar.gz
+client-build.tar.gz

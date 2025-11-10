@@ -39,16 +39,93 @@ const Header = () => {
     };
   }, []);
 
-  const handleSearch = (e) => {
+  const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return;
     
-    // Save search query to localStorage
-    localStorage.setItem('searchQuery', searchQuery);
+    // Save search query to localStorage (even if empty)
+    const searchText = searchQuery.trim();
+    localStorage.setItem('searchQuery', searchText);
     
-
-    // api for returning searchCategory and searchQuery
+    // Determine API base URL
+    const apiBaseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8000' 
+      : '/api';
     
+    // Map searchCategory to API type parameter
+    const typeMap = {
+      'tutor': 'tutor',
+      'course': 'course',
+      'default': 'all'
+    };
+    
+    const searchType = typeMap[searchCategory] || 'all';
+    
+    try {
+      let results = [];
+      
+      if (searchType === 'tutor') {
+        // Call /api/search/tutors
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
+        const response = await fetch(
+          `${apiBaseUrl}/search/tutors?${params.toString()}`
+        );
+        const data = await response.json();
+        results = data.items.map(item => ({ _kind: 'tutor', ...item }));
+      } 
+      else if (searchType === 'course') {
+        // Call /api/search/courses
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
+        const response = await fetch(
+          `${apiBaseUrl}/search/courses?${params.toString()}`
+        );
+        const data = await response.json();
+        results = data.items.map(item => ({ _kind: 'course', ...item }));
+      } 
+      else {
+        // type === 'all' - Call /api/search/all
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0
+        });
+        if (searchText) params.set('q', searchText);
+        
+        const response = await fetch(
+          `${apiBaseUrl}/search/all?${params.toString()}`
+        );
+        const data = await response.json();
+        
+        // Merge tutors and courses
+        results = [
+          ...(data.tutors || []).map(item => ({ _kind: 'tutor', ...item })),
+          ...(data.courses || []).map(item => ({ _kind: 'course', ...item }))
+        ];
+        
+        // Log result counts for debugging
+        console.log(`Found ${data.tutor_total || 0} tutors and ${data.course_total || 0} courses`);
+      }
+      
+      // Navigate to SearchPage with query parameters and results
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}&type=${searchType}`, {
+        state: { results }
+      });
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      // Navigate with error state
+      navigate(`/search?q=${encodeURIComponent(searchQuery)}&type=${searchType}`, {
+        state: { error: error.message || 'Failed to fetch search results' }
+      });
+    }
   };
   
   const toggleCategory = () => {
