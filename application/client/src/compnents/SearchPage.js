@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import Header from "./Header";
+import Footer from './Footer';
 
 function useQuery() {
   const { search } = useLocation();
@@ -33,9 +34,6 @@ export default function SearchPage() {
     const searchTerm = q.get("q") || "";
     const searchType = q.get("type") || "default";
     
-    // If no search term, we'll still fetch all items (empty search)
-    const isSearchEmpty = !searchTerm;
-
     const fetchResults = async () => {
       setStatus("loading");
       setError("");
@@ -204,6 +202,7 @@ endpoint = '/search/all';
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

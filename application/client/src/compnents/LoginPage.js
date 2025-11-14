@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Footer from './Footer';
 import Header from './Header';
 
 const LoginPage = () => {
@@ -107,6 +108,7 @@ const LoginPage = () => {
         </button>
         </form>
       </div>
+      <Footer />
     </div>
   );
 };

@@ -11,6 +11,11 @@ import AketzaliPage from './compnents/AketzaliPage';
 import HomePage from './compnents/HomePage';
 import LoginPage from './compnents/LoginPage';
 import SearchPage from './compnents/SearchPage';
+import MySchedulePage from './compnents/MySchedulePage';
+import TutorProfile from './compnents/TutorProfile';
+import FindTutorPage from './compnents/FindTutorPage';
+import FindCoursePage from './compnents/FindCoursePage';
+import CourseCoverageRequestPage from './compnents/CourseCoverageRequestPage';
 
 function App() {
   return (
@@ -28,6 +33,11 @@ function App() {
             <Route path="/krinjal" element={<KrinjalPage />} />
             <Route path="/sonam" element={<SonamPage />} />
             <Route path="/aketzali" element={<AketzaliPage />} />
+            <Route path="/myschedule" element={<MySchedulePage />} />
+            <Route path="/tutor/:tutorId" element={<TutorProfile />} />
+            <Route path="/find-tutor" element={<FindTutorPage />} />
+            <Route path="/find-course" element={<FindCoursePage />} />
+            <Route path="/coverage-request" element={<CourseCoverageRequestPage />} />
           </Routes>
         </div>
       </Router>

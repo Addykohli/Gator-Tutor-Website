@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from './Footer';
 import Header from './Header';
 
 function AtharvaPage() {
@@ -39,6 +40,7 @@ function AtharvaPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

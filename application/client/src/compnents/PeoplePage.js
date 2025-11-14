@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from './Footer';
 import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 
@@ -97,6 +98,7 @@ function PeoplePage() {
           ))}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

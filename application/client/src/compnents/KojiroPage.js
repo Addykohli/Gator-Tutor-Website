@@ -1,4 +1,5 @@
 import React from "react";
+import Footer from './Footer';
 import Header from "./Header";
 
 function KojiroPage() {
@@ -45,6 +46,7 @@ function KojiroPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

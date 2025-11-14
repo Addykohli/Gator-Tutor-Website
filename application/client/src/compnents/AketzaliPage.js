@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from './Footer';
 import Header from './Header';
 
 function AketzaliPage() {
@@ -47,6 +48,7 @@ function AketzaliPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
