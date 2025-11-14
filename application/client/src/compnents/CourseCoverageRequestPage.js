@@ -21,13 +21,14 @@ const CourseCoverageRequestPage = () => {
     heading: {
       color: "#333",
       textAlign: "center",
-      paddingBottom: "3px",
-      borderBottom: "8px solid #9A2250",
-      display: "block",
+      padding: "0px",
+      borderBottom: "4px solid #9A2250",
+      display: "inline-block",
       margin: "20px auto",
       fontSize: "45px",
       fontWeight: "600",
-      width: "fit-content"
+      lineHeight: "1.2",
+      position: "relative"
     },
     content: {
       maxWidth: '1200px',

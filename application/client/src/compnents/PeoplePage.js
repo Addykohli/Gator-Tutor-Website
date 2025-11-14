@@ -182,16 +182,16 @@ const styles = {
     backgroundColor: '#e9e9e9',
   },
   heading: {
-    color: '#464666',
-    textAlign: 'center',
-    paddingBottom: '3px',
-    borderBottom: '8px solid #9A2250',
-    display: 'inline-block',
-    margin: '20px auto',
-    width: '100%',
-    maxWidth: '300px',
-    fontWeight: 'bold',
-    fontSize: '45px',
+    color: "#333",
+    textAlign: "center",
+    padding: "0px",
+    borderBottom: "4px solid #9A2250",
+    display: "inline-block",
+    margin: "20px auto",
+    fontSize: "45px",
+    fontWeight: "600",
+    lineHeight: "1.2",
+    position: "relative"
   },
 };
 

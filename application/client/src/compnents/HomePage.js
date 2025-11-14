@@ -15,13 +15,14 @@ const HomePage = () => {
     heading: {
       color: "#333",
       textAlign: "center",
-      paddingBottom: "3px",
-      borderBottom: "8px solid #9A2250",
-      display: "block",
+      padding: "0px",
+      borderBottom: "4px solid #9A2250",
+      display: "inline-block",
       margin: "20px auto",
       fontSize: "45px",
       fontWeight: "600",
-      width: "fit-content"
+      lineHeight: "1.2",
+      position: "relative"
     },
     content: {
       width: '100%',
@@ -40,7 +41,8 @@ const HomePage = () => {
     },
     section: {
       padding: '20px',
-      borderRadius: '20px',
+      borderRadius: '40px',
+      backgroundColor: 'rgb(240, 240, 240)',
     },
     myScheduleSection: {
       padding: '20px 20px 0px 20px',
@@ -74,22 +76,42 @@ const HomePage = () => {
     linkItem: {
       margin: '0px 140px 12px 0px',
       padding: 0,
-      borderBottom: '1px solid #f5f5f5',
+      border: 'none',
       backgroundColor: 'rgba(154, 34, 80, 0.7)',
       borderRadius: '4px',
       overflow: 'hidden',
+      position: 'relative',
+      transition: 'all 0.3s ease',
+      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
     },
     link: {
       color: 'white',
       textDecoration: 'none',
       fontSize: '1.1rem',
-      padding: '8px',
-      transition: 'all 0.2s',
+      padding: '12px 16px',
       display: 'block',
-      '&:hover': {
-        color: '#2980b9',
-        textDecoration: 'underline',
-      },
+      position: 'relative',
+      zIndex: 1,
+      transition: 'all 0.3s ease',
+    },
+    linkHover: {
+      color: 'white',
+      transform: 'translateX(5px)',
+    },
+    linkBefore: {
+      content: '""',
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      background: 'linear-gradient(45deg, transparent 60%, rgba(255,255,255,0.2) 60%, rgba(255,255,255,0.2) 100%)',
+      zIndex: -1,
+      transform: 'translateX(-100%)',
+      transition: 'transform 0.3s ease',
+    },
+    linkBeforeHover: {
+      transform: 'translateX(0)',
     },
     columnsContainer: {
       display: 'flex',
@@ -141,18 +163,87 @@ const HomePage = () => {
               <h2 style={styles.sectionTitle}>Important Links</h2>
               <ul style={styles.linkList}>
                 <li style={styles.linkItem}>
-                  <a href="/find-tutor" style={{...styles.link, display: 'block', width: '100%', height: '100%'}}>
-                    Find a tutor
+                  <a 
+                    href="/find-tutor" 
+                    style={styles.link}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateX(5px)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateX(0)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                    }}
+                  >
+                    <span style={{position: 'relative', zIndex: 2}}>Find a tutor</span>
+                    <span 
+                      data-before 
+                      style={{
+                        ...styles.linkBefore,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        pointerEvents: 'none'
+                      }}
+                    />
                   </a>
                 </li>
                 <li style={styles.linkItem}>
-                  <a href="/find-course" style={{...styles.link, display: 'block', width: '100%', height: '100%'}}>
-                    Find a Course
+                  <a 
+                    href="/find-course" 
+                    style={styles.link}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateX(5px)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateX(0)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                    }}
+                  >
+                    <span style={{position: 'relative', zIndex: 2}}>Find a Course</span>
+                    <span 
+                      data-before 
+                      style={{
+                        ...styles.linkBefore,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        pointerEvents: 'none'
+                      }}
+                    />
                   </a>
                 </li>
                 <li style={styles.linkItem}>
-                  <a href="/coverage-request" style={{...styles.link, display: 'block', width: '100%', height: '100%'}}>
-                    Course Coverage Request
+                  <a 
+                    href="/coverage-request" 
+                    style={styles.link}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateX(5px)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateX(0)';
+                      e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                    }}
+                  >
+                    <span style={{position: 'relative', zIndex: 2}}>Course Coverage Request</span>
+                    <span 
+                      data-before 
+                      style={{
+                        ...styles.linkBefore,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        pointerEvents: 'none'
+                      }}
+                    />
                   </a>
                 </li>
               </ul>
@@ -162,9 +253,90 @@ const HomePage = () => {
               <div style={styles.section}>
                 <h2 style={styles.sectionTitle}>Tutor Links</h2>
                 <ul style={styles.linkList}>
-                  <li style={styles.linkItem}><a href="/my-courses" style={styles.link}>Courses I tutor</a></li>
-                  <li style={styles.linkItem}><a href="/appointment-requests" style={styles.link}>Appointment Requests</a></li>
-                  <li style={styles.linkItem}><a href="/appointments" style={styles.link}>Appointments</a></li>
+                  <li style={styles.linkItem}>
+                    <a 
+                      href="/my-courses" 
+                      style={styles.link}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateX(5px)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateX(0)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                      }}
+                    >
+                      <span style={{position: 'relative', zIndex: 2}}>Courses I tutor</span>
+                      <span 
+                        data-before 
+                        style={{
+                          ...styles.linkBefore,
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                    </a>
+                  </li>
+                  <li style={styles.linkItem}>
+                    <a 
+                      href="/appointment-requests" 
+                      style={styles.link}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateX(5px)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateX(0)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                      }}
+                    >
+                      <span style={{position: 'relative', zIndex: 2}}>Appointment Requests</span>
+                      <span 
+                        data-before 
+                        style={{
+                          ...styles.linkBefore,
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                    </a>
+                  </li>
+                  <li style={styles.linkItem}>
+                    <a 
+                      href="/appointments" 
+                      style={styles.link}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateX(5px)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(0)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateX(0)';
+                        e.target.querySelector('span[data-before]').style.transform = 'translateX(-100%)';
+                      }}
+                    >
+                      <span style={{position: 'relative', zIndex: 2}}>Appointments</span>
+                      <span 
+                        data-before 
+                        style={{
+                          ...styles.linkBefore,
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                    </a>
+                  </li>
                 </ul>
               </div>
             )}
