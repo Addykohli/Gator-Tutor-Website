@@ -25,7 +25,7 @@ const reducer = (state, action) => {
           id: action.payload.id,
           firstName: action.payload.firstName || '',
           lastName: action.payload.lastName || '',
-          isTutor: action.payload.isTutor || false
+          isTutor: action.payload.isTutor || true //false
         },
         isAuthenticated: true,
         loading: false
@@ -39,7 +39,7 @@ const reducer = (state, action) => {
           lastName: '',
           isTutor: false
         },
-        isAuthenticated: false,
+        isAuthenticated: true, //false
         loading: false
       };
     case 'SET_LOADING':
@@ -95,7 +95,7 @@ export const ContextProvider = ({ children }) => {
           id: userData.id,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          isTutor: userData.isTutor || false
+          isTutor: userData.isTutor || true //false
         }
       });
       

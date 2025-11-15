@@ -488,7 +488,7 @@ const Header = () => {
               </li>
             </ul>
           </div>
-          <div style={{ display: 'flex', flex: 1 }}>
+          <div style={{ display: 'flex', flex: 1, marginRight: '20px' }}>
             <input
               type="text"
               value={searchQuery}

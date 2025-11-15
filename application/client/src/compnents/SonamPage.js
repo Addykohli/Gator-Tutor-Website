@@ -1,4 +1,5 @@
 import React from 'react';
+import Footer from './Footer';
 import Header from './Header';
 
 function SonamPage() {
@@ -44,6 +45,7 @@ function SonamPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Footer from './Footer';
 import Header from './Header';
 
 const LoginPage = () => {
@@ -15,15 +16,16 @@ const LoginPage = () => {
       padding: '20px',
     },
     title: {
-        color: "#333",
-        textAlign: "center",
-        paddingBottom: "3px",
-        borderBottom: "8px solid #9A2250",
-        display: "block",
-        margin: "20px auto",
-        fontSize: "45px",
-        fontWeight: "600",
-        width: "fit-content"
+      color: "#333",
+      textAlign: "center",
+      padding: "0px",
+      borderBottom: "4px solid #9A2250",
+      display: "inline-block",
+      margin: "20px auto",
+      fontSize: "45px",
+      fontWeight: "600",
+      lineHeight: "1.2",
+      position: "relative"
     },
     inputField: {
       width: '100%',
@@ -107,6 +109,7 @@ const LoginPage = () => {
         </button>
         </form>
       </div>
+      <Footer />
     </div>
   );
 };
