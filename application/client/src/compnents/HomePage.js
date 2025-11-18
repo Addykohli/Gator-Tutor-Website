@@ -246,6 +246,38 @@ const HomePage = () => {
                     />
                   </a>
                 </li>
+                <li style={styles.linkItem}>
+                  <a 
+                    href="/messages" 
+                    style={styles.link}
+                    onMouseEnter={(e) => {
+                      const target = e.target;
+                      const beforeElement = target.querySelector('span[data-before]');
+                      if (target) target.style.transform = 'translateX(5px)';
+                      if (beforeElement) beforeElement.style.transform = 'translateX(0)';
+                    }}
+                    onMouseLeave={(e) => {
+                      const target = e.target;
+                      const beforeElement = target.querySelector('span[data-before]');
+                      if (target) target.style.transform = 'translateX(0)';
+                      if (beforeElement) beforeElement.style.transform = 'translateX(-100%)';
+                    }}
+                  >
+                    <span style={{position: 'relative', zIndex: 2}}>Messages</span>
+                    <span 
+                      data-before 
+                      style={{
+                        ...styles.linkBefore,
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        pointerEvents: 'none'
+                      }}
+                    />
+                  </a>
+                </li>
               </ul>
             </div>
 

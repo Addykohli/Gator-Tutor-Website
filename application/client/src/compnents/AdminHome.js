@@ -205,6 +205,15 @@ const AdminHome = () => {
                     <span style={{position: 'relative', zIndex: 2}}>Course Coverage Requests</span>
                   </a>
                 </li>
+                <li style={styles.linkItem}>
+                  <a 
+                    href="/messages" 
+                    style={styles.link}
+                    onClick={(e) => handleAdminLinkClick(e, '/messages')}
+                  >
+                    <span style={{position: 'relative', zIndex: 2}}>Messages</span>
+                  </a>
+                </li>
               </ul>
             </div>
           </div>
