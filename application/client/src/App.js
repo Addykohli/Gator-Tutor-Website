@@ -17,7 +17,8 @@ import TutorProfile from './compnents/TutorProfile';
 import FindTutorPage from './compnents/FindTutorPage';
 import FindCoursePage from './compnents/FindCoursePage';
 import CourseCoverageRequestPage from './compnents/CourseCoverageRequestPage';
-
+import MessagesPage from './compnents/MessagesPage';
+import RegisterPage from './compnents/RegisterPage';
 // Protected Route component for admin access
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -57,6 +58,8 @@ function App() {
             <Route path="/find-tutor" element={<FindTutorPage />} />
             <Route path="/find-course" element={<FindCoursePage />} />
             <Route path="/coverage-request" element={<CourseCoverageRequestPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/register" element={<RegisterPage />} />
             <Route 
               path="/admin" 
               element={

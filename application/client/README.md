@@ -2,32 +2,25 @@
 
 This document provides an overview of the webpages implemented in the client-side React application.
 
+## production changes
+- Admin auth verify
+- tutor profile navigation (remove default tutor link)
+- messages temp ui removal veriy
+
 ## Implemented Pages
 
-### Core Pages
 - **Home Page** (`/`)
-
-
 - **Login Page** (`/login`)
-
-
-- **People Page** (`/people`)
-
-### Team Member Pages
-- **Addy's Page** (`/addy`)
-- **Kojiro's Page** (`/kojiro`)
-- **Atharva's Page** (`/atharva`)
-- **Krinjal's Page** (`/krinjal`)
-- **Sonam's Page** (`/sonam`)
-- **Aketzali's Page** (`/aketzali`)
-
-## to be implemented
 - **Find A Tutor** (`/find-tutor`)
 - **Find A Course** (`/find-course`)
 - **Course Coverage Request** (`/coverage-request`)
 - **Tutor Profile** (`/tutor-profile/:tutorId`)
-- **Student Profile** (`/student-profile/:studentId`)
-- **My Schedule** (`/my-schedule`)
+- **My Schedule** (`/myschedule`)
+- **Messages** (`/messages`)
+- **Admin Home** (`/admin`)
+
+## to be implemented
+
 - **Appointment Requests** (`/appointment-requests`)
 - **Appointments** (`/appointments`)
 
