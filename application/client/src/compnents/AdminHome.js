@@ -212,7 +212,7 @@ const AdminHome = () => {
           <div style={styles.rightColumn}>
             <div style={styles.myCalendarSection}>
               <button 
-                onClick={() => window.location.href = '/mycalendar'}
+                onClick={() => window.location.href = '/myschedule'}
                 style={{
                   width: '100%',
                   padding: '12px',
