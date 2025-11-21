@@ -27,7 +27,7 @@ class User(Base):
     sfsu_email = Column(String(255), unique=True, nullable=False, index=True)
     first_name = Column(String(100), nullable=False, index=True)
     last_name = Column(String(100), nullable=False, index=True)
-    role = Column(Enum("tutor", "student", "admin", name="user_role"), nullable=False)
+    role = Column(Enum("tutor", "student", "admin", "both", name="user_role"), nullable=False)
     password_hash = Column(String(255), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

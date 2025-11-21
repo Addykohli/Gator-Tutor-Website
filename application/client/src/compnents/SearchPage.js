@@ -380,62 +380,31 @@ export default function SearchPage() {
     console.log('useEffect triggered with q:', q.toString());
     const searchTerm = (q.get("q") || "").toLowerCase();
     const searchType = q.get("type") || "default";
-    
+
     console.log('Search params:', { searchTerm, searchType });
-    
+
     const fetchResults = () => {
       setStatus("loading");
       setError("");
-      
+
       try {
-        // Use mock data when running on localhost
-        if (window.location.hostname === 'localhost' || process.env.NODE_ENV === 'development') {
-          setTimeout(() => {
-            let mockResults = [];
-            
-            // Handle search type 'all', 'tutor', or 'default' for tutors
-            if (searchType === 'tutor' || searchType === 'all' || searchType === 'default') {
-              const filteredTutors = searchTerm 
-                ? mockTutors.filter(tutor => {
-                    const searchStr = `${tutor.first_name} ${tutor.last_name} ${tutor.courses.map(c => `${c.department_code} ${c.course_number}`).join(' ')}`.toLowerCase();
-                    return searchStr.includes(searchTerm);
-                  })
-                : [...mockTutors]; // Return all tutors if no search term
-              
-              mockResults = [...filteredTutors.map(t => ({ ...t, _kind: 'tutor' }))];
-            }
-            
-            // Handle search type 'all', 'course', or 'default' for courses
-            if (searchType === 'course' || searchType === 'all' || searchType === 'default') {
-              const filteredCourses = searchTerm
-                ? mockCourses.filter(course => {
-                    const searchStr = `${course.department_code} ${course.course_number} ${course.title}`.toLowerCase();
-                    return searchStr.includes(searchTerm);
-                  })
-                : [...mockCourses]; // Return all courses if no search term
-                
-              mockResults = [...mockResults, ...filteredCourses.map(c => ({ ...c, _kind: 'course' }))];
-            }
-            
-            console.log('Setting mock results:', mockResults);
-            console.log('Current searchTerm:', searchTerm, 'searchType:', searchType);
-            setResults(mockResults);
-            setStatus("done");
-          }, 500); // Simulate network delay
+        // Always use real API
+        if (false) {
+          // Mock data block skipped
         } else {
           // Original API call for production
-          const apiBaseUrl = process.env.REACT_APP_API_URL || '/api';
-          
+          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+
           // Build the appropriate endpoint and parameters based on search type
           let endpoint, params = new URLSearchParams({
             limit: 20,
             offset: 0
           });
-          
+
           if (searchTerm) {
             params.set('q', searchTerm);
           }
-          
+
           if (searchType === 'tutor') {
             endpoint = '/search/tutors';
           } else if (searchType === 'course') {
@@ -443,7 +412,7 @@ export default function SearchPage() {
           } else {
             endpoint = '/search/all';
           }
-          
+
           fetch(`${apiBaseUrl}${endpoint}?${params.toString()}`)
             .then(response => {
               if (!response.ok) throw new Error(`Search responded with status ${response.status}`);
@@ -478,10 +447,10 @@ export default function SearchPage() {
         setStatus("error");
       }
     };
-    
+
     // Initial fetch
     fetchResults();
-    
+
     // Set up a small delay to ensure the loading state is shown
     const timer = setTimeout(() => {
       if (status === "loading") {
@@ -489,7 +458,7 @@ export default function SearchPage() {
         setStatus(prev => prev === "loading" ? "done" : prev);
       }
     }, 100);
-    
+
     return () => clearTimeout(timer);
   }, [q]); // Only depend on q since we're getting searchTerm and searchType from it
 
@@ -499,7 +468,7 @@ export default function SearchPage() {
       const fullName = [item.first_name, item.last_name].filter(Boolean).join(" ") || item.name || "Tutor";
       const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
       const hourlyRate = item.hourly_rate_cents ? `$${(item.hourly_rate_cents / 100).toFixed(2)}/hr` : 'Rate not specified';
-      
+
       return (
         <div style={styles.tutorCard}>
           <div style={styles.tutorCardContent}>
@@ -509,7 +478,7 @@ export default function SearchPage() {
               </div>
               <div>
                 <div style={styles.tutorName}>{fullName}</div>
-                <div style={{fontWeight: '600', color: '#2c3e50', margin: '4px 0'}}>
+                <div style={{ fontWeight: '600', color: '#2c3e50', margin: '4px 0' }}>
                   {hourlyRate}
                 </div>
                 {item.avg_rating != null && (
@@ -567,14 +536,14 @@ export default function SearchPage() {
         if (tutorCount > 0) return { text: 'Active', bg: 'rgb(16, 185, 129)', color: 'white' };
         return { text: 'Inactive', bg: 'rgb(189, 42, 71)', color: 'white' };
       })();
-      
+
       const buttonBg = tutorCount > 0 ? '#35006D' : '#FFCF01';
       const buttonColor = tutorCount > 0 ? 'white' : '#35006D';
       const buttonText = tutorCount > 0 ? 'View Tutors' : 'Request Coverage';
-      const tutorText = tutorCount === 0 
-        ? 'No tutors' 
+      const tutorText = tutorCount === 0
+        ? 'No tutors'
         : `${tutorCount} tutor${tutorCount > 1 ? 's' : ''} available`;
-      
+
       return (
         <div style={styles.courseCard}>
           <div style={styles.courseHeader}>
@@ -582,11 +551,11 @@ export default function SearchPage() {
               <div style={styles.courseCode}>{courseCode}</div>
               <div style={styles.courseName}>{item.title}</div>
             </div>
-            <span style={{...styles.statusBadge, backgroundColor: status.bg, color: status.color}}>
+            <span style={{ ...styles.statusBadge, backgroundColor: status.bg, color: status.color }}>
               {status.text}
             </span>
           </div>
-          
+
           <div style={styles.courseDetails}>
             <div style={styles.detailRow}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -602,7 +571,7 @@ export default function SearchPage() {
               <span>{item.department || 'N/A'}</span>
             </div>
           </div>
-          
+
           <button
             style={{
               ...styles.viewButton,
@@ -757,7 +726,7 @@ export default function SearchPage() {
           <h3 style={{ margin: "0 0 5px 0", color: '#2c3e50' }}>Find Tutors & Courses</h3>
           <div style={searchBarStyles.searchInputContainer}>
             <div style={searchBarStyles.categoryDropdown}>
-              <button 
+              <button
                 style={searchBarStyles.categoryButton}
                 onClick={toggleCategory}
                 type="button"
@@ -766,15 +735,15 @@ export default function SearchPage() {
               </button>
               {isCategoryOpen && (
                 <ul style={searchBarStyles.categoryList}>
-                  <li 
+                  <li
                     onClick={() => selectCategory('default')}
                     style={{ cursor: 'pointer' }}
                   >All</li>
-                  <li 
+                  <li
                     onClick={() => selectCategory('tutor')}
                     style={{ cursor: 'pointer' }}
                   >Tutors</li>
-                  <li 
+                  <li
                     onClick={() => selectCategory('course')}
                     style={{ cursor: 'pointer' }}
                   >Courses</li>
@@ -789,7 +758,7 @@ export default function SearchPage() {
               placeholder={searchQuery === '' && searchCategory === 'default' ? 'Search all' : searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}${searchCategory === 'all' ? '' : 's'}...`}
               style={searchBarStyles.searchInput}
             />
-            <button 
+            <button
               type="button"
               onClick={handleSearch}
               style={{
@@ -834,7 +803,7 @@ export default function SearchPage() {
                 <div style={styles.noResultsTitle}>Loading results...</div>
               </div>
             )}
-            
+
             {status === "loading" && (
               <div style={styles.noResults}>
                 <div style={styles.noResultsTitle}>
@@ -842,11 +811,11 @@ export default function SearchPage() {
                 </div>
               </div>
             )}
-            
+
             {status === "error" && (
               <div style={styles.noResults}>
                 <div style={styles.noResultsTitle}>Error: {error}</div>
-                <button 
+                <button
                   onClick={() => window.location.reload()}
                   style={styles.requestButton}
                 >
@@ -854,13 +823,13 @@ export default function SearchPage() {
                 </button>
               </div>
             )}
-            
+
             {status === "done" && results.length === 0 && q.get("q") && (
               <div style={styles.noResults}>
                 <div style={styles.noResultsTitle}>
                   No results found for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}
                 </div>
-                <button 
+                <button
                   onClick={() => window.history.back()}
                   style={styles.requestButton}
                 >
@@ -888,7 +857,7 @@ export default function SearchPage() {
                     )}
                   </div>
                 )}
-                
+
                 {/* Only show Courses section if search category is 'all', 'default', or 'course' */}
                 {(searchCategory === 'default' || searchCategory === 'all' || searchCategory === 'course') && (
                   <div>

@@ -43,3 +43,23 @@ class Settings:
 # Global settings instance
 settings = Settings()
 
+# Debug: Print DB connection info (masking password)
+try:
+    url = settings.DATABASE_URL
+    if "@" in url:
+        # Simple mask for "user:pass@host" format
+        # Split by @ from the right to handle user:pass containing @ (though rare/bad practice)
+        parts = url.rsplit("@", 1)
+        suffix = parts[1]
+        prefix = parts[0]
+        
+        if "://" in prefix:
+            scheme = prefix.split("://")[0]
+            print(f"DEBUG: Connecting to database at {scheme}://***@{suffix}")
+        else:
+            print(f"DEBUG: Connecting to database at ***@{suffix}")
+    else:
+        print(f"DEBUG: Connecting to database: {url}")
+except Exception as e:
+    print(f"DEBUG: Error parsing DB URL: {e}")
+
