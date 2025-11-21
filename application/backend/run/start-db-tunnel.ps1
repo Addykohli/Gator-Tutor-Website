@@ -33,11 +33,11 @@ if (-not (Test-Path $SshKeyPath)) {
 $TcpConnection = Get-NetTCPConnection -LocalPort $LocalPort -ErrorAction SilentlyContinue
 
 if ($TcpConnection) {
-    $Pid = $TcpConnection.OwningProcess
-    $Process = Get-Process -Id $Pid -ErrorAction SilentlyContinue
+    $TargetPid = $TcpConnection.OwningProcess
+    $Process = Get-Process -Id $TargetPid -ErrorAction SilentlyContinue
     $ProcessName = if ($Process) { $Process.ProcessName } else { "Unknown" }
 
-    Write-Host "WARNING: Port $LocalPort is already in use by process: $ProcessName (PID: $Pid)" -ForegroundColor Yellow
+    Write-Host "WARNING: Port $LocalPort is already in use by process: $ProcessName (PID: $TargetPid)" -ForegroundColor Yellow
 
     if ($ProcessName -like "*mysqld*") {
         Write-Host "CRITICAL ERROR: Local MySQL server is running!" -ForegroundColor Red
@@ -50,7 +50,7 @@ if ($TcpConnection) {
         exit 1
     } else {
         Write-Host "It looks like an old tunnel or random process. Killing it..."
-        Stop-Process -Id $Pid -Force -ErrorAction SilentlyContinue
+        Stop-Process -Id $TargetPid -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 1
     }
 }
