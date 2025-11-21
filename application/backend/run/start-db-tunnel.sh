@@ -38,18 +38,25 @@ fi
 
 # Check if port is already in use
 if lsof -Pi :$LOCAL_PORT -sTCP:LISTEN -t >/dev/null 2>&1 ; then
-    echo -e "${YELLOW}WARNING: Port $LOCAL_PORT is already in use${NC}"
-    echo "An SSH tunnel may already be running, or another service is using this port."
-    echo ""
-    read -p "Do you want to kill the existing process and continue? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        echo "Killing process on port $LOCAL_PORT..."
-        lsof -ti:$LOCAL_PORT | xargs kill -9 2>/dev/null || true
-        sleep 1
-    else
-        echo "Exiting. Please stop the existing process manually."
+    PID=$(lsof -ti:$LOCAL_PORT)
+    PROCESS_NAME=$(ps -p $PID -o comm=)
+    
+    echo -e "${YELLOW}WARNING: Port $LOCAL_PORT is already in use by process: $PROCESS_NAME (PID: $PID)${NC}"
+    
+    if [[ "$PROCESS_NAME" == *"mysqld"* ]]; then
+        echo -e "${RED}CRITICAL ERROR: Local MySQL server is running!${NC}"
+        echo "You MUST stop your local MySQL service for the tunnel to work."
+        echo ""
+        echo "Run one of these commands:"
+        echo "  • Mac:     brew services stop mysql"
+        echo "  • Linux:   sudo systemctl stop mysql"
+        echo "  • Windows: Stop 'MySQL' in Services app"
+        echo ""
         exit 1
+    else
+        echo "It looks like an old tunnel or random process. Killing it..."
+        kill -9 $PID 2>/dev/null || true
+        sleep 1
     fi
 fi
 
