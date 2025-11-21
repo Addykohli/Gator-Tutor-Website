@@ -7,9 +7,10 @@ build/
 venv/
 .venv/
 __pycache__/
-.env
+# .env
 *.log
 .idea/
 # Build artifacts
 client-build-*.tar.gz
 client-build.tar.gz
+*.tar
