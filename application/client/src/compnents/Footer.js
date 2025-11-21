@@ -37,7 +37,7 @@ const Footer = () => {
       alignItems: 'center',
     },
     logo: {
-      height: '90px',
+      height: '110px',
       width: 'auto',
     },
     address: {

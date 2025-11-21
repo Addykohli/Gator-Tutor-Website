@@ -1,39 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
-  
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  const menuRef = useRef(null);
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
 
-  // Handle window resize
+  const menuItems = [
+    { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
+    { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
+    { icon: 'fas fa-book', label: 'Request course coverage', path: '/request-coverage' }
+  ];
+
+  const isExpanded = isMenuOpen || isLocked;
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024);
     };
-
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const headerContent = {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    maxWidth: '250px',
-    width: '100%',
-    margin: '0',
-    gap: '5px',
-    padding: isMobile ? '0 0px' : '0 0px',
-  };
+  // Click outside handler
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsLocked(false);
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const navButtonStyle = {
-    color: 'black',
+    color: 'rgb(255, 220, 112)',
     textDecoration: 'none',
     fontFamily: 'inherit',
     fontSize: '14px',
@@ -43,7 +48,7 @@ const Header = () => {
     transition: 'background-color 0.2s',
     display: 'flex',
     alignItems: 'center',
-    border: '1px solid black',
+    border: '1px solid rgb(255, 220, 112)',
     background: 'transparent',
     cursor: 'pointer',
     whiteSpace: 'nowrap',
@@ -51,13 +56,13 @@ const Header = () => {
   };
   
   const dividerStyle = {
-    color: 'rgba(0, 0, 0, 0.3)',
+    color: 'rgba(255, 220, 112)',
     margin: '0 8px',
     userSelect: 'none'
   };
 
   const classTitle = {
-    padding: '0px 0px 0px 10px',
+    padding: '0px 0px 0px 0px',
     margin: '0 0 0 0px',
     background: 'none',
     border: 'none',
@@ -65,28 +70,11 @@ const Header = () => {
     whiteSpace: 'normal',
     textAlign: isMobile ? 'center' : 'left',
     color: 'inherit',
-    '&:hover': {
-      color: '#9A2250',
-      textDecoration: 'underline'
-    }
-  };
-
-  const headerStyle = {
-    backgroundColor: '#231161',
-    color: 'white',
-    minHeight: '100px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    padding: isMobile ? '10px 10px' : '10px',
-    boxSizing: 'border-box',
-    width: '100%',
-    position: 'relative',
   };
 
   const navBarStyle = {
-    backgroundColor: 'rgb(255, 220, 112)',
-    height: '45px',
+    backgroundColor: 'rgb(35, 17, 97)',
+    height: '54px',
     width: '100%',
     display: 'flex',
     alignItems: 'center',
@@ -95,89 +83,254 @@ const Header = () => {
     position: 'relative',
   };
 
-  const menuButtonStyle = {
-    padding: '4px 12px',
-    backgroundColor: 'transparent',
-    color: 'black',
-    border: '1px solid black',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '20px',
+  // Wrapper that contains both button and dropdown
+  const menuWrapperStyle = {
+    position: 'relative',
     zIndex: 1001,
-    whiteSpace: 'nowrap',
-    marginRight: '20px',
-    '&:hover': {
-      backgroundColor: 'rgba(0,0,0,0.05)'
-    }
   };
 
-  // Overlay style for when menu is open
-  const overlayStyle = {
-    position: 'fixed',
+  // The expanding border container
+  const borderContainerStyle = {
+    position: 'absolute',
     top: '0',
     left: '0',
-    right: '0',
-    bottom: '0',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    width: isExpanded ? '280px' : '100px',
+    height: isExpanded ? '232px' : '40px',
+    border: '1px solid rgb(255, 220, 112)',
+    borderRadius: isExpanded ? '8px' : '4px',
+    backgroundColor: isExpanded ? 'rgba(255, 220, 112, 0.98)' : 'transparent',
+    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    transformOrigin: 'top left',
+    pointerEvents: 'none',
     zIndex: 1000,
-    opacity: isMenuOpen ? 1 : 0,
-    visibility: isMenuOpen ? 'visible' : 'hidden',
-    transition: 'opacity 0.3s ease-in-out, visibility 0.3s ease-in-out'
+    overflow: 'hidden',
   };
 
-  // Sidebar menu style
-  const sidebarStyle = {
-    position: 'fixed',
-    top: '0',
-    left: isMenuOpen ? '0' : '-300px',
-    width: '280px',
-    height: '100vh',
-    backgroundColor: '#FFDC70',
-    zIndex: 1001,
-    transition: 'left 0.3s ease-in-out',
-    paddingTop: '200px', // Space for header
-    overflowY: 'auto',
-    boxShadow: '2px 0 10px rgba(0, 0, 0, 0.1)'
-  };
-
-  // Close button style
-  const closeButtonStyle = {
-    position: 'absolute',
-    top: '20px',
-    right: '20px',
-    background: 'none',
+  // Menu button style
+  const menuButtonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '8px 12px',
+    backgroundColor: 'transparent',
+    color: isExpanded ? '#1e1b4b' : 'rgb(255, 220, 112)',
     border: 'none',
-    fontSize: '24px',
+    borderRadius: '4px',
     cursor: 'pointer',
-    color: '#333',
-    '&:hover': {
-      color: '#9A2250'
+    fontSize: '14px',
+    fontWeight: '600',
+    zIndex: 1002,
+    whiteSpace: 'nowrap',
+    transition: 'color 0.3s ease',
+    position: 'relative',
+    height: '40px',
+    width: '100px',
+  };
+
+  // Container for the 3 bars that become menu items
+  const barsContainerStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    width: '18px',
+    height: '14px',
+    marginRight: '10px',
+    position: 'relative',
+  };
+
+  // The 3 bars inside the button that morph into menu items
+  const getBarInButtonStyle = (index) => ({
+    position: 'absolute',
+    left: '0',
+    top: `${index * 6}px`,
+    width: '18px',
+    height: '2px',
+    backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
+    borderRadius: '1px',
+    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.05}s`,
+    transformOrigin: 'left center',
+  });
+
+  // Divider between button and dropdown items
+  const headerDividerStyle = {
+    position: 'absolute',
+    top: '40px',
+    left: '12px',
+    height: '1px',
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    opacity: isExpanded ? 1 : 0,
+    transition: 'all 0.3s ease 0.2s',
+    transformOrigin: 'left',
+    zIndex: 1003,
+    width: isExpanded ? '256px' : '0px',
+  };
+
+  // Menu item that morphs from bar
+  const getMenuItemStyle = (index) => {
+    // Collapsed: positioned inside the hamburger icon area
+    // Expanded: spread out below the button
+    const collapsedTop = 12 + (index * 6); // Stack as hamburger lines
+    const expandedTop = 52 + (index * 56); // Spread as menu items
+    
+    return {
+      position: 'absolute',
+      left: isExpanded ? '12px' : '12px',
+      display: 'flex',
+      alignItems: 'center',
+      top: isExpanded ? `${expandedTop}px` : `${collapsedTop}px`,
+      width: isExpanded ? '256px' : '18px',
+      height: isExpanded ? '48px' : '2px',
+      backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
+      borderRadius: isExpanded ? '6px' : '1px',
+      transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
+      cursor: isExpanded ? 'pointer' : 'default',
+      overflow: 'hidden',
+      border: 'none',
+      padding: 0,
+      pointerEvents: isExpanded ? 'auto' : 'none',
+      zIndex: 1001,
+    };
+  };
+
+  // Icon container style
+  const getIconContainerStyle = (index) => ({
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: isExpanded ? '28px' : '18px',
+    height: isExpanded ? '28px' : '2px',
+    marginLeft: isExpanded ? '12px' : '0',
+    transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
+  });
+
+  // Icon style
+  const getIconStyle = (index) => ({
+    opacity: isExpanded ? 1 : 0,
+    transform: isExpanded ? 'scale(1) rotate(0deg)' : 'scale(0) rotate(-180deg)',
+    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.2 + index * 0.1}s`,
+    color: '#1e1b4b',
+    fontSize: '18px',
+    width: '28px',
+    textAlign: 'center',
+  });
+
+  // Label style
+  const getLabelStyle = (index) => ({
+    marginLeft: '14px',
+    color: '#1e1b4b',
+    fontSize: '15px',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: '1px',
+    opacity: isExpanded ? 1 : 0,
+    transform: isExpanded ? 'translateX(0)' : 'translateX(-30px)',
+    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.25 + index * 0.1}s`,
+    whiteSpace: 'nowrap',
+  });
+
+  // Item divider style
+  const getDividerStyle = (index) => ({
+    position: 'absolute',
+    left: '16px',
+    top: `${100 + index * 56}px`,
+    height: '1px',
+    backgroundColor: 'rgba(0,0,0,0.12)',
+    opacity: isExpanded ? 1 : 0,
+    transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
+    transition: `all 0.3s ease ${0.35 + index * 0.05}s`,
+    transformOrigin: 'left',
+    width: isExpanded ? '248px' : '0px',
+    pointerEvents: 'none',
+  });
+
+  const handleMouseEnter = () => {
+    setIsMenuOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isLocked) {
+      setIsMenuOpen(false);
     }
   };
 
-  const menuItemStyle = {
-    display: 'block',
-    width: '100%',
-    margin: '0 auto',
-    padding: '15px 25px',
-    textAlign: 'left',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderBottom: '1px solid rgba(0,0,0,0.0)',
-    cursor: 'pointer',
-    fontSize: '18px',
-    color: 'black',
-    textDecoration: 'none',
-    boxSizing: 'border-box',
-    transition: 'background-color 0.2s',
-    textTransform: 'uppercase',
-    letterSpacing: '1px'
+  const handleButtonClick = () => {
+    setIsLocked(!isLocked);
+    if (!isLocked) {
+      setIsMenuOpen(true);
+    }
   };
 
   return (
     <>
-      <header style={headerStyle}>
-        <div style={headerContent}>
+      <div style={navBarStyle}>
+        {/* Menu Container */}
+        <div 
+          ref={menuRef} 
+          style={menuWrapperStyle}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          {/* Expanding border that connects button to dropdown */}
+          <div style={borderContainerStyle}></div>
+
+          {/* Divider between button and dropdown */}
+          <div style={headerDividerStyle}></div>
+
+          {/* Clickable Menu Button */}
+          <button 
+            style={menuButtonStyle}
+            onClick={handleButtonClick}
+          >
+            {/* Placeholder bars that disappear */}
+            <div style={barsContainerStyle}>
+              <span style={getBarInButtonStyle(0)}></span>
+              <span style={getBarInButtonStyle(1)}></span>
+              <span style={getBarInButtonStyle(2)}></span>
+            </div>
+            Menu
+          </button>
+
+          {/* The actual menu items that morph from bars */}
+          {menuItems.map((item, index) => (
+            <button
+              key={item.path}
+              style={getMenuItemStyle(index)}
+              onMouseEnter={(e) => {
+                if (isExpanded) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
+              }}
+              onMouseLeave={(e) => {
+                if (isExpanded) e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+              onClick={() => {
+                if (isExpanded) {
+                  navigate(item.path);
+                  setIsMenuOpen(false);
+                  setIsLocked(false);
+                }
+              }}
+            >
+              <div style={getIconContainerStyle(index)}>
+                <i className={item.icon} style={getIconStyle(index)}></i>
+              </div>
+              <span style={getLabelStyle(index)}>{item.label}</span>
+            </button>
+          ))}
+
+          {/* Dividers between menu items */}
+          {menuItems.slice(0, -1).map((_, index) => (
+            <div key={`divider-${index}`} style={getDividerStyle(index)} />
+          ))}
+        </div>
+
+        {/* Logo */}
+        <div style={{ 
+          flex: 1, 
+          display: 'flex', 
+          justifyContent: 'center', 
+          position: 'absolute', 
+          left: '14%', 
+          transform: 'translateX(-50%)' 
+        }}>
           <button 
             onClick={() => navigate('/')}
             style={classTitle}
@@ -185,7 +338,7 @@ const Header = () => {
             <img 
               src={require('../assets/gator icon logo.png')} 
               alt="Gator Tutor Logo" 
-              style={{ height: '100px', width: 'auto' }}
+              style={{ height: '40px', width: 'auto' }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
@@ -193,19 +346,14 @@ const Header = () => {
             />
           </button>
         </div>
-      </header>
-      <div style={navBarStyle}>
-        <button 
-          style={menuButtonStyle}
-          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          onClick={toggleMenu}
-        >
-          <i className="fas fa-bars" style={{ marginRight: '8px' }}></i>
-          Menu
-        </button>
-        <div style={{ flex: 1 }}></div>
-        <div style={{ display: 'flex', alignItems: 'center' }}>
+
+        {/* Login/Signup buttons */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          marginLeft: 'auto',
+          paddingRight: '10px'
+        }}>
           <button 
             style={navButtonStyle}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
@@ -233,88 +381,8 @@ const Header = () => {
           </button>
         </div>
       </div>
-      
-      {/* Overlay */}
-      <div 
-        style={overlayStyle}
-        onClick={() => setIsMenuOpen(false)}
-      />
-      
-      {/* Sidebar Menu */}
-      <div style={sidebarStyle}>
-        <button 
-          style={closeButtonStyle}
-          onClick={() => setIsMenuOpen(false)}
-          aria-label="Close menu"
-        >
-          &times;
-        </button>
-        <nav style={{ padding: '20px 0' }}>
-          <button 
-            style={{
-              ...menuItemStyle,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '15px 30px',
-              width: '100%',
-              textAlign: 'left',
-              borderBottom: '1px solid rgba(0,0,0,0.1)'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
-            onClick={() => {
-              navigate('/');
-              setIsMenuOpen(false);
-            }}
-          >
-            <i className="fas fa-home" style={{ marginRight: '12px', width: '24px', textAlign: 'center' }}></i>
-            Dashboard
-          </button>
-          <button 
-            style={{
-              ...menuItemStyle,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '15px 30px',
-              width: '100%',
-              textAlign: 'left',
-              borderBottom: '1px solid rgba(0,0,0,0.1)'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
-            onClick={() => {
-              navigate('/messages');
-              setIsMenuOpen(false);
-            }}
-          >
-            <i className="fas fa-envelope" style={{ marginRight: '12px', width: '24px', textAlign: 'center' }}></i>
-            Message
-          </button>
-          <button 
-            style={{
-              ...menuItemStyle,
-              display: 'flex',
-              alignItems: 'center',
-              padding: '15px 30px',
-              width: '100%',
-              textAlign: 'left',
-              borderBottom: '1px solid rgba(0,0,0,0.1)'
-            }}
-            onMouseOver={(e) => e.target.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
-            onClick={() => {
-              navigate('/request-coverage');
-              setIsMenuOpen(false);
-            }}
-          >
-            <i className="fas fa-book" style={{ marginRight: '12px', width: '24px', textAlign: 'center' }}></i>
-            Request course coverage
-          </button>
-        </nav>
-      </div>
     </>
-);
-
+  );
 };
 
 export default Header;
