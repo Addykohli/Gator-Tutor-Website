@@ -45,7 +45,7 @@ const Header = () => {
     fontWeight: '400',
     padding: '6px 10px',
     borderRadius: '4px',
-    transition: 'background-color 0.2s',
+    transition: 'all 0.2s ease-in-out',
     display: 'flex',
     alignItems: 'center',
     border: '1px solid rgb(255, 220, 112)',
@@ -356,8 +356,16 @@ const Header = () => {
         }}>
           <button 
             style={navButtonStyle}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
+              e.currentTarget.style.color = 'rgb(35, 17, 97)';
+              e.currentTarget.style.border  = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'rgb(255, 220, 112)';
+              e.currentTarget.style.border  = '1px solid rgb(255, 220, 112)';
+            }}
             onClick={(e) => {
               e.preventDefault();
               navigate('/login');
@@ -369,8 +377,16 @@ const Header = () => {
           <span style={dividerStyle}>|</span>
           <button 
             style={navButtonStyle}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
+              e.currentTarget.style.color = 'rgb(35, 17, 97)';
+              e.currentTarget.style.border  = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'rgb(255, 220, 112)';
+              e.currentTarget.style.border  = '1px solid rgb(255, 220, 112)';
+            }}
             onClick={(e) => {
               e.preventDefault();
               navigate('/register');

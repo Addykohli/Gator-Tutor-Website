@@ -546,8 +546,7 @@ const HomePage = () => {
       transform: 'translateX(0)',
       opacity: 1,
       position: 'relative',
-      transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
-      transition: 'none'
+      transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out'
     },
     'slide-in-left': {
       animation: 'slideInLeft 0.3s ease-out forwards'
