@@ -95,7 +95,7 @@ const Footer = () => {
         <h3 style={styles.sectionTitle}>Follow Us</h3>
         <div style={styles.socialIcons}>
           <a 
-            href="https://www.facebook.com/profile.php?id=61583430222270&mibextid=wwXIfr&mibextid=wwXIfr" 
+            href="https://www.facebook.com/people/Software-Engineering-Team08/61583430222270/?mibextid=wwXIfr" 
             target="_blank" 
             rel="noopener noreferrer"
             style={styles.icon}
@@ -104,13 +104,22 @@ const Footer = () => {
             <i className="fab fa-facebook-f"></i>
           </a>
           <a 
-            href="https://www.instagram.com/softengt08/" 
+            href="https://www.instagram.com/thegatortutor/" 
             target="_blank" 
             rel="noopener noreferrer"
             style={styles.icon}
             aria-label="Instagram"
           >
             <i className="fab fa-instagram"></i>
+          </a>
+          <a 
+            href="https://x.com/GatorTutor" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={styles.icon}
+            aria-label="Twitter"
+          >
+            <i className="fab fa-twitter"></i>
           </a>
         </div>
       </div>

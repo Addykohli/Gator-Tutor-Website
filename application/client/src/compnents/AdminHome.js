@@ -1,16 +1,191 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
-import Header from './Header';
 import Footer from './Footer';
+import format from 'date-fns/format';
+import addWeeks from 'date-fns/addWeeks';
+import subWeeks from 'date-fns/subWeeks';
+import startOfWeek from 'date-fns/startOfWeek';
+import addDays from 'date-fns/addDays';
+import isSameDay from 'date-fns/isSameDay';
+import Header from './Header';
 
 const AdminHome = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState(() => {
+    const saved = localStorage.getItem('searchQuery');
+    return saved || '';
+  });
+  
+  const [searchCategory, setSearchCategory] = useState(() => {
+    const saved = localStorage.getItem('searchCategory');
+    return saved || 'default';
+  });
+  
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  
+  // Mock data for calendar events
+  const mockEvents = [
+    {
+      id: 1,
+      title: 'CS 415 Review',
+      date: addDays(new Date(), 1), // Tomorrow
+      time: '10:00 AM - 11:30 AM',
+      type: 'class',
+      location: 'Library Room 203',
+      color: '#4e73df'
+    },
+    {
+      id: 2,
+      title: 'Tutoring Session',
+      date: addDays(new Date(), 1), // Tomorrow
+      time: '2:00 PM - 3:30 PM',
+      type: 'tutoring',
+      tutor: 'Dr. Smith',
+      color: '#1cc88a'
+    },
+    {
+      id: 3,
+      title: 'Group Study',
+      date: addDays(new Date(), 3), // 3 days from now
+      time: '4:00 PM - 6:00 PM',
+      type: 'study',
+      group: 'CS Study Group',
+      location: 'Student Center',
+      color: '#f6c23e'
+    },
+    {
+      id: 4,
+      title: 'Office Hours',
+      date: addDays(new Date(), 4), // 4 days from now
+      time: '1:00 PM - 3:00 PM',
+      type: 'office_hours',
+      professor: 'Prof. Johnson',
+      location: 'SCI 217',
+      color: '#e74a3b'
+    },
+    {
+      id: 5,
+      title: 'CS 600 Lecture',
+      date: addDays(new Date(), 5), // 5 days from now
+      time: '9:30 AM - 11:00 AM',
+      type: 'class',
+      course: 'CS 600',
+      location: 'TH 101',
+      color: '#4e73df'
+    }
+  ];
+  
+  const handleSearchQueryChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    localStorage.setItem('searchQuery', value);
+  };
+  
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    const searchText = searchQuery.trim();
+    localStorage.setItem('searchQuery', searchText);
+
+    const apiBaseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8000' 
+      : '/api';
+    
+    const typeMap = {
+      'tutor': 'tutor',
+      'course': 'course',
+      'default': 'all'
+    };
+    
+    const searchType = typeMap[searchCategory] || 'all';
+    
+    try {
+      let results = [];
+      
+      if (searchType === 'tutor' || searchType === 'all') {
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0,
+          ...(searchText && { q: searchText })
+        });
+        
+        const response = await fetch(
+          `${apiBaseUrl}/search/tutors?${params.toString()}`
+        );
+        const data = await response.json();
+        results = [...results, ...(data.items || []).map(item => ({ _kind: 'tutor', ...item }))];
+      }
+      
+      if (searchType === 'course' || searchType === 'all') {
+        const params = new URLSearchParams({
+          limit: 20,
+          offset: 0,
+          ...(searchText && { q: searchText })
+        });
+        
+        const response = await fetch(
+          `${apiBaseUrl}/search/courses?${params.toString()}`
+        );
+        const data = await response.json();
+        results = [...results, ...(data.items || []).map(item => ({ _kind: 'course', ...item }))];
+      }
+      
+      navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
+        state: { results }
+      });
+      
+    } catch (error) {
+      console.error('Search error:', error);
+      navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
+        state: { error: error.message || 'Failed to fetch search results' }
+      });
+    }
+  };
+  
+  const toggleCategory = () => {
+    setIsCategoryOpen(!isCategoryOpen);
+  };
+  
+  const selectCategory = (category) => {
+    setSearchCategory(category);
+    localStorage.setItem('searchCategory', category);
+    setIsCategoryOpen(false);
+  };
+  
   const styles = {
-    container: {
+    container: { 
+      display: "flex", 
+      flexDirection: "column", 
+      minHeight: "100vh", 
+      width: "100%", 
+      overflowX: "hidden",
+      backgroundColor: "rgb(250, 245, 255)",
+    },
+    // Common button style for search and navigation buttons
+    primaryButton: {
+      backgroundColor: '#35006D',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      padding: '10px 20px',
+      cursor: 'pointer',
       display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100vh',
-      width: '100%',
-      overflowX: 'hidden',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      fontWeight: '500',
+      transition: 'all 0.2s',
+      ':hover': {
+        backgroundColor: '#4b1a80',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+      },
+      ':active': {
+        transform: 'translateY(1px)',
+      }
     },
     heading: {
       color: "#333",
@@ -24,234 +199,853 @@ const AdminHome = () => {
       lineHeight: "1.2",
       position: "relative"
     },
-    content: {
-      width: '100%',
-      margin: '0 auto',
-      padding: '0px 20px',
-      flex: 1,
-      boxSizing: 'border-box',
+    content: { 
+      width: "100%", 
+      maxWidth: "100%",
+      margin: "0 auto", 
+      padding: "20px 10px 20px 5px", 
+      flex: 1, 
+      boxSizing: "border-box",
+      marginBottom: '80px'
     },
-    title: {
-      textAlign: 'left',
-      margin: '0 0 30px 0',
-      fontSize: '2.2rem',
-      color: '#2c3e50',
-      paddingBottom: '10px',
-      borderBottom: '2px solid #f0f0f0',
-    },
-    section: {
-      padding: '20px',
-      borderRadius: '40px',
-      backgroundColor: 'rgb(240, 240, 240)',
+    calendarHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
       marginBottom: '20px',
     },
-    myCalendarSection: {
-      padding: '20px 20px 0px 20px',
-      borderRadius: '20px',
-    },
-    todaySection: {
-      padding: '10px 5px',
-      borderRadius: '40px',
-      backgroundColor: 'rgb(240, 240, 240)',
-      margin: '0px 20px'
-    },
-    sectionTitle: {
-      color: '#2c3e50',
-      marginBottom: '15px',
-      paddingBottom: '8px',
-      borderBottom: '1px solid rgb(200, 200, 200)'
-    },
-    sectionTitleToday: {
-      color: '#2c3e50',
-      marginBottom: '15px',
-      paddingBottom: '8px',
-      paddingTop: '8px',
-      borderTop: '2px solid white',
-      textAlign: 'center',
-    },
-    linkList: {
-      listStyle: 'none',
-      padding: 0,
-      margin: 0,
-    },
-    linkItem: {
-      margin: '0px 140px 12px 0px',
-      padding: 0,
-      border: 'none',
-      backgroundColor: 'rgba(154, 34, 80, 0.7)',
-      borderRadius: '4px',
-      overflow: 'hidden',
-      position: 'relative',
-      transition: 'all 0.3s ease',
-      boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-    },
-    link: {
+    navButton: {
+      backgroundColor: 'rgb(53, 0, 109)',
       color: 'white',
-      textDecoration: 'none',
-      fontSize: '1.1rem',
-      padding: '12px 16px',
-      display: 'block',
-      position: 'relative',
-      zIndex: 1,
-      transition: 'all 0.3s ease',
-    },
-    columnsContainer: {
-      display: 'flex',
-      gap: '90px',
-      width: '100%',
-      maxWidth: '100%',
-      boxSizing: 'border-box',
-    },
-    leftColumn: {
-      flex: '3',
-      minWidth: 0, 
-      padding: '20px',
-      maxWidth: '100%',
-    },
-    rightColumn: {
-      flex: '1',
-      minWidth: '200px', 
-      padding: '0px 0px 20px 0px',
-      maxWidth: '250px',
-      borderRadius: '40px',
-      backgroundColor: 'rgb(240, 240, 240)',
-    },
-    '@media (max-width: 768px)': {
-      columnsContainer: {
-        flexDirection: 'column',
-      },
-      leftColumn: {
-        width: '100%',
-        marginBottom: '20px',
-      },
-      rightColumn: {
-        width: '100%',
+      border: 'none',
+      borderRadius: '4px',
+      padding: '8px 16px',
+      cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
+      transition: 'background-color 0.2s',
+      '&:hover': {
+        backgroundColor: '#7a1a3d'
       }
+    },
+    weekDisplay: {
+      fontSize: '1.2rem',
+      fontWeight: '600',
+      color: '#2c3e50'
+    },
+    calendarGrid: {
+      width: '100%',
+      position: 'relative',
+      overflow: 'hidden',
+      minHeight: '200px',
+      backgroundColor: '#e0e0e0',
+      border: '1px solid #e0e0e0',
+      borderRadius: '8px',
+      boxSizing: 'border-box'
+    },
+    dayHeader: {
+      backgroundColor: 'rgb(53, 0, 109)',
+      color: 'white',
+      padding: '12px',
+      textAlign: 'center',
+      fontWeight: '600',
+      fontSize: '1rem'
+    },
+    dayCell: {
+      backgroundColor: 'white',
+      minHeight: '120px',
+      padding: '8px',
+      position: 'relative',
+      overflow: 'hidden',
+      boxSizing: 'border-box',
+      '&.today': {
+        backgroundColor: '#fff9e6'
+      }
+    },
+    dateNumber: {
+      fontWeight: 'bold',
+      marginBottom: '8px',
+      color: '#2c3e50'
+    },
+    todayMarker: {
+      position: 'absolute',
+      top: '4px',
+      right: '4px',
+      backgroundColor: 'rgb(53, 0, 109)',
+      color: 'white',
+      borderRadius: '50%',
+      width: '44px',
+      height: '24px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '0.8rem'
+    },
+    noSessions: {
+      color: '#666',
+      fontStyle: 'italic',
+      fontSize: '0.9rem',
+      marginTop: '8px'
+    },
+    searchContainer: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "20px",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxSizing: 'border-box',
+      width: '100%',
+      margin: '0 0 20px 0',
+      position: 'relative'
+    },
+    searchInputContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      marginTop: '10px'
+    },
+    searchInput: {
+      flex: 1,
+      padding: '12px 16px',
+      border: '1px solid #ced4da',
+      borderRadius: '6px',
+      fontSize: '16px',
+      '&:focus': {
+        outline: 'none',
+        borderColor: '#9A2250',
+        boxShadow: '0 0 0 0.2rem rgba(154, 34, 80, 0.25)'
+      }
+    },
+    searchButton: {
+      padding: '12px 24px',
+      backgroundColor: 'rgb(53, 0, 109)',
+      color: 'white',
+      border: 'none',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '16px',
+      fontWeight: '600',
+      transition: 'background-color 0.2s',
+      '&:hover': {
+        backgroundColor: '#7a1a3d'
+      }
+    },
+    categoryDropdown: {
+      position: 'relative',
+      display: 'inline-block',
+      minWidth: '120px',
+      width: '120px'
+    },
+    categoryButton: {
+      padding: '12px 16px',
+      backgroundColor: '#f8f9fa',
+      border: '1px solid #ced4da',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      width: '100%',
+      textAlign: 'center',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      '&:hover': {
+        backgroundColor: '#e9ecef'
+      }
+    },
+    categoryList: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      zIndex: 1000,
+      width: '100%',
+      padding: '8px 8px',
+      margin: '4px 0 0',
+      backgroundColor: 'white',
+      border: '1px solid rgba(0,0,0,.15)',
+      borderRadius: '6px',
+      boxShadow: '0 6px 12px rgba(0,0,0,.175)',
+      listStyle: 'none',
+      '& li': {
+        padding: '8px 16px',
+        cursor: 'pointer',
+        textAlign: 'center',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        msUserSelect: 'none',
+        ':hover': {
+          backgroundColor: '#f8f9fa',
+          cursor: 'pointer !important'
+        }
+      }
+    },
+    calendarContainer: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "20px",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxSizing: 'border-box',
+      width: '100%',
+      margin: '0 0 20px 0',
+      position: 'relative'
+    },
+    eventsContainer: {
+      marginTop: '8px',
+      maxHeight: '200px',
+      overflowY: 'auto',
+      paddingRight: '4px'
+    },
+    eventItem: {
+      padding: '8px',
+      marginBottom: '8px',
+      borderRadius: '4px',
+      fontSize: '0.8rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    },
+    eventTime: {
+      fontWeight: '600',
+      fontSize: '0.75rem',
+      color: '#555',
+      marginBottom: '4px'
+    },
+    eventTitle: {
+      fontWeight: '600',
+      marginBottom: '4px',
+      color: '#2c3e50'
+    },
+    eventDetail: {
+      display: 'flex',
+      alignItems: 'center',
+      fontSize: '0.7rem',
+      color: '#6c757d',
+      marginTop: '2px'
     }
   };
 
-  const { user, isAuthenticated } = useAuth();
+  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const today = new Date();
+  
+  const nextWeek = () => {
+    if (isAnimating) return;
+    setSlideDirection('slide-out-left');
+    setIsAnimating(true);
+    
+    setTimeout(() => {
+      setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+      setSlideDirection('slide-in-right');
+      
+      setTimeout(() => {
+        setSlideDirection('none');
+        setIsAnimating(false);
+      }, 300);
+    }, 300);
+  };
+  
+  const prevWeek = () => {
+    if (isAnimating) return;
+    setSlideDirection('slide-out-right');
+    setIsAnimating(true);
+    
+    setTimeout(() => {
+      setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+      setSlideDirection('slide-in-left');
+      
+      setTimeout(() => {
+        setSlideDirection('none');
+        setIsAnimating(false);
+      }, 300);
+    }, 300);
+  };
 
-  // Function to handle admin link clicks
-  const handleAdminLinkClick = (e, path) => {
-    e.preventDefault();
-    // Navigation logic will be added when routes are set up
-    console.log(`Navigating to: ${path}`);
+  const renderDays = () => {
+    const days = [];
+    let startDate = currentWeekStart;
+    
+    for (let i = 0; i < 7; i++) {
+      const currentDate = addDays(startDate, i);
+      const isToday = isSameDay(currentDate, today);
+      
+      // Filter events for this specific day
+      const dayEvents = mockEvents.filter(event => 
+        isSameDay(event.date, currentDate)
+      );
+      
+      days.push(
+        <div key={i} style={styles.dayCell} className={isToday ? 'today' : ''}>
+          <div style={styles.dateNumber}>
+            {format(currentDate, 'd')}
+            {isToday && <span style={styles.todayMarker}>Today</span>}
+          </div>
+          
+          {dayEvents.length > 0 ? (
+            <div style={styles.eventsContainer}>
+              {dayEvents.map(event => (
+                <div 
+                  key={event.id} 
+                  style={{
+                    ...styles.eventItem,
+                    borderLeft: `3px solid ${event.color}`,
+                    backgroundColor: `${event.color}15`
+                  }}
+                >
+                  <div style={styles.eventTime}>{event.time}</div>
+                  <div style={styles.eventTitle}>{event.title}</div>
+                  {event.location && (
+                    <div style={styles.eventDetail}>
+                      <i className="fas fa-map-marker-alt" style={{ marginRight: '4px' }}></i>
+                      {event.location}
+                    </div>
+                  )}
+                  {event.tutor && (
+                    <div style={styles.eventDetail}>
+                      <i className="fas fa-chalkboard-teacher" style={{ marginRight: '4px' }}></i>
+                      {event.tutor}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={styles.noSessions}>No scheduled sessions</div>
+          )}
+        </div>
+      );
+    }
+    
+    return days;
+  };
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [slideDirection, setSlideDirection] = useState('none');
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Add keyframes for animations
+  const keyframes = `
+    @keyframes slideInLeft {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutLeft {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(-100%); opacity: 0; }
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+
+  // Animation styles
+  const calendarAnimation = {
+    'none': {
+      transform: 'translateX(0)',
+      opacity: 1,
+      transition: 'none'
+    },
+    'slide-in-left': {
+      animation: 'slideInLeft 0.3s ease-out forwards'
+    },
+    'slide-out-left': {
+      animation: 'slideOutLeft 0.3s ease-out forwards'
+    },
+    'slide-in-right': {
+      animation: 'slideInRight 0.3s ease-out forwards'
+    },
+    'slide-out-right': {
+      animation: 'slideOutRight 0.3s ease-out forwards'
+    }
   };
 
   return (
     <div style={styles.container}>
       <Header />
-      <h1 style={styles.heading}>Admin Home</h1>
+      <h1 style={styles.heading}>Admin Dashboard</h1>
+      
       <div style={styles.content}>
-        <div style={styles.columnsContainer}>
-          <div style={styles.leftColumn}>
-            <h1 style={styles.title}>Welcome, {isAuthenticated ? `${user.firstName} ${user.lastName}` : 'Admin'}</h1>
-            
-            <div style={styles.section}>
-              <h2 style={styles.sectionTitle}>Admin Tools</h2>
-              <ul style={styles.linkList}>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/registered-tutors" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/registered-tutors')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Registered Tutors</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/registered-students" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/registered-students')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Registered Students</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/tutor-applications" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/tutor-applications')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Tutor Applications</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/reports" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/reports')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Reports</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/tutor-course-applications" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/tutor-course-applications')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Tutor Course Addition Applications</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/admin/course-coverage-requests" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/admin/course-coverage-requests')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Course Coverage Requests</span>
-                  </a>
-                </li>
-                <li style={styles.linkItem}>
-                  <a 
-                    href="/messages" 
-                    style={styles.link}
-                    onClick={(e) => handleAdminLinkClick(e, '/messages')}
-                  >
-                    <span style={{position: 'relative', zIndex: 2}}>Messages</span>
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-          
-          <div style={styles.rightColumn}>
-            <div style={styles.myCalendarSection}>
+        <div style={{ 
+          display: 'grid',
+          gridTemplateColumns: isSidebarCollapsed ? '80px 1fr' : '280px 1fr',
+          width: '100%',
+          gap: '20px',
+          padding: '0 20px',
+          boxSizing: 'border-box',
+          maxWidth: '1400px',
+          margin: '0 auto',
+          transition: 'grid-template-columns 0.3s ease'
+        }}>
+          {/* Left Column - User Profile */}
+          <div style={{ 
+              backgroundColor: '#fff',
+              borderRadius: '12px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+              padding: isSidebarCollapsed ? '24px 10px' : '24px',
+              height: 'fit-content',
+              minHeight: '500px',
+              border: '1px solid #f0f0f0',
+              width: isSidebarCollapsed ? '80px' : '280px',
+              boxSizing: 'border-box',
+              transition: 'all 0.3s ease',
+              overflow: 'hidden',
+              position: 'relative'
+          }}>
+            {/* Collapse/Expand Button */}
+            <div style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              margin: isSidebarCollapsed ? '20px 0px' : '0px',
+              height: isSidebarCollapsed ? '90%' : 'auto',
+              width: '90%',
+              display: 'flex',
+              alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
+              justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
+              pointerEvents: 'none',
+              zIndex: 10,
+              paddingTop: isSidebarCollapsed ? 0 : '10px',
+            }}>
               <button 
-                onClick={() => window.location.href = '/myschedule'}
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                 style={{
-                  width: '100%',
-                  padding: '12px',
-                  backgroundColor: 'rgb(35, 17, 97, 0.7)',
-                  color: 'white',
+                  position: 'relative',
+                  backgroundColor: 'rgba(231, 230, 230, 0.49)',
                   border: 'none',
-                  borderRadius: '4px',
-                  fontSize: '16px',
-                  fontWeight: '600',
                   cursor: 'pointer',
-                  transition: 'background-color 0.2s'
+                  color: '#6c757d',
+                  padding: isSidebarCollapsed ? '15px 8px' : '5px',
+                  margin: isSidebarCollapsed ? '0px' : '0 10px',
+                  borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
+                  boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
+                  transition: 'all 0.3s ease',
+                  pointerEvents: 'auto',
+                  height: isSidebarCollapsed ? '100%' : 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  ':hover': {
+                    background: isSidebarCollapsed ? 'rgba(255, 255, 255, 1)' : '#f8f9fa',
+                    color: '#35006D',
+                    boxShadow: isSidebarCollapsed ? '-2px 0 12px rgba(0,0,0,0.15)' : 'none'
+                  }
                 }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = 'rgb(35, 17, 97, 0.9)'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'rgb(35, 17, 97, 0.7)'}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
+                  e.currentTarget.style.color = '#35006D';
+                  if (isSidebarCollapsed) {
+                    e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
+                  e.currentTarget.style.color = '#6c757d';
+                  if (isSidebarCollapsed) {
+                    e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
+                  } else {
+                    e.currentTarget.style.boxShadow = 'none';
+                  }
+                }}
               >
-                My Calendar
+                <span style={{ 
+                  fontSize: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '20px',
+                  height: '20px'
+                }}>
+                  {isSidebarCollapsed ? (
+                    <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
+                  ) : (
+                    <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
+                  )}
+                </span>
               </button>
             </div>
-            
-            <div style={styles.todaySection}>
-              <h3 style={styles.sectionTitleToday}>Meetings Today</h3>
-              <div style={{ 
-                minHeight: '200px',
+            {/* Profile Header */}
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center',
+              paddingBottom: '20px',
+              marginBottom: '20px',
+              borderBottom: user ? '1px solid #f0f0f0' : 'none',
+              opacity: isSidebarCollapsed ? 0 : 1,
+              transition: 'opacity 0.2s ease',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              width: '100%'
+            }}>
+              <div style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#666',
-                fontStyle: 'italic'
+                marginBottom: '16px',
+                overflow: 'hidden',
+                border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
               }}>
-                No meetings scheduled for today
+                {user?.firstName && user?.lastName ? (
+                  <div style={{
+                    fontSize: '36px',
+                    fontWeight: '600',
+                    color: '#9A2250',
+                    textTransform: 'uppercase'
+                  }}>
+                    {user.firstName[0]}{user.lastName[0]}
+                  </div>
+                ) : (
+                  <i className="fas fa-user" style={{ 
+                    fontSize: '36px', 
+                    color: '#9A2250',
+                    opacity: 0.7 
+                  }}></i>
+                )}
+              </div>
+              
+              <h3 style={{ 
+                margin: '8px 0 6px',
+                color: user ? '#2c3e50' : '#6c757d',
+                fontSize: '1.2rem',
+                textAlign: 'center',
+                fontWeight: user ? '600' : '500'
+              }}>
+                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
+              </h3>
+              
+              <div style={{
+                backgroundColor: '#9A2250',
+                color: 'white',
+                padding: '4px 14px',
+                borderRadius: '12px',
+                fontSize: '0.75rem',
+                fontWeight: '600',
+                marginTop: '6px',
+                letterSpacing: '0.3px',
+                display: 'inline-block',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                Admin
+              </div>
+            </div>
+            
+            {/* Enrolled Courses Section */}
+            <div style={{
+              opacity: isSidebarCollapsed ? 0 : 1,
+              transition: 'all 0.3s ease',
+              width: '100%',
+              padding: isSidebarCollapsed ? '0' : '24px 16px',
+              height: isSidebarCollapsed ? '0' : 'auto',
+              visibility: isSidebarCollapsed ? 'hidden' : 'visible',
+              position: isSidebarCollapsed ? 'absolute' : 'relative',
+              borderRadius: '16px',
+              backgroundColor: 'white',
+              marginBottom: isSidebarCollapsed ? '0' : '20px',
+              boxShadow: isSidebarCollapsed ? 'none' : '0 4px 12px rgba(0, 0, 0, 0.05)'
+            }}>
+              <h2 style={{
+                color: '#2c3e50',
+                margin: '0 0 12px 0',
+                paddingBottom: '8px',
+                borderBottom: '1px solid #f0f0f0',
+                fontSize: '1.1rem',
+                fontWeight: '600',
+                display: isSidebarCollapsed ? 'none' : 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <i className="fas fa-shield-alt" style={{ color: '#9A2250' }}></i>
+                Admin Tools
+              </h2>
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                maxHeight: 'calc(100vh - 320px)',
+                overflowY: 'auto',
+                paddingRight: '4px',
+                transition: 'max-height 0.3s ease, opacity 0.3s ease',
+                scrollbarWidth: 'thin',
+                scrollbarColor: '#9A2250 #f1f1f1'
+              }}>
+                {[
+                  { 
+                    title: 'Registered Tutors', 
+                    icon: 'chalkboard-teacher',
+                    path: '/admin/registered-tutors',
+                    color: '#4e73df'
+                  },
+                  { 
+                    title: 'Registered Students', 
+                    icon: 'user-graduate',
+                    path: '/admin/registered-students',
+                    color: '#1cc88a'
+                  },
+                  { 
+                    title: 'Tutor Applications', 
+                    icon: 'file-signature',
+                    path: '/admin/tutor-applications',
+                    color: '#f6c23e'
+                  },
+                  { 
+                    title: 'Reports', 
+                    icon: 'chart-bar',
+                    path: '/admin/reports',
+                    color: '#e74a3b'
+                  },
+                  { 
+                    title: 'Tutor Course Addition Applications', 
+                    icon: 'plus-circle',
+                    path: '/admin/tutor-course-applications',
+                    color: '#36b9cc'
+                  },
+                  { 
+                    title: 'Course Coverage Requests', 
+                    icon: 'book-reader',
+                    path: '/admin/course-coverage-requests',
+                    color: '#6f42c1'
+                  },
+                  { 
+                    title: 'Messages', 
+                    icon: 'envelope',
+                    path: '/messages',
+                    color: '#fd7e14'
+                  }
+                ].map((item, index) => (
+                  <a 
+                    key={index}
+                    href={item.path}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '8px 12px',
+                      backgroundColor: 'white',
+                      borderRadius: '10px',
+                      textDecoration: 'none',
+                      color: '#2c3e50',
+                      transition: 'all 0.2s ease',
+                      border: '1px solid #e9ecef',
+                      ':hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                        borderColor: item.color,
+                        backgroundColor: `${item.color}08`
+                      }
+                    }}
+                  >
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '6px',
+                      backgroundColor: `${item.color}15`,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: '10px',
+                      flexShrink: 0,
+                      color: item.color,
+                      fontSize: '0.9rem'
+                    }}>
+                      <i className={`fas fa-${item.icon}`}></i>
+                    </div>
+                    <span style={{
+                      fontSize: '0.85rem',
+                      fontWeight: '500',
+                      whiteSpace: 'normal',
+                      wordBreak: 'break-word',
+                      lineHeight: '1.3',
+                      textAlign: 'left'
+                    }}>
+                      {item.title}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+          
+          {/* Right Column - Search and Calendar */}
+          <div style={{ 
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px'
+          }}>
+            <div style={{
+              ...styles.searchContainer,
+              width: '100%',
+              margin: 0
+            }}>
+              <h3 style={{ margin: "0 0 5px 0", color: '#2c3e50' }}>Find Tutors & Courses</h3>
+              <div style={styles.searchInputContainer}>
+                <div style={styles.categoryDropdown}>
+                  <button 
+                    style={styles.categoryButton}
+                    onClick={toggleCategory}
+                  >
+                    {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                  </button>
+                  {isCategoryOpen && (
+                    <ul style={styles.categoryList}>
+                      <li 
+                        onClick={() => selectCategory('default')}
+                        style={{ cursor: 'pointer' }}
+                      >All</li>
+                      <li 
+                        onClick={() => selectCategory('tutor')}
+                        style={{ cursor: 'pointer' }}
+                      >Tutors</li>
+                      <li 
+                        onClick={() => selectCategory('course')}
+                        style={{ cursor: 'pointer' }}
+                      >Courses</li>
+                    </ul>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchQueryChange}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                  placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
+                  style={styles.searchInput}
+                />
+                <button 
+                  style={{
+                    backgroundColor: '#35006D',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#4b1a80';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#35006D';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'translateY(1px)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                  onClick={handleSearch}
+                >
+                  <i className="fas fa-search"></i>
+                  Search
+                </button>
+              </div>
+            </div>
+            
+            <div style={{
+              ...styles.calendarContainer,
+              width: '100%',
+              margin: 0
+            }}>
+              <div style={styles.calendarHeader}>
+                <button 
+                  onClick={prevWeek}
+                  style={{
+                    backgroundColor: '#35006D',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#4b1a80';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#35006D';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'translateY(1px)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  <i className="fas fa-chevron-left"></i> Previous Week
+                </button>
+                <div style={styles.weekDisplay}>
+                  {format(currentWeekStart, 'MMM d, yyyy')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
+                </div>
+                <button 
+                  onClick={nextWeek}
+                  style={{
+                    backgroundColor: '#35006D',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px 20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    fontWeight: '500',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.backgroundColor = '#4b1a80';
+                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.backgroundColor = '#35006D';
+                    e.currentTarget.style.boxShadow = 'none';
+                  }}
+                  onMouseDown={(e) => {
+                    e.currentTarget.style.transform = 'translateY(1px)';
+                  }}
+                  onMouseUp={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Next Week <i className="fas fa-chevron-right"></i>
+                </button>
+              </div>
+              
+              <div style={styles.calendarGrid}>
+                <style>{keyframes}</style>
+                <div style={{
+                  position: 'relative',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gap: '1px',
+                  width: '100%',
+                  minHeight: '200px',
+                  boxSizing: 'border-box',
+                  ...calendarAnimation[slideDirection]
+                }}>
+                  {weekDays.map(day => (
+                    <div key={day} style={styles.dayHeader}>
+                      {day}
+                    </div>
+                  ))}
+                  {renderDays()}
+                </div>
               </div>
             </div>
           </div>

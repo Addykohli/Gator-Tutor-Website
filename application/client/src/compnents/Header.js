@@ -25,39 +25,40 @@ const Header = () => {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    maxWidth: '300px',
+    maxWidth: '250px',
     width: '100%',
     margin: '0',
     gap: '5px',
     padding: isMobile ? '0 0px' : '0 0px',
   };
 
-  const loginLinkStyle = {
-    position: 'absolute',
-    top: '20px',
-    right: '40px',
-    color: 'white',
+  const navButtonStyle = {
+    color: 'black',
     textDecoration: 'none',
-    fontSize: '16px',
-    fontWeight: '500',
-    padding: '8px 16px',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+    fontWeight: '400',
+    padding: '6px 10px',
     borderRadius: '4px',
     transition: 'background-color 0.2s',
-    zIndex: 1,
-    display: isMobile ? 'block' : 'inline-block',
-    margin: isMobile ? '10px auto' : '0',
-    textAlign: isMobile ? 'center' : 'left',
-    width: isMobile ? 'fit-content' : 'auto',
-    '&:hover': {
-      textDecoration: 'underline',
-      backgroundColor: 'rgba(255, 255, 255, 0.1)'
-    }
+    display: 'flex',
+    alignItems: 'center',
+    border: '1px solid black',
+    background: 'transparent',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    margin: '0 4px'
+  };
+  
+  const dividerStyle = {
+    color: 'rgba(0, 0, 0, 0.3)',
+    margin: '0 8px',
+    userSelect: 'none'
   };
 
   const classTitle = {
-    margin: 0,
-    padding: '0px 0px 0px 40px',
-    margin: '0 0 0 40px',
+    padding: '0px 0px 0px 10px',
+    margin: '0 0 0 0px',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -89,10 +90,9 @@ const Header = () => {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    padding: '0px',
+    padding: '0 20px',
     boxSizing: 'border-box',
     position: 'relative',
-    justifyContent: 'space-between',
   };
 
   const menuButtonStyle = {
@@ -177,17 +177,6 @@ const Header = () => {
   return (
     <>
       <header style={headerStyle}>
-        <a 
-          href="/login" 
-          style={loginLinkStyle}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/login');
-          }}
-        >
-          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
-          Login
-        </a>
         <div style={headerContent}>
           <button 
             onClick={() => navigate('/')}
@@ -196,7 +185,7 @@ const Header = () => {
             <img 
               src={require('../assets/gator icon logo.png')} 
               alt="Gator Tutor Logo" 
-              style={{ height: '140px', width: 'auto' }}
+              style={{ height: '100px', width: 'auto' }}
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.style.display = 'none';
@@ -206,15 +195,41 @@ const Header = () => {
         </div>
       </header>
       <div style={navBarStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', padding: '0 18px' }}>
+        <button 
+          style={menuButtonStyle}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+          onClick={toggleMenu}
+        >
+          <i className="fas fa-bars" style={{ marginRight: '8px' }}></i>
+          Menu
+        </button>
+        <div style={{ flex: 1 }}></div>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <button 
-            style={menuButtonStyle}
+            style={navButtonStyle}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            onClick={toggleMenu}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/login');
+            }}
           >
-            <i className="fas fa-bars" style={{ marginRight: '8px' }}></i>
-            Menu
+            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
+            Login
+          </button>
+          <span style={dividerStyle}>|</span>
+          <button 
+            style={navButtonStyle}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.05)'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/register');
+            }}
+          >
+            <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }}></i>
+            Sign Up
           </button>
         </div>
       </div>
