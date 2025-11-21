@@ -12,7 +12,7 @@ const Header = () => {
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
-    { icon: 'fas fa-book', label: 'Request course coverage', path: '/request-coverage' }
+    { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' }
   ];
 
   const isExpanded = isMenuOpen || isLocked;
@@ -25,7 +25,6 @@ const Header = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Click outside handler
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
@@ -62,8 +61,8 @@ const Header = () => {
   };
 
   const classTitle = {
-    padding: '0px 0px 0px 0px',
-    margin: '0 0 0 0px',
+    padding: '0px',
+    margin: '0',
     background: 'none',
     border: 'none',
     cursor: 'pointer',
@@ -78,24 +77,35 @@ const Header = () => {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 20px',
+    padding: '0 10px',
     boxSizing: 'border-box',
     position: 'relative',
+    zIndex: 100,
   };
 
-  // Wrapper that contains both button and dropdown
   const menuWrapperStyle = {
     position: 'relative',
     zIndex: 1001,
+    height: '40px',
   };
 
-  // The expanding border container
+  // Hover area that covers both button and dropdown
+  const hoverAreaStyle = {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: isExpanded ? '200px' : '100px',
+    height: isExpanded ? '220px' : '40px',
+    zIndex: 999,
+    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+  };
+
   const borderContainerStyle = {
     position: 'absolute',
     top: '0',
     left: '0',
-    width: isExpanded ? '280px' : '100px',
-    height: isExpanded ? '232px' : '40px',
+    width: isExpanded ? '200px' : '100px',
+    height: isExpanded ? '220px' : '40px',
     border: '1px solid rgb(255, 220, 112)',
     borderRadius: isExpanded ? '8px' : '4px',
     backgroundColor: isExpanded ? 'rgba(255, 220, 112, 0.98)' : 'transparent',
@@ -103,10 +113,9 @@ const Header = () => {
     transformOrigin: 'top left',
     pointerEvents: 'none',
     zIndex: 1000,
-    overflow: 'hidden',
+    boxShadow: isExpanded ? '0 4px 20px rgba(0, 0, 0, 0.15)' : 'none',
   };
 
-  // Menu button style
   const menuButtonStyle = {
     display: 'flex',
     alignItems: 'center',
@@ -126,7 +135,6 @@ const Header = () => {
     width: '100px',
   };
 
-  // Container for the 3 bars that become menu items
   const barsContainerStyle = {
     display: 'flex',
     flexDirection: 'column',
@@ -138,7 +146,6 @@ const Header = () => {
     position: 'relative',
   };
 
-  // The 3 bars inside the button that morph into menu items
   const getBarInButtonStyle = (index) => ({
     position: 'absolute',
     left: '0',
@@ -151,7 +158,6 @@ const Header = () => {
     transformOrigin: 'left center',
   });
 
-  // Divider between button and dropdown items
   const headerDividerStyle = {
     position: 'absolute',
     top: '40px',
@@ -162,84 +168,78 @@ const Header = () => {
     transition: 'all 0.3s ease 0.2s',
     transformOrigin: 'left',
     zIndex: 1003,
-    width: isExpanded ? '256px' : '0px',
+    width: isExpanded ? '176px' : '0px',
   };
 
-  // Menu item that morphs from bar
   const getMenuItemStyle = (index) => {
-    // Collapsed: positioned inside the hamburger icon area
-    // Expanded: spread out below the button
-    const collapsedTop = 12 + (index * 6); // Stack as hamburger lines
-    const expandedTop = 52 + (index * 56); // Spread as menu items
+    const collapsedTop = 12 + (index * 6);
+    const expandedTop = 48 + (index * 54);
     
     return {
       position: 'absolute',
-      left: isExpanded ? '12px' : '12px',
+      left: '12px',
       display: 'flex',
       alignItems: 'center',
       top: isExpanded ? `${expandedTop}px` : `${collapsedTop}px`,
-      width: isExpanded ? '256px' : '18px',
-      height: isExpanded ? '48px' : '2px',
+      width: isExpanded ? '176px' : '18px',
+      height: isExpanded ? '46px' : '2px',
       backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
       borderRadius: isExpanded ? '6px' : '1px',
       transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
       cursor: isExpanded ? 'pointer' : 'default',
       overflow: 'hidden',
       border: 'none',
-      padding: 0,
+      padding: isExpanded ? '8px' : '0',
+      boxSizing: 'border-box',
       pointerEvents: isExpanded ? 'auto' : 'none',
       zIndex: 1001,
     };
   };
 
-  // Icon container style
   const getIconContainerStyle = (index) => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: isExpanded ? '28px' : '18px',
-    height: isExpanded ? '28px' : '2px',
-    marginLeft: isExpanded ? '12px' : '0',
+    minWidth: isExpanded ? '24px' : '18px',
+    height: isExpanded ? '24px' : '2px',
     transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
   });
 
-  // Icon style
   const getIconStyle = (index) => ({
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'scale(1) rotate(0deg)' : 'scale(0) rotate(-180deg)',
     transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.2 + index * 0.1}s`,
     color: '#1e1b4b',
-    fontSize: '18px',
-    width: '28px',
-    textAlign: 'center',
+    fontSize: '16px',
   });
 
-  // Label style
   const getLabelStyle = (index) => ({
-    marginLeft: '14px',
+    marginLeft: '10px',
     color: '#1e1b4b',
-    fontSize: '15px',
+    fontSize: '13px',
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: '1px',
+    letterSpacing: '0.5px',
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'translateX(0)' : 'translateX(-30px)',
     transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.25 + index * 0.1}s`,
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal',
+    lineHeight: '1.2',
+    textAlign: 'left',
+    wordBreak: 'break-word',
   });
 
-  // Item divider style
   const getDividerStyle = (index) => ({
     position: 'absolute',
-    left: '16px',
-    top: `${100 + index * 56}px`,
+    left: '12px',
+    top: `${94 + index * 54}px`,
     height: '1px',
-    backgroundColor: 'rgba(0,0,0,0.12)',
+    backgroundColor: 'rgba(0,0,0,0.1)',
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
     transition: `all 0.3s ease ${0.35 + index * 0.05}s`,
     transformOrigin: 'left',
-    width: isExpanded ? '248px' : '0px',
+    width: isExpanded ? '176px' : '0px',
     pointerEvents: 'none',
   });
 
@@ -253,7 +253,8 @@ const Header = () => {
     }
   };
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (e) => {
+    e.stopPropagation();
     setIsLocked(!isLocked);
     if (!isLocked) {
       setIsMenuOpen(true);
@@ -261,143 +262,147 @@ const Header = () => {
   };
 
   return (
-    <>
-      <div style={navBarStyle}>
-        {/* Menu Container */}
+    <div style={navBarStyle}>
+      {/* Menu Container */}
+      <div ref={menuRef} style={menuWrapperStyle}>
+        {/* Invisible hover area */}
         <div 
-          ref={menuRef} 
-          style={menuWrapperStyle}
+          style={hoverAreaStyle}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
+        />
+
+        {/* Expanding border */}
+        <div style={borderContainerStyle} />
+
+        {/* Divider between button and dropdown */}
+        <div style={headerDividerStyle} />
+
+        {/* Menu Button */}
+        <button 
+          style={menuButtonStyle}
+          onClick={handleButtonClick}
+          onMouseEnter={handleMouseEnter}
         >
-          {/* Expanding border that connects button to dropdown */}
-          <div style={borderContainerStyle}></div>
+          <div style={barsContainerStyle}>
+            <span style={getBarInButtonStyle(0)} />
+            <span style={getBarInButtonStyle(1)} />
+            <span style={getBarInButtonStyle(2)} />
+          </div>
+          Menu
+        </button>
 
-          {/* Divider between button and dropdown */}
-          <div style={headerDividerStyle}></div>
-
-          {/* Clickable Menu Button */}
-          <button 
-            style={menuButtonStyle}
-            onClick={handleButtonClick}
+        {/* Menu items */}
+        {menuItems.map((item, index) => (
+          <button
+            key={item.path}
+            style={getMenuItemStyle(index)}
+            onMouseEnter={(e) => {
+              if (isExpanded) {
+                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
+                setIsMenuOpen(true);
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (isExpanded) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+            onClick={() => {
+              if (isExpanded) {
+                navigate(item.path);
+                setIsMenuOpen(false);
+                setIsLocked(false);
+              }
+            }}
           >
-            {/* Placeholder bars that disappear */}
-            <div style={barsContainerStyle}>
-              <span style={getBarInButtonStyle(0)}></span>
-              <span style={getBarInButtonStyle(1)}></span>
-              <span style={getBarInButtonStyle(2)}></span>
+            <div style={getIconContainerStyle(index)}>
+              <i className={item.icon} style={getIconStyle(index)} />
             </div>
-            Menu
+            <span style={getLabelStyle(index)}>{item.label}</span>
           </button>
+        ))}
 
-          {/* The actual menu items that morph from bars */}
-          {menuItems.map((item, index) => (
-            <button
-              key={item.path}
-              style={getMenuItemStyle(index)}
-              onMouseEnter={(e) => {
-                if (isExpanded) e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
-              }}
-              onMouseLeave={(e) => {
-                if (isExpanded) e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-              onClick={() => {
-                if (isExpanded) {
-                  navigate(item.path);
-                  setIsMenuOpen(false);
-                  setIsLocked(false);
-                }
-              }}
-            >
-              <div style={getIconContainerStyle(index)}>
-                <i className={item.icon} style={getIconStyle(index)}></i>
-              </div>
-              <span style={getLabelStyle(index)}>{item.label}</span>
-            </button>
-          ))}
-
-          {/* Dividers between menu items */}
-          {menuItems.slice(0, -1).map((_, index) => (
-            <div key={`divider-${index}`} style={getDividerStyle(index)} />
-          ))}
-        </div>
-
-        {/* Logo */}
-        <div style={{ 
-          flex: 1, 
-          display: 'flex', 
-          justifyContent: 'center', 
-          position: 'absolute', 
-          left: '14%', 
-          transform: 'translateX(-50%)' 
-        }}>
-          <button 
-            onClick={() => navigate('/')}
-            style={classTitle}
-          >
-            <img 
-              src={require('../assets/gator icon logo.png')} 
-              alt="Gator Tutor Logo" 
-              style={{ height: '40px', width: 'auto' }}
-              onError={(e) => {
-                e.target.onerror = null;
-                e.target.style.display = 'none';
-              }}
-            />
-          </button>
-        </div>
-
-        {/* Login/Signup buttons */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          marginLeft: 'auto',
-          paddingRight: '10px'
-        }}>
-          <button 
-            style={navButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
-              e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border  = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(255, 220, 112)';
-              e.currentTarget.style.border  = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/login');
-            }}
-          >
-            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }}></i>
-            Login
-          </button>
-          <span style={dividerStyle}>|</span>
-          <button 
-            style={navButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
-              e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border  = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(255, 220, 112)';
-              e.currentTarget.style.border  = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/register');
-            }}
-          >
-            <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }}></i>
-            Sign Up
-          </button>
-        </div>
+        {/* Item dividers */}
+        {menuItems.slice(0, -1).map((_, index) => (
+          <div key={`divider-${index}`} style={getDividerStyle(index)} />
+        ))}
       </div>
-    </>
+
+      {/* Logo */}
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        justifyContent: 'center', 
+        position: 'absolute', 
+        left: '14%', 
+        transform: 'translateX(-50%)',
+        zIndex: 99,
+      }}>
+        <button onClick={() => navigate('/')} style={classTitle}>
+          <img 
+            src={require('../assets/gator icon logo.png')} 
+            alt="Gator Tutor Logo" 
+            style={{ height: '40px', width: 'auto' }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.style.display = 'none';
+            }}
+          />
+        </button>
+      </div>
+
+      {/* Login/Signup buttons */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        marginLeft: 'auto',
+        paddingRight: '10px',
+        zIndex: 99,
+      }}>
+        <button 
+          style={navButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
+            e.currentTarget.style.color = 'rgb(35, 17, 97)';
+            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = 'rgb(255, 220, 112)';
+            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/login');
+          }}
+        >
+          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+          Login
+        </button>
+        <span style={dividerStyle}>|</span>
+        <button 
+          style={navButtonStyle}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
+            e.currentTarget.style.color = 'rgb(35, 17, 97)';
+            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+            e.currentTarget.style.color = 'rgb(255, 220, 112)';
+            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            navigate('/register');
+          }}
+        >
+          <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+          Sign Up
+        </button>
+      </div>
+    </div>
   );
 };
 

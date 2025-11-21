@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./Header";
 import Footer from './Footer';
 
@@ -9,6 +9,7 @@ function useQuery() {
 }
 
 export default function SearchPage() {
+  const navigate = useNavigate();
   const styles = {
     container: {
       display: "flex",
@@ -352,8 +353,23 @@ export default function SearchPage() {
       const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
       const hourlyRate = item.hourly_rate_cents ? `$${(item.hourly_rate_cents / 100).toFixed(2)}/hr` : 'Rate not specified';
 
+      const handleTutorClick = () => {
+        // Use the appropriate ID property based on the data structure
+        const tutorId = item.id || item.tutor_id || item.user_id;
+        if (tutorId) {
+          navigate(`/tutor/${tutorId}`);
+        } else {
+          console.error('No valid tutor ID found in tutor data:', item);
+        }
+      };
+
       return (
-        <div style={styles.tutorCard}>
+        <div 
+          style={{...styles.tutorCard, cursor: 'pointer'}} 
+          onClick={handleTutorClick}
+          onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'}
+          onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'}
+        >
           <div style={styles.tutorCardContent}>
             <div style={styles.tutorHeader}>
               <div style={styles.tutorAvatar}>
