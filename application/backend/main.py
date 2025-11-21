@@ -37,3 +37,8 @@ def healthz():
 @app.get("/team")
 def team():
     return {"team": "08", "milestone": "M0", "backend": "fastapi"}
+
+# Add an /api endpoint
+@app.get("/api")
+def api_root():
+    return {"message": "Team08 API", "status": "ok"}
