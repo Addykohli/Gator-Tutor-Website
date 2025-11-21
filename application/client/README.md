@@ -21,6 +21,9 @@ This document provides an overview of the webpages implemented in the client-sid
 
 ## to be implemented
 
-- **Appointment Requests** (`/appointment-requests`)
-- **Appointments** (`/appointments`)
+- **Appointment Requests(Tutor)** (`/appointment-requests`)
+- **Appointments(Tutor)** (`/appointments`) 
+- **Home Page tutor features** (`/`)
+
+- **Sessions(Student)** (`/sessions`)
 

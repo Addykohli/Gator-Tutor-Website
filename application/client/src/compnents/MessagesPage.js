@@ -256,11 +256,7 @@ const MessagesPage = () => {
               onChange={(e) => setNewMessage(e.target.value)}
             />
             <button type="submit" style={styles.sendButton}>
-              {newMessage.trim() ? (
-                <i className="fas fa-paper-plane" style={{ fontSize: '20px', color: 'white' }}></i>
-              ) : (
-                <i className="fas fa-microphone" style={{ fontSize: '20px', color: 'white' }}></i>
-              )}
+              <i className="fas fa-paper-plane" style={{ fontSize: '20px', color: 'white' }}></i>
             </button>
           </form>
         </div>
