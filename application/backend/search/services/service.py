@@ -201,3 +201,58 @@ def search_courses(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int
     
     return results, total_count
 
+
+def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
+    """
+    Fetch detailed information for a specific tutor by ID.
+    
+    Args:
+        db: Database session
+        tutor_id: ID of the tutor to fetch
+        
+    Returns:
+        Dictionary with tutor details, or None if tutor not found or not approved.
+    """
+    # Query tutor with user info
+    tutor = db.query(TutorProfile).join(
+        User, TutorProfile.tutor_id == User.user_id
+    ).filter(
+        TutorProfile.tutor_id == tutor_id,
+        TutorProfile.status == 'approved'
+    ).first()
+    
+    if not tutor:
+        return None
+    
+    # Get courses
+    tutor_courses = db.query(Course).join(
+        TutorCourse, Course.course_id == TutorCourse.course_id
+    ).filter(
+        TutorCourse.tutor_id == tutor_id,
+        Course.is_active == True
+    ).all()
+    
+    courses = [
+        {
+            "department_code": c.department_code,
+            "course_number": c.course_number,
+            "title": c.title
+        }
+        for c in tutor_courses
+    ]
+    
+    return {
+        "id": tutor.tutor_id,
+        "first_name": tutor.user.first_name,
+        "last_name": tutor.user.last_name,
+        "email": tutor.user.sfsu_email,
+        "hourly_rate_cents": tutor.hourly_rate_cents,
+        "bio": tutor.bio,
+        "courses": courses,
+        "languages": tutor.get_languages(),
+        "avg_rating": None,  # TODO: Implement when reviews are added
+        "sessions_completed": None,  # TODO: Implement when sessions are tracked
+        "profile_image_path_full": tutor.profile_image_path_full,
+        "profile_image_path_thumb": tutor.profile_image_path_thumb
+    }
+

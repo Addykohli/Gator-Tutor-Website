@@ -5,7 +5,8 @@ from .user import User
 from .tutor_profile import TutorProfile
 from .course import Course
 from .tutor_course import TutorCourse
-from .availability_slot import AvailabilitySlot
+from schedule.models.availability_slot import AvailabilitySlot
+from schedule.models.booking import Booking
 
 __all__ = [
     "User",
@@ -13,5 +14,6 @@ __all__ = [
     "Course",
     "TutorCourse",
     "AvailabilitySlot",
+    "Booking",
 ]
 

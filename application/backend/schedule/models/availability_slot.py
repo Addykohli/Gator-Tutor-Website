@@ -3,7 +3,7 @@ AvailabilitySlot model for tutor availability (optional - may not be used in ini
 """
 from sqlalchemy import Column, Integer, String, Time, ForeignKey, Index
 from sqlalchemy.orm import relationship
-from ..database import Base
+from search.database import Base
 
 
 class AvailabilitySlot(Base):
