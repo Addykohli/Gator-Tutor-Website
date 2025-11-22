@@ -67,7 +67,7 @@ const Footer = () => {
       <div style={styles.footerSection}>
         <div style={styles.logoContainer}>
           <img 
-            src={require('../assets/logo.png')} 
+            src={require('../assets/logo bw.png')} 
             alt="TutorMe Logo" 
             style={styles.logo}
             onError={(e) => {
