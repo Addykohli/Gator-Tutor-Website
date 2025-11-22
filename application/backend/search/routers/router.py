@@ -6,14 +6,36 @@ from sqlalchemy.orm import Session
 from typing import Optional
 
 from ..database import get_db
-from ..services import search_tutors, search_courses
+from ..services import (
+    search_tutors, 
+    search_courses, 
+    get_tutor_by_id,
+    get_tutor_availability,
+    create_booking,
+    get_student_bookings,
+    get_tutor_bookings,
+    get_bookings
+)
 from ..schemas import (
     TutorSearchResponse,
     TutorSearchResult,
     CourseSearchResponse,
     CourseSearchResult,
-    SearchAllResponse
+    SearchAllResponse,
+    TutorSearchResponse,
+    TutorSearchResult,
+    CourseSearchResponse,
+    CourseSearchResult,
+    SearchAllResponse,
+    TutorDetailResponse
 )
+from schedule.schemas.booking_schemas import (
+    BookingCreate,
+    BookingResponse,
+    AvailabilityResponse,
+    TimeSlot
+)
+from datetime import date
 
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -126,6 +148,38 @@ def search_courses_endpoint(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/tutors/{tutor_id}", response_model=TutorDetailResponse)
+def get_tutor_detail(
+    tutor_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get detailed information for a specific tutor by ID.
+    
+    - **tutor_id**: The ID of the tutor to fetch
+    
+    Returns 404 if tutor not found or not approved.
+    """
+    try:
+        tutor_data = get_tutor_by_id(db, tutor_id)
+        
+        if not tutor_data:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tutor with ID {tutor_id} not found or not approved"
+            )
+        
+        return TutorDetailResponse(**tutor_data)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Get tutor detail error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
 @router.get("/all", response_model=SearchAllResponse)
 def search_all_endpoint(
     q: Optional[str] = Query(None, max_length=100, description="Search query for both tutors (names) and courses (titles/codes)"),
@@ -199,3 +253,87 @@ def search_all_endpoint(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail="Internal server error")
 
+
+@router.get("/tutors/{tutor_id}/availability", response_model=AvailabilityResponse)
+def get_availability_endpoint(
+    tutor_id: int,
+    date: date = Query(..., description="Date to check availability for (YYYY-MM-DD)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get available time slots for a tutor on a specific date.
+    """
+    try:
+        slots = get_tutor_availability(db, tutor_id, date)
+        return AvailabilityResponse(
+            tutor_id=tutor_id,
+            date=date,
+            slots=slots
+        )
+    except Exception as e:
+        print(f"Availability error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.post("/bookings", response_model=BookingResponse)
+def create_booking_endpoint(
+    booking: BookingCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new booking.
+    """
+    try:
+        new_booking = create_booking(db, booking)
+        return new_booking
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Booking error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/bookings/student/{student_id}", response_model=list[BookingResponse])
+def get_student_bookings_endpoint(
+    student_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all bookings for a student.
+    """
+    try:
+        return get_student_bookings(db, student_id)
+    except Exception as e:
+        print(f"Get student bookings error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/bookings/tutor/{tutor_id}", response_model=list[BookingResponse])
+def get_tutor_bookings_endpoint(
+    tutor_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all bookings for a tutor.
+    """
+    try:
+        return get_tutor_bookings(db, tutor_id)
+    except Exception as e:
+        print(f"Get tutor bookings error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/bookings", response_model=list[BookingResponse])
+def search_bookings_endpoint(
+    student_id: Optional[int] = Query(None, description="Filter by student ID"),
+    tutor_id: Optional[int] = Query(None, description="Filter by tutor ID"),
+    db: Session = Depends(get_db)
+):
+    """
+    Search bookings by student_id or tutor_id.
+    """
+    try:
+        return get_bookings(db, student_id, tutor_id)
+    except Exception as e:
+        print(f"Search bookings error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")

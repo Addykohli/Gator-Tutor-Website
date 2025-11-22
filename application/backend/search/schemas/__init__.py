@@ -7,7 +7,8 @@ from .models import (
     TutorSearchResponse,
     CourseSearchResult,
     CourseSearchResponse,
-    SearchAllResponse
+    SearchAllResponse,
+    TutorDetailResponse
 )
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "TutorSearchResponse",
     "CourseSearchResult",
     "CourseSearchResponse",
-    "SearchAllResponse"
+    "SearchAllResponse",
+    "TutorDetailResponse"
 ]
 

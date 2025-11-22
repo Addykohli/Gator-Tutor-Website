@@ -51,6 +51,22 @@ class CourseSearchResponse(BaseModel):
     offset: int
 
 
+class TutorDetailResponse(BaseModel):
+    """Detailed tutor profile information."""
+    id: int
+    first_name: str
+    last_name: str
+    email: str
+    hourly_rate_cents: int
+    bio: Optional[str] = None
+    courses: List[CourseInfo] = []
+    languages: List[str] = []
+    avg_rating: Optional[float] = None
+    sessions_completed: Optional[int] = None
+    profile_image_path_full: Optional[str] = None
+    profile_image_path_thumb: Optional[str] = None
+
+
 class SearchAllResponse(BaseModel):
     """Aggregated search response with both tutors and courses."""
     tutors: List[TutorSearchResult]
