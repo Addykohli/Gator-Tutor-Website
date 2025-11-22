@@ -3,9 +3,9 @@ pydantic model for form/login responses
 """
 from pydantic import BaseModel, EmailStr
 
-
+# wip: change to email instead of username since no username in db
 class UserIn(BaseModel):
-    username: str
+    email: str
     password: str
 
 class TokenResponse(BaseModel):
