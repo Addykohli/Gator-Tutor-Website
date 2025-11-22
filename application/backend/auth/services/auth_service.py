@@ -9,7 +9,7 @@ def authenticate_user(db: Session, email:str, password:str):
     user = get_user(db, email)
     if not user:
         return None
-    hash_generated = hashlib.sha256(password.encode()).hexdigest()
-    if user.password_hash != hash_generated:
+    
+    if user.password_hash != password:
         return None
     return user

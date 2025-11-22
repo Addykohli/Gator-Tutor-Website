@@ -11,6 +11,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # React dev server (local)
+        "http://localhost:3001",  # React dev server (local alternative)
         "http://3.101.155.82",    # Production server IP
         "http://localhost",        # Local access on server
     ],
@@ -39,3 +40,8 @@ def healthz():
 @app.get("/team")
 def team():
     return {"team": "08", "milestone": "M0", "backend": "fastapi"}
+
+# Add an /api endpoint
+@app.get("/api")
+def api_root():
+    return {"message": "Team08 API", "status": "ok"}
