@@ -156,41 +156,6 @@ const HomePage = () => {
     setIsCategoryOpen(false);
   };
   
-  // Add styles for calendar events
-  const eventStyles = {
-    eventsContainer: {
-      marginTop: '8px',
-      maxHeight: '200px',
-      overflowY: 'auto',
-      paddingRight: '4px'
-    },
-    eventItem: {
-      padding: '8px',
-      marginBottom: '8px',
-      borderRadius: '4px',
-      fontSize: '0.8rem',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    },
-    eventTime: {
-      fontWeight: '600',
-      fontSize: '0.75rem',
-      color: '#555',
-      marginBottom: '4px'
-    },
-    eventTitle: {
-      fontWeight: '600',
-      marginBottom: '4px',
-      color: '#2c3e50'
-    },
-    eventDetail: {
-      display: 'flex',
-      alignItems: 'center',
-      fontSize: '0.7rem',
-      color: '#6c757d',
-      marginTop: '2px'
-    }
-  };
-
   const styles = {
     container: { 
       display: "flex", 
@@ -269,13 +234,14 @@ const HomePage = () => {
       color: '#2c3e50'
     },
     calendarGrid: {
-      display: 'grid',
-      gridTemplateColumns: 'repeat(7, 1fr)',
-      gap: '1px',
+      width: '100%',
+      position: 'relative',
+      overflow: 'hidden',
       backgroundColor: '#e0e0e0',
       border: '1px solid #e0e0e0',
       borderRadius: '8px',
-      overflow: 'hidden'
+      boxSizing: 'border-box',
+      minHeight: '200px'
     },
     dayHeader: {
       backgroundColor: 'rgb(53, 0, 109)',
@@ -283,13 +249,19 @@ const HomePage = () => {
       padding: '12px',
       textAlign: 'center',
       fontWeight: '600',
-      fontSize: '1rem'
+      fontSize: '1rem',
+      borderRight: '1px solid rgba(255, 255, 255, 0.2)'
     },
     dayCell: {
       backgroundColor: 'white',
       minHeight: '120px',
+      height: 'auto',
       padding: '8px',
       position: 'relative',
+      overflow: 'visible',
+      boxSizing: 'border-box',
+      display: 'flex',
+      flexDirection: 'column',
       '&.today': {
         backgroundColor: '#fff9e6'
       }
@@ -417,6 +389,37 @@ const HomePage = () => {
       width: '100%',
       margin: '0 0 20px 0',
       position: 'relative'
+    },
+    eventsContainer: {
+      marginTop: '8px',
+      flex: 1,
+      paddingRight: '4px',
+      width: '100%'
+    },
+    eventItem: {
+      padding: '8px',
+      marginBottom: '8px',
+      borderRadius: '4px',
+      fontSize: '0.8rem',
+      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+    },
+    eventTime: {
+      fontWeight: '600',
+      fontSize: '0.75rem',
+      color: '#555',
+      marginBottom: '4px'
+    },
+    eventTitle: {
+      fontWeight: '600',
+      marginBottom: '4px',
+      color: '#2c3e50'
+    },
+    eventDetail: {
+      display: 'flex',
+      alignItems: 'center',
+      fontSize: '0.7rem',
+      color: '#6c757d',
+      marginTop: '2px'
     }
   };
 
@@ -424,11 +427,35 @@ const HomePage = () => {
   const today = new Date();
   
   const nextWeek = () => {
-    setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+    if (isAnimating) return;
+    setSlideDirection('slide-out-left');
+    setIsAnimating(true);
+    
+    setTimeout(() => {
+      setCurrentWeekStart(addWeeks(currentWeekStart, 1));
+      setSlideDirection('slide-in-right');
+      
+      setTimeout(() => {
+        setSlideDirection('none');
+        setIsAnimating(false);
+      }, 300);
+    }, 300);
   };
   
   const prevWeek = () => {
-    setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+    if (isAnimating) return;
+    setSlideDirection('slide-out-right');
+    setIsAnimating(true);
+    
+    setTimeout(() => {
+      setCurrentWeekStart(subWeeks(currentWeekStart, 1));
+      setSlideDirection('slide-in-left');
+      
+      setTimeout(() => {
+        setSlideDirection('none');
+        setIsAnimating(false);
+      }, 300);
+    }, 300);
   };
 
   const renderDays = () => {
@@ -490,6 +517,50 @@ const HomePage = () => {
   };
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [slideDirection, setSlideDirection] = useState('none');
+  const [isAnimating, setIsAnimating] = useState(false);
+
+  // Add keyframes for animations
+  const keyframes = `
+    @keyframes slideInLeft {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutLeft {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(-100%); opacity: 0; }
+    }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+  `;
+
+  // Animation styles
+  const calendarAnimation = {
+    'none': {
+      transform: 'translateX(0)',
+      opacity: 1,
+      position: 'relative',
+      transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out'
+    },
+    'slide-in-left': {
+      animation: 'slideInLeft 0.3s ease-out forwards'
+    },
+    'slide-out-left': {
+      animation: 'slideOutLeft 0.3s ease-out forwards'
+    },
+    'slide-in-right': {
+      animation: 'slideInRight 0.3s ease-out forwards'
+    },
+    'slide-out-right': {
+      animation: 'slideOutRight 0.3s ease-out forwards'
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -515,7 +586,6 @@ const HomePage = () => {
             boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
             padding: isSidebarCollapsed ? '24px 10px' : '24px',
             height: 'fit-content',
-            position: 'sticky',
             border: '1px solid #f0f0f0',
             width: isSidebarCollapsed ? '80px' : '280px',
             boxSizing: 'border-box',
@@ -530,7 +600,7 @@ const HomePage = () => {
               top: 0,
               right: 0,
               margin: isSidebarCollapsed ? '20px 0px' : '0px',
-              height: isSidebarCollapsed ? '100%' : 'auto',
+              height: isSidebarCollapsed ? '90%' : 'auto',
               width: '90%',
               display: 'flex',
               alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
@@ -987,12 +1057,26 @@ const HomePage = () => {
               </div>
               
               <div style={styles.calendarGrid}>
-                {weekDays.map(day => (
-                  <div key={day} style={styles.dayHeader}>
-                    {day}
-                  </div>
-                ))}
-                {renderDays()}
+                <style>{keyframes}</style>
+                <div style={{
+                  position: 'relative',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, 1fr)',
+                  gap: '1px',
+                  width: '100%',
+                  minHeight: '200px',
+                  boxSizing: 'border-box',
+                  backgroundColor: '#e0e0e0',
+                  ...calendarAnimation[slideDirection],
+                  willChange: 'transform, opacity'
+                }}>
+                  {weekDays.map(day => (
+                    <div key={day} style={styles.dayHeader}>
+                      {day}
+                    </div>
+                  ))}
+                  {renderDays()}
+                </div>
               </div>
             </div>
           </div>

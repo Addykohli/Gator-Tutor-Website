@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
-import Footer from './Footer';
-import { useParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Header from './Header';
+import Footer from './Footer';
 
 const TutorProfile = () => {
   const { tutorId } = useParams();
+  const navigate = useNavigate();
+  
+  // State for the tutor data
+  const [tutor, setTutor] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   
   // State for the booking form
   const [selectedDate, setSelectedDate] = useState('');
@@ -12,28 +18,51 @@ const TutorProfile = () => {
   const [selectedCourse, setSelectedCourse] = useState('');
   const [sessionType, setSessionType] = useState('zoom');
   const [notes, setNotes] = useState('');
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   
-  // this would come from an API
-  const default_tutor = {
-    id: tutorId,
-    name: 'John Doe',
-    email: 'john.doe@sfsu.edu',
-    image: require('../assets/default_silhouette.png'),
-    price: 25.00,
-    courses: ['CSC 600', 'CSC 648', 'CSC 675'],
-    languages: ['English', 'Spanish'],
-    bio: 'Experienced tutor with 5+ years of helping students excel in computer science courses. Passionate about making complex concepts easy to understand.'
-  };
-  
-  // Generate time slots , this would come from the backend
-  const availableTimeSlots = [
-    '09:00 AM - 09:30 AM',
-    '09:30 AM - 10:00 AM',
-    '10:00 AM - 10:30 AM',
-    '02:00 PM - 02:30 PM',
-    '02:30 PM - 03:00 PM',
-    '03:00 PM - 03:30 PM'
-  ];
+  // Fetch tutor data when component mounts
+  useEffect(() => {
+    const fetchTutorData = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const response = await fetch(`${apiBaseUrl}/api/tutors/${tutorId}`);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        setTutor(data);
+        
+        // Fetch available time slots (if needed)
+        // This is a placeholder - replace with actual API call if needed
+        setAvailableTimeSlots([
+          '09:00 AM - 09:30 AM',
+          '09:30 AM - 10:00 AM',
+          '10:00 AM - 10:30 AM',
+          '02:00 PM - 02:30 PM',
+          '02:30 PM - 03:00 PM',
+          '03:00 PM - 03:30 PM'
+        ]);
+        
+      } catch (err) {
+        console.error('Error fetching tutor data:', err);
+        setError('Failed to load tutor profile. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    if (tutorId) {
+      fetchTutorData();
+    } else {
+      setError('No tutor ID provided');
+      setIsLoading(false);
+    }
+  }, [tutorId]);
   
   // Calculate max date (2 years from now)
   const getMaxDate = () => {
@@ -45,18 +74,64 @@ const TutorProfile = () => {
   // Handle form submission
   const handleSubmit = (e) => {
     e.preventDefault();
-    // send this data to backend
-    console.log({
-      tutorId: default_tutor.id,
+    if (!tutor) return;
+    
+    // Prepare booking data
+    const bookingData = {
+      tutorId: tutor.id,
       date: selectedDate,
       time: selectedTime,
       course: selectedCourse,
       sessionType,
-      notes
-    });
-    alert('Session booked successfully!');
+      notes,
+      price: tutor.hourly_rate_cents ? tutor.hourly_rate_cents / 100 : 0
+    };
+    
+    console.log('Submitting booking:', bookingData);
+    // Here you would typically send this to your backend
+    // await fetch('/api/bookings', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(bookingData)
+    // });
   };
-
+  
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Loading...</span>
+        </div>
+        <p>Loading tutor profile...</p>
+      </div>
+    );
+  }
+  
+  // Show error state
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem', color: 'red' }}>
+        <p>{error}</p>
+        <button onClick={() => window.location.reload()} className="btn btn-primary">
+          Try Again
+        </button>
+      </div>
+    );
+  }
+  
+  // Show no tutor found state
+  if (!tutor) {
+    return (
+      <div style={{ textAlign: 'center', padding: '2rem' }}>
+        <p>No tutor found with the provided ID.</p>
+        <button onClick={() => navigate('/search')} className="btn btn-primary">
+          Browse Tutors
+        </button>
+      </div>
+    );
+  }
+  
   const styles = {
     container: {
       margin: '20px auto',
@@ -272,8 +347,8 @@ const TutorProfile = () => {
       <div style={styles.container}>
         <div style={styles.header}>
           <img 
-            src={default_tutor.image} 
-            alt={`${default_tutor.name}'s profile`} 
+            src={tutor.image} 
+            alt={`${tutor.name}'s profile`} 
             style={styles.profileImage}
             onError={(e) => {
               e.target.onerror = null;
@@ -281,13 +356,13 @@ const TutorProfile = () => {
             }}
           />
           <div style={styles.infoSection}>
-            <h1 style={styles.name}>{default_tutor.name}</h1>
-            <p style={styles.price}>${default_tutor.price.toFixed(2)}/hour</p>
-            <p style={styles.email}>{default_tutor.email}</p>
+            <h1 style={styles.name}>{tutor.name}</h1>
+            <p style={styles.price}>${tutor.price.toFixed(2)}/hour</p>
+            <p style={styles.email}>{tutor.email}</p>
             
             <div style={styles.section}>
               <h2 style={styles.sectionTitle}>About Me</h2>
-              <p style={styles.bio}>{default_tutor.bio}</p>
+              <p style={styles.bio}>{tutor.bio}</p>
             </div>
           </div>
         </div>
@@ -365,7 +440,7 @@ const TutorProfile = () => {
                   required
                 >
                   <option value="">Select a course</option>
-                  {default_tutor.courses.map((course, index) => (
+                  {tutor.courses.map((course, index) => (
                     <option key={index} value={course}>{course}</option>
                   ))}
                 </select>

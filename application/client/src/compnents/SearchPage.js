@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./Header";
 import Footer from './Footer';
 
@@ -9,6 +9,7 @@ function useQuery() {
 }
 
 export default function SearchPage() {
+  const navigate = useNavigate();
   const styles = {
     container: {
       display: "flex",
@@ -258,123 +259,6 @@ export default function SearchPage() {
   const [status, setStatus] = useState("idle");          // idle | loading | done | error
   const [error, setError] = useState("");
 
-  // Mock data for local development - Tutors from FindTutorPage.js
-  const mockTutors = [
-    {
-      id: "1",
-      first_name: "John",
-      last_name: "Doe",
-      name: "John Doe",
-      email: "john@sfsu.edu",
-      hourly_rate_cents: 5000,
-      languages: ["English", "Spanish"],
-      courses: [
-        { department_code: "CSC", course_number: "415", title: "Operating Systems" },
-        { department_code: "CSC", course_number: "510", title: "Analysis of Algorithms" }
-      ],
-      avg_rating: 5.0,
-      sessions_completed: 42,
-      availability: ["Mon 10:00-12:00", "Wed 14:00-16:00", "Fri 10:00-12:00"]
-    },
-    {
-      id: "2",
-      first_name: "John",
-      last_name: "Smith",
-      name: "John Smith",
-      email: "smith@sfsu.edu",
-      hourly_rate_cents: 4500,
-      languages: ["English", "French"],
-      courses: [
-        { department_code: "CSC", course_number: "415", title: "Operating Systems" },
-        { department_code: "CSC", course_number: "600", title: "Advanced Programming" }
-      ],
-      avg_rating: 4.0,
-      sessions_completed: 28,
-      availability: ["Tue 09:00-11:00", "Thu 13:00-15:00"]
-    },
-    {
-      id: "3",
-      first_name: "Jane",
-      last_name: "Wilson",
-      name: "Jane Wilson",
-      email: "jane@sfsu.edu",
-      hourly_rate_cents: 4800,
-      languages: ["English", "Spanish"],
-      courses: [
-        { department_code: "BIOL", course_number: "101", title: "General Biology" },
-        { department_code: "BIOL", course_number: "202", title: "Genetics" },
-        { department_code: "CSC", course_number: "415", title: "Operating Systems" }
-      ],
-      avg_rating: 5.0,
-      sessions_completed: 35,
-      availability: ["Mon 14:00-16:00", "Wed 10:00-12:00"]
-    }
-  ];
-
-  // Mock data for local development - Courses from FindCoursePage.js
-  const mockCourses = [
-    {
-      id: "1",
-      department_code: "CSC",
-      course_number: "415",
-      title: "Operating Systems",
-      description: "Fundamentals of operating systems including process management, memory management, file systems, and I/O systems.",
-      tutor_count: 3,
-      instructor: "Dr. John Smith",
-      department: "Computer Science"
-    },
-    {
-      id: "2",
-      department_code: "CSC",
-      course_number: "510",
-      title: "Analysis of Algorithms",
-      description: "Advanced techniques for the design and analysis of algorithms, including divide-and-conquer, dynamic programming, and greedy algorithms.",
-      tutor_count: 2,
-      instructor: "Dr. Alice Johnson",
-      department: "Computer Science"
-    },
-    {
-      id: "3",
-      department_code: "CSC",
-      course_number: "600",
-      title: "Advanced Programming",
-      description: "Advanced programming concepts and techniques including design patterns, concurrency, and software architecture.",
-      tutor_count: 5,
-      instructor: "Dr. Robert Chen",
-      department: "Computer Science"
-    },
-    {
-      id: "4",
-      department_code: "BIOL",
-      course_number: "101",
-      title: "General Biology",
-      description: "Introduction to the fundamental principles of biology, including cell structure, genetics, evolution, and ecology.",
-      tutor_count: 4,
-      instructor: "Dr. Sarah Williams",
-      department: "Biology"
-    },
-    {
-      id: "5",
-      department_code: "ECON",
-      course_number: "301",
-      title: "Microeconomics",
-      description: "Analysis of the behavior of individual economic units including consumers, firms, and industries.",
-      tutor_count: 0,
-      instructor: "Dr. Michael Brown",
-      department: "Economics"
-    },
-    {
-      id: "6",
-      department_code: "MATH",
-      course_number: "226",
-      title: "Calculus II",
-      description: "Techniques of integration, applications of integration, infinite series, and parametric equations.",
-      tutor_count: 6,
-      instructor: "Dr. Emily Davis",
-      department: "Mathematics"
-    }
-  ];
-
   // Fetch results when URL query parameters change
   useEffect(() => {
     console.log('useEffect triggered with q:', q.toString());
@@ -469,8 +353,23 @@ export default function SearchPage() {
       const initials = fullName.split(' ').map(n => n[0]).join('').toUpperCase();
       const hourlyRate = item.hourly_rate_cents ? `$${(item.hourly_rate_cents / 100).toFixed(2)}/hr` : 'Rate not specified';
 
+      const handleTutorClick = () => {
+        // Use the appropriate ID property based on the data structure
+        const tutorId = item.id || item.tutor_id || item.user_id;
+        if (tutorId) {
+          navigate(`/tutor/${tutorId}`);
+        } else {
+          console.error('No valid tutor ID found in tutor data:', item);
+        }
+      };
+
       return (
-        <div style={styles.tutorCard}>
+        <div 
+          style={{...styles.tutorCard, cursor: 'pointer'}} 
+          onClick={handleTutorClick}
+          onMouseOver={(e) => e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)'}
+          onMouseOut={(e) => e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)'}
+        >
           <div style={styles.tutorCardContent}>
             <div style={styles.tutorHeader}>
               <div style={styles.tutorAvatar}>

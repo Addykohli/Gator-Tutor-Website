@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Header from './Header';
+import Footer from './Footer';
 
 const RegisterPage = () => {
   const [name, setName] = useState('');
@@ -14,9 +15,10 @@ const RegisterPage = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      minHeight: '80vh',
+      minHeight: '100vh',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
+      boxSizing: 'border-box',
     },
     title: {
         color: "#333",
@@ -198,6 +200,7 @@ const RegisterPage = () => {
           </div>
         </form>
       </div>
+      <Footer />
     </div>
   );
 };
