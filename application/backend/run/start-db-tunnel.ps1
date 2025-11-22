@@ -70,4 +70,8 @@ ssh -N `
     -o ServerAliveInterval=60 `
     -o ServerAliveCountMax=3 `
     -o StrictHostKeyChecking=no `
+<<<<<<< HEAD
     ${SshUser}@${ServerIp}
+=======
+    ${SshUser}@${ServerIp}
+>>>>>>> remotes/origin/backend_login
