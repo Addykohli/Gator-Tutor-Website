@@ -88,7 +88,7 @@ export const ContextProvider = ({ children }) => {
     try {
       // Store user data in localStorage
       localStorage.setItem('user', JSON.stringify(userData));
-      
+      console.log(userData);
       dispatch({
         type: 'LOGIN',
         payload: {
@@ -96,6 +96,7 @@ export const ContextProvider = ({ children }) => {
           firstName: userData.firstName,
           lastName: userData.lastName,
           isTutor: userData.isTutor || true //false
+
         }
       });
       

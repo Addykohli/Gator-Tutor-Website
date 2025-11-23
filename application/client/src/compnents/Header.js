@@ -11,9 +11,10 @@ const Header = () => {
 
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
+    { icon: 'fas fa-search', label: 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
     { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
-    { icon: 'fas fa-sign-out-alt', label: 'Logout', path: '/logout' }
+    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' }
   ];
 
   const isExpanded = isMenuOpen || isLocked;
@@ -108,7 +109,7 @@ const Header = () => {
 
   // Calculate dynamic height based on number of menu items
   const menuItemHeight = 54; // height per menu item in pixels
-  const menuPadding = 48; // top and bottom padding
+  const menuPadding = 55; // top and bottom padding
   const dynamicHeight = (menuItems.length * menuItemHeight) + menuPadding;
 
   const borderContainerStyle = {
@@ -118,7 +119,7 @@ const Header = () => {
     width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
     height: isExpanded ? `${dynamicHeight}px` : '40px',
     border: '1px solid rgb(255, 220, 112)',
-    borderRadius: isExpanded ? '0px 8px 8px 8px' : '4px',
+    borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
     backgroundColor: isExpanded ? 'rgb(35, 17, 97)' : 'transparent',
     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
@@ -209,6 +210,7 @@ const Header = () => {
       boxSizing: 'border-box',
       pointerEvents: isExpanded ? 'auto' : 'none',
       zIndex: 1001,
+      opacity: isExpanded ? 1 : (index < 3 ? 1 : 0),
     };
   };
 
