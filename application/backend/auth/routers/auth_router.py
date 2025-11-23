@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from search.database import get_db
 from auth.schemas.auth_schemas import UserIn, TokenResponse
-from auth.services.auth_service import authenticate_user, get_user
+from auth.services.auth_service import authenticate_user, get_user, get_user_by_id
 from auth.password_utils import validate_sfsu_email, make_simple_token
 
 router = APIRouter(prefix="/api", tags=["auth"])
@@ -24,3 +24,18 @@ def login(req: UserIn, db: Session = Depends(get_db)):
     return {
         "token": token, 
         "user_id": user.user_id}
+
+@router.get("/users/{user_id}")
+def get_user_by_id_route(user_id: int, db: Session = Depends(get_db)):
+    user = get_user_by_id(db, user_id)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="user not found")
+
+    return {
+        "user_id": user.user_id,
+        "first_name": user.first_name,
+        "last_name": user.last_name,
+        "sfsu_email": user.sfsu_email,
+        "role": user.role
+    }
