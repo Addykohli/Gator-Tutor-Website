@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
@@ -8,12 +8,16 @@ import subWeeks from 'date-fns/subWeeks';
 import startOfWeek from 'date-fns/startOfWeek';
 import addDays from 'date-fns/addDays';
 import isSameDay from 'date-fns/isSameDay';
+import parse from 'date-fns/parse';
+import isWithinInterval from 'date-fns/isWithinInterval';
 import Header from './Header';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const [tutorAvailability, setTutorAvailability] = useState([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -28,12 +32,161 @@ const HomePage = () => {
   
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   
-  // Mock data for calendar events
+  // Fetch tutor availability if user is a tutor
+  useEffect(() => {
+    const fetchTutorAvailability = async () => {
+      if (user && user.isTutor) {
+        try {
+          setIsLoadingAvailability(true);
+          const apiBaseUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8000' 
+            : '/api';
+          
+          // First, try to get tutor profile which should include availability_slots
+          const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+          
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          console.log('Tutor profile data:', data);
+          
+          // Check for availability_slots in the response
+          let availabilityData = data.availability_slots || data.availability || [];
+          
+          // If no availability in profile, try fetching from multiple dates to build a weekly pattern
+          if (!availabilityData || availabilityData.length === 0) {
+            console.log('No availability_slots in profile, fetching date-specific availability...');
+            
+            // Fetch availability for the current week to build the pattern
+            const weeklyAvailability = {};
+            const today = new Date();
+            
+            for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+              const checkDate = new Date(today);
+              checkDate.setDate(today.getDate() + dayOffset);
+              const dateStr = checkDate.toISOString().split('T')[0];
+              
+              try {
+                const availResponse = await fetch(
+                  `${apiBaseUrl}/search/tutors/${user.id}/availability?date=${dateStr}`
+                );
+                
+                if (availResponse.ok) {
+                  const availData = await availResponse.json();
+                  console.log(`Availability for ${dateStr}:`, availData);
+                  
+                  if (availData.slots && availData.slots.length > 0) {
+                    // Get day of week
+                    const dayName = format(checkDate, 'EEEE').toLowerCase();
+                    
+                    // Find the earliest and latest times for this day
+                    const times = availData.slots.map(slot => ({
+                      start: new Date(slot.start_time).getHours(),
+                      end: new Date(slot.end_time).getHours()
+                    }));
+                    
+                    const minStart = Math.min(...times.map(t => t.start));
+                    const maxEnd = Math.max(...times.map(t => t.end));
+                    
+                    weeklyAvailability[dayName] = {
+                      day_of_week: dayName,
+                      start_time: `${minStart.toString().padStart(2, '0')}:00:00`,
+                      end_time: `${maxEnd.toString().padStart(2, '0')}:00:00`
+                    };
+                  }
+                }
+              } catch (err) {
+                console.error(`Error fetching availability for ${dateStr}:`, err);
+              }
+            }
+            
+            // Convert weekly availability object to array
+            availabilityData = Object.values(weeklyAvailability);
+            console.log('Built weekly availability pattern:', availabilityData);
+          }
+          
+          console.log('Final parsed availability:', availabilityData);
+          
+          if (Array.isArray(availabilityData) && availabilityData.length > 0) {
+            setTutorAvailability(availabilityData);
+          } else {
+            console.warn('No availability data could be loaded');
+            setTutorAvailability([]);
+          }
+        } catch (error) {
+          console.error('Error fetching tutor availability:', error);
+          setTutorAvailability([]);
+        } finally {
+          setIsLoadingAvailability(false);
+        }
+      }
+    };
+    
+    fetchTutorAvailability();
+  }, [user]);
+  
+  // Check if a specific hour on a specific day is available
+  const isTimeSlotAvailable = (date, hour) => {
+    if (!tutorAvailability || tutorAvailability.length === 0) {
+      console.log('No availability data');
+      return false;
+    }
+    
+    // Get day name in lowercase (e.g., "monday")
+    const dayOfWeek = format(date, 'EEEE').toLowerCase();
+    console.log(`Checking availability for ${dayOfWeek} at hour ${hour}`);
+    
+    // Find availability for this day - check multiple possible field names
+    const dayAvailability = tutorAvailability.find(
+      avail => {
+        const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
+        return availDay === dayOfWeek;
+      }
+    );
+    
+    if (!dayAvailability) {
+      console.log(`No availability found for ${dayOfWeek}`);
+      return false;
+    }
+    
+    console.log(`Found availability for ${dayOfWeek}:`, dayAvailability);
+    
+    // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
+    const parseTimeToHour = (timeStr) => {
+      if (!timeStr) return null;
+      const [hours] = timeStr.split(':');
+      return parseInt(hours, 10);
+    };
+    
+    // Check multiple possible field names for start/end times
+    const startTimeStr = dayAvailability.start_time || dayAvailability.startTime;
+    const endTimeStr = dayAvailability.end_time || dayAvailability.endTime;
+    
+    if (!startTimeStr || !endTimeStr) {
+      console.log('Missing start or end time:', { startTimeStr, endTimeStr });
+      return false;
+    }
+    
+    const availStart = parseTimeToHour(startTimeStr);
+    const availEnd = parseTimeToHour(endTimeStr);
+    
+    console.log(`Time range: ${availStart} - ${availEnd}, checking hour: ${hour}`);
+    
+    // Check if hour is within availability window
+    const isAvailable = hour >= availStart && hour < availEnd;
+    console.log(`Hour ${hour} is ${isAvailable ? 'available' : 'not available'}`);
+    
+    return isAvailable;
+  };
+  
+  // Mock data for calendar events (student view)
   const mockEvents = [
     {
       id: 1,
       title: 'CS 415 Review',
-      date: addDays(new Date(), 1), // Tomorrow
+      date: addDays(new Date(), 1),
       time: '10:00 AM - 11:30 AM',
       type: 'class',
       location: 'Library Room 203',
@@ -42,7 +195,7 @@ const HomePage = () => {
     {
       id: 2,
       title: 'Tutoring Session',
-      date: addDays(new Date(), 1), // Tomorrow
+      date: addDays(new Date(), 1),
       time: '2:00 PM - 3:30 PM',
       type: 'tutoring',
       tutor: 'Dr. Smith',
@@ -51,7 +204,7 @@ const HomePage = () => {
     {
       id: 3,
       title: 'Group Study',
-      date: addDays(new Date(), 3), // 3 days from now
+      date: addDays(new Date(), 3),
       time: '4:00 PM - 6:00 PM',
       type: 'study',
       group: 'CS Study Group',
@@ -61,7 +214,7 @@ const HomePage = () => {
     {
       id: 4,
       title: 'Office Hours',
-      date: addDays(new Date(), 4), // 4 days from now
+      date: addDays(new Date(), 4),
       time: '1:00 PM - 3:00 PM',
       type: 'office_hours',
       professor: 'Prof. Johnson',
@@ -71,7 +224,7 @@ const HomePage = () => {
     {
       id: 5,
       title: 'CS 600 Lecture',
-      date: addDays(new Date(), 5), // 5 days from now
+      date: addDays(new Date(), 5),
       time: '9:30 AM - 11:00 AM',
       type: 'class',
       course: 'CS 600',
@@ -165,7 +318,6 @@ const HomePage = () => {
       overflowX: "hidden",
       backgroundColor: "rgb(250, 245, 255)",
     },
-    // Common button style for search and navigation buttons
     primaryButton: {
       backgroundColor: '#35006D',
       color: 'white',
@@ -179,13 +331,6 @@ const HomePage = () => {
       gap: '8px',
       fontWeight: '500',
       transition: 'all 0.2s',
-      ':hover': {
-        backgroundColor: '#4b1a80',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-      },
-      ':active': {
-        transform: 'translateY(1px)',
-      }
     },
     heading: {
       color: "#333",
@@ -214,20 +359,6 @@ const HomePage = () => {
       alignItems: 'center',
       marginBottom: '20px',
     },
-    navButton: {
-      backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '4px',
-      padding: '8px 16px',
-      cursor: 'pointer',
-      fontSize: '16px',
-      fontWeight: '600',
-      transition: 'background-color 0.2s',
-      '&:hover': {
-        backgroundColor: '#7a1a3d'
-      }
-    },
     weekDisplay: {
       fontSize: '1.2rem',
       fontWeight: '600',
@@ -243,6 +374,7 @@ const HomePage = () => {
       boxSizing: 'border-box',
       minHeight: '200px'
     },
+    // Student calendar styles
     dayHeader: {
       backgroundColor: 'rgb(53, 0, 109)',
       color: 'white',
@@ -262,9 +394,6 @@ const HomePage = () => {
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
-      '&.today': {
-        backgroundColor: '#fff9e6'
-      }
     },
     dateNumber: {
       fontWeight: 'bold',
@@ -290,105 +419,6 @@ const HomePage = () => {
       fontStyle: 'italic',
       fontSize: '0.9rem',
       marginTop: '8px'
-    },
-    searchContainer: {
-      backgroundColor: "#ffffff",
-      borderRadius: "12px",
-      padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-      boxSizing: 'border-box',
-      width: '100%',
-      margin: '0 0 20px 0',
-      position: 'relative'
-    },
-    searchInputContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      marginTop: '10px'
-    },
-    searchInput: {
-      flex: 1,
-      padding: '12px 16px',
-      border: '1px solid #ced4da',
-      borderRadius: '6px',
-      fontSize: '16px',
-      '&:focus': {
-        outline: 'none',
-        borderColor: '#9A2250',
-        boxShadow: '0 0 0 0.2rem rgba(154, 34, 80, 0.25)'
-      }
-    },
-    searchButton: {
-      padding: '12px 24px',
-      backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
-      border: 'none',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      fontSize: '16px',
-      fontWeight: '600',
-      transition: 'background-color 0.2s',
-      '&:hover': {
-        backgroundColor: '#7a1a3d'
-      }
-    },
-    categoryDropdown: {
-      position: 'relative',
-      display: 'inline-block',
-      minWidth: '120px',
-      width: '120px'
-    },
-    categoryButton: {
-      padding: '12px 16px',
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #ced4da',
-      borderRadius: '6px',
-      cursor: 'pointer',
-      width: '100%',
-      textAlign: 'center',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      '&:hover': {
-        backgroundColor: '#e9ecef'
-      }
-    },
-    categoryList: {
-      position: 'absolute',
-      top: '100%',
-      left: 0,
-      zIndex: 1000,
-      width: '100%',
-      padding: '8px 8px',
-      margin: '4px 0 0',
-      backgroundColor: 'white',
-      border: '1px solid rgba(0,0,0,.15)',
-      borderRadius: '6px',
-      boxShadow: '0 6px 12px rgba(0,0,0,.175)',
-      listStyle: 'none',
-      '& li': {
-        padding: '8px 16px',
-        cursor: 'pointer',
-        textAlign: 'center',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        msUserSelect: 'none',
-        ':hover': {
-          backgroundColor: '#f8f9fa',
-          cursor: 'pointer !important'
-        }
-      }
-    },
-    calendarContainer: {
-      backgroundColor: "#ffffff",
-      borderRadius: "12px",
-      padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-      boxSizing: 'border-box',
-      width: '100%',
-      margin: '0 0 20px 0',
-      position: 'relative'
     },
     eventsContainer: {
       marginTop: '8px',
@@ -420,10 +450,123 @@ const HomePage = () => {
       fontSize: '0.7rem',
       color: '#6c757d',
       marginTop: '2px'
-    }
+    },
+    // Tutor calendar styles
+    tutorCalendarGrid: {
+      width: '100%',
+      display: 'grid',
+      gridTemplateColumns: '60px repeat(7, 1fr)',
+      backgroundColor: '#f5f5f5',
+      border: '1px solid #e0e0e0',
+      borderRadius: '8px',
+      overflow: 'hidden',
+    },
+    timeLabel: {
+      backgroundColor: '#fff',
+      padding: '8px 4px',
+      textAlign: 'center',
+      fontSize: '0.75rem',
+      fontWeight: '500',
+      color: '#666',
+      borderRight: '1px solid #e0e0e0',
+      borderBottom: '1px solid #f0f0f0',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tutorDayHeader: {
+      backgroundColor: 'rgb(53, 0, 109)',
+      color: 'white',
+      padding: '12px 8px',
+      textAlign: 'center',
+      fontWeight: '600',
+      fontSize: '0.9rem',
+      borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tutorTimeSlot: {
+      backgroundColor: 'white',
+      minHeight: '40px',
+      borderRight: '1px solid #f0f0f0',
+      borderBottom: '1px solid #f0f0f0',
+      position: 'relative',
+      transition: 'background-color 0.2s',
+    },
+    availableSlot: {
+      backgroundColor: 'rgba(255, 220, 100, 0.3)',
+    },
+    searchContainer: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "20px",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxSizing: 'border-box',
+      width: '100%',
+      margin: '0 0 20px 0',
+      position: 'relative'
+    },
+    searchInputContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      marginTop: '10px'
+    },
+    searchInput: {
+      flex: 1,
+      padding: '12px 16px',
+      border: '1px solid #ced4da',
+      borderRadius: '6px',
+      fontSize: '16px',
+    },
+    categoryDropdown: {
+      position: 'relative',
+      display: 'inline-block',
+      minWidth: '120px',
+      width: '120px'
+    },
+    categoryButton: {
+      padding: '12px 16px',
+      backgroundColor: '#f8f9fa',
+      border: '1px solid #ced4da',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      width: '100%',
+      textAlign: 'center',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    categoryList: {
+      position: 'absolute',
+      top: '100%',
+      left: 0,
+      zIndex: 1000,
+      width: '100%',
+      padding: '8px 8px',
+      margin: '4px 0 0',
+      backgroundColor: 'white',
+      border: '1px solid rgba(0,0,0,.15)',
+      borderRadius: '6px',
+      boxShadow: '0 6px 12px rgba(0,0,0,.175)',
+      listStyle: 'none',
+    },
+    calendarContainer: {
+      backgroundColor: "#ffffff",
+      borderRadius: "12px",
+      padding: "20px",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxSizing: 'border-box',
+      width: '100%',
+      margin: '0 0 20px 0',
+      position: 'relative'
+    },
   };
 
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8am to 7pm (12 hours)
   const today = new Date();
   
   const nextWeek = () => {
@@ -458,7 +601,8 @@ const HomePage = () => {
     }, 300);
   };
 
-  const renderDays = () => {
+  // Render student calendar days
+  const renderStudentDays = () => {
     const days = [];
     let startDate = currentWeekStart;
     
@@ -466,7 +610,6 @@ const HomePage = () => {
       const currentDate = addDays(startDate, i);
       const isToday = isSameDay(currentDate, today);
       
-      // Filter events for this specific day
       const dayEvents = mockEvents.filter(event => 
         isSameDay(event.date, currentDate)
       );
@@ -516,11 +659,139 @@ const HomePage = () => {
     return days;
   };
 
+  // Handle opening edit availability for a specific date
+  const handleEditAvailability = (date) => {
+    setEditingDate(date);
+    
+    // Get existing availability for this day
+    const dayName = format(date, 'EEEE').toLowerCase();
+    const dayAvail = tutorAvailability.find(
+      avail => (avail.day_of_week || avail.day || '').toLowerCase() === dayName
+    );
+    
+    if (dayAvail) {
+      // Parse existing slot
+      const startTime = dayAvail.start_time || dayAvail.startTime || '09:00';
+      const endTime = dayAvail.end_time || dayAvail.endTime || '17:00';
+      setEditSlots([{ id: Date.now(), startTime, endTime }]);
+    } else {
+      // Default empty slot
+      setEditSlots([{ id: Date.now(), startTime: '09:00', endTime: '17:00' }]);
+    }
+  };
+
+  // Add a new time slot
+  const handleAddSlot = () => {
+    setEditSlots([...editSlots, { id: Date.now(), startTime: '09:00', endTime: '17:00' }]);
+  };
+
+  // Delete a time slot
+  const handleDeleteSlot = (slotId) => {
+    setEditSlots(editSlots.filter(slot => slot.id !== slotId));
+  };
+
+  // Update slot time
+  const handleSlotTimeChange = (slotId, field, value) => {
+    setEditSlots(editSlots.map(slot => 
+      slot.id === slotId ? { ...slot, [field]: value } : slot
+    ));
+  };
+
+  // Render tutor calendar with hourly slots
+  const renderTutorCalendar = () => {
+    const cells = [];
+    
+    // Header row - empty cell + day headers
+    cells.push(<div key="empty-header" style={{ ...styles.timeLabel, backgroundColor: 'rgb(53, 0, 109)' }}></div>);
+    
+    for (let i = 0; i < 7; i++) {
+      const currentDate = addDays(currentWeekStart, i);
+      const isToday = isSameDay(currentDate, today);
+      
+      cells.push(
+        <div key={`header-${i}`} style={styles.tutorDayHeader}>
+          <div>{weekDays[i]}</div>
+          <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+            {format(currentDate, 'MMM d')}
+          </div>
+          {isToday && (
+            <div style={{ 
+              fontSize: '0.7rem', 
+              marginTop: '2px',
+              backgroundColor: 'rgba(255, 220, 100, 0.9)',
+              color: '#333',
+              padding: '2px 6px',
+              borderRadius: '10px',
+              fontWeight: '600'
+            }}>
+              Today
+            </div>
+          )}
+          <button
+            onClick={() => handleEditAvailability(currentDate)}
+            style={{
+              marginTop: '8px',
+              padding: '4px 12px',
+              fontSize: '0.7rem',
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              color: 'white',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontWeight: '500'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+            }}
+          >
+            <i className="fas fa-edit" style={{ marginRight: '4px' }}></i>
+            Edit
+          </button>
+        </div>
+      );
+    }
+    
+    // Time slots
+    hours.forEach(hour => {
+      // Time label
+      const timeLabel = hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
+      cells.push(
+        <div key={`time-${hour}`} style={styles.timeLabel}>
+          {timeLabel}
+        </div>
+      );
+      
+      // Day cells for this hour
+      for (let i = 0; i < 7; i++) {
+        const currentDate = addDays(currentWeekStart, i);
+        const isAvailable = isTimeSlotAvailable(currentDate, hour);
+        
+        cells.push(
+          <div 
+            key={`slot-${hour}-${i}`} 
+            style={{
+              ...styles.tutorTimeSlot,
+              ...(isAvailable ? styles.availableSlot : {})
+            }}
+          >
+          </div>
+        );
+      }
+    });
+    
+    return cells;
+  };
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [slideDirection, setSlideDirection] = useState('none');
   const [isAnimating, setIsAnimating] = useState(false);
+  const [editingDate, setEditingDate] = useState(null);
+  const [editSlots, setEditSlots] = useState([]);
 
-  // Add keyframes for animations
   const keyframes = `
     @keyframes slideInLeft {
       from { transform: translateX(-100%); opacity: 0; }
@@ -540,7 +811,6 @@ const HomePage = () => {
     }
   `;
 
-  // Animation styles
   const calendarAnimation = {
     'none': {
       transform: 'translateX(0)',
@@ -627,11 +897,6 @@ const HomePage = () => {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  ':hover': {
-                    background: isSidebarCollapsed ? 'rgba(255, 255, 255, 1)' : '#f8f9fa',
-                    color: '#35006D',
-                    boxShadow: isSidebarCollapsed ? '-2px 0 12px rgba(0,0,0,0.15)' : 'none'
-                  }
                 }}
                 onMouseOver={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
@@ -782,11 +1047,6 @@ const HomePage = () => {
                   borderRadius: '8px',
                   transition: 'all 0.2s ease',
                   border: '1px solid #f0f0f0',
-                  '&:hover': {
-                    backgroundColor: '#f1f3f5',
-                    transform: 'translateX(2px)',
-                    boxShadow: '0 2px 6px rgba(0,0,0,0.05)'
-                  }
                 }}>
                   <div style={{
                     width: '34px',
@@ -921,15 +1181,21 @@ const HomePage = () => {
                     <ul style={styles.categoryList}>
                       <li 
                         onClick={() => selectCategory('default')}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', padding: '8px 16px' }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >All</li>
                       <li 
                         onClick={() => selectCategory('tutor')}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', padding: '8px 16px' }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >Tutors</li>
                       <li 
                         onClick={() => selectCategory('course')}
-                        style={{ cursor: 'pointer' }}
+                        style={{ cursor: 'pointer', padding: '8px 16px' }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >Courses</li>
                     </ul>
                   )}
@@ -979,6 +1245,192 @@ const HomePage = () => {
               </div>
             </div>
             
+            {/* Edit Availability Section */}
+            {user?.isTutor && editingDate && (
+              <div style={{
+                ...styles.searchContainer,
+                width: '100%',
+                margin: 0
+              }}>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '16px'
+                }}>
+                  <h3 style={{ margin: 0, color: '#2c3e50' }}>
+                    Edit Availability - {format(editingDate, 'EEEE, MMMM d, yyyy')}
+                  </h3>
+                  <button
+                    onClick={() => setEditingDate(null)}
+                    style={{
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      color: '#6c757d',
+                      cursor: 'pointer',
+                      fontSize: '1.2rem',
+                      padding: '4px 8px',
+                      transition: 'color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.color = '#333'}
+                    onMouseOut={(e) => e.currentTarget.style.color = '#6c757d'}
+                  >
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  {editSlots.map((slot, index) => (
+                    <div key={slot.id} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '12px',
+                      padding: '12px',
+                      backgroundColor: '#f8f9fa',
+                      borderRadius: '8px',
+                      border: '1px solid #e9ecef'
+                    }}>
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: '#495057', minWidth: '40px' }}>
+                          From:
+                        </label>
+                        <input
+                          type="time"
+                          value={slot.startTime}
+                          onChange={(e) => handleSlotTimeChange(slot.id, 'startTime', e.target.value)}
+                          style={{
+                            padding: '8px',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px',
+                            fontSize: '0.9rem',
+                            flex: 1
+                          }}
+                        />
+                      </div>
+                      
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: '#495057', minWidth: '30px' }}>
+                          To:
+                        </label>
+                        <input
+                          type="time"
+                          value={slot.endTime}
+                          onChange={(e) => handleSlotTimeChange(slot.id, 'endTime', e.target.value)}
+                          style={{
+                            padding: '8px',
+                            border: '1px solid #ced4da',
+                            borderRadius: '4px',
+                            fontSize: '0.9rem',
+                            flex: 1
+                          }}
+                        />
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteSlot(slot.id)}
+                        style={{
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          fontSize: '0.85rem',
+                          transition: 'background-color 0.2s',
+                          minWidth: '80px'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
+                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                      >
+                        <i className="fas fa-trash" style={{ marginRight: '4px' }}></i>
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={handleAddSlot}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      backgroundColor: 'transparent',
+                      border: '2px dashed #ced4da',
+                      borderRadius: '8px',
+                      color: '#6c757d',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = '#35006D';
+                      e.currentTarget.style.color = '#35006D';
+                      e.currentTarget.style.backgroundColor = '#f8f9fa';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = '#ced4da';
+                      e.currentTarget.style.color = '#6c757d';
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <i className="fas fa-plus"></i>
+                    Add Time Slot
+                  </button>
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  paddingTop: '16px',
+                  borderTop: '1px solid #e9ecef'
+                }}>
+                  <button
+                    style={{
+                      flex: 1,
+                      padding: '10px 20px',
+                      backgroundColor: '#35006D',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b1a80'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#35006D'}
+                  >
+                    Apply to This Day
+                  </button>
+                  
+                  <button
+                    style={{
+                      flex: 1,
+                      padding: '10px 20px',
+                      backgroundColor: '#6c757d',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '500',
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                  >
+                    Apply to All {format(editingDate, 'EEEE')}s
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Conditional Calendar Rendering */}
             <div style={{
               ...styles.calendarContainer,
               width: '100%',
@@ -1056,28 +1508,73 @@ const HomePage = () => {
                 </button>
               </div>
               
-              <div style={styles.calendarGrid}>
-                <style>{keyframes}</style>
+              <style>{keyframes}</style>
+              
+              {/* Student Calendar */}
+              {!user?.isTutor && (
+                <div style={styles.calendarGrid}>
+                  <div style={{
+                    position: 'relative',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gap: '1px',
+                    width: '100%',
+                    minHeight: '200px',
+                    boxSizing: 'border-box',
+                    backgroundColor: '#e0e0e0',
+                    ...calendarAnimation[slideDirection],
+                    willChange: 'transform, opacity'
+                  }}>
+                    {weekDays.map(day => (
+                      <div key={day} style={styles.dayHeader}>
+                        {day}
+                      </div>
+                    ))}
+                    {renderStudentDays()}
+                  </div>
+                </div>
+              )}
+              
+              {/* Tutor Calendar */}
+              {user?.isTutor && (
                 <div style={{
-                  position: 'relative',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gap: '1px',
-                  width: '100%',
-                  minHeight: '200px',
-                  boxSizing: 'border-box',
-                  backgroundColor: '#e0e0e0',
                   ...calendarAnimation[slideDirection],
                   willChange: 'transform, opacity'
                 }}>
-                  {weekDays.map(day => (
-                    <div key={day} style={styles.dayHeader}>
-                      {day}
+                  {isLoadingAvailability ? (
+                    <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                      <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
+                      <div>Loading availability...</div>
                     </div>
-                  ))}
-                  {renderDays()}
+                  ) : (
+                    <>
+                      <div style={{ 
+                        marginBottom: '10px', 
+                        padding: '8px 12px', 
+                        backgroundColor: 'rgba(255, 220, 100, 0.2)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 220, 100, 0.5)',
+                        fontSize: '0.85rem',
+                        color: '#666',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <div style={{
+                          width: '16px',
+                          height: '16px',
+                          backgroundColor: 'rgba(255, 220, 100, 0.6)',
+                          borderRadius: '3px'
+                        }}></div>
+                        Available hours
+                      </div>
+                      <div style={styles.tutorCalendarGrid}>
+                        {renderTutorCalendar()}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

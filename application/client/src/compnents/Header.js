@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../Context/Context';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
   const menuRef = useRef(null);
+  const { isAuthenticated, user } = useAuth();
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
 
@@ -14,7 +16,20 @@ const Header = () => {
     { icon: 'fas fa-search', label: 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
     { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
-    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' }
+    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
+    // Tutor-only menu items
+    { 
+      icon: 'fas fa-calendar-alt', 
+      label: 'Appointments', 
+      path: '/appointments',
+      tutorOnly: true
+    },
+    { 
+      icon: 'fas fa-calendar-check', 
+      label: 'Appointment Requests', 
+      path: '/appointment-requests',
+      tutorOnly: true
+    }
   ];
 
   const isExpanded = isMenuOpen || isLocked;
@@ -107,10 +122,18 @@ const Header = () => {
     color: 'rgb(255, 220, 112)',
   };
 
-  // Calculate dynamic height based on number of menu items
+  // Filter menu items based on authentication and tutor status
+  const filteredMenuItems = menuItems.filter(item => {
+    // Show all items that are not tutor-only
+    if (!item.tutorOnly) return true;
+    // Show tutor-only items only if user is authenticated and is a tutor
+    return isAuthenticated && user?.isTutor;
+  });
+
+  // Calculate dynamic height based on number of visible menu items
   const menuItemHeight = 54; // height per menu item in pixels
   const menuPadding = 55; // top and bottom padding
-  const dynamicHeight = (menuItems.length * menuItemHeight) + menuPadding;
+  const dynamicHeight = (filteredMenuItems.length * menuItemHeight) + menuPadding;
 
   const borderContainerStyle = {
     position: 'absolute',
@@ -280,6 +303,7 @@ const Header = () => {
     }
   };
 
+
   return (
     <div style={navBarStyle}>
       {/* Menu Container */}
@@ -312,40 +336,45 @@ const Header = () => {
         </button>
 
         {/* Menu items */}
-        {menuItems.map((item, index) => (
-          <button
-            key={item.path}
-            style={getMenuItemStyle(index)}
-            onMouseEnter={(e) => {
-              if (isExpanded) {
-                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
-                setIsMenuOpen(true);
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isExpanded) {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.2)';
-              }
-            }}
-            onClick={() => {
-              if (isExpanded) {
-                navigate(item.path);
-                setIsMenuOpen(false);
-                setIsLocked(false);
-              }
-            }}
-          >
-            <div style={getIconContainerStyle(index)}>
-              <i className={item.icon} style={getIconStyle(index)} />
-            </div>
-            <span style={getLabelStyle(index)}>{item.label}</span>
-          </button>
-        ))}
-
-        {/* Item dividers */}
-        {menuItems.slice(0, -1).map((_, index) => (
-          <div key={`divider-${index}`} style={getDividerStyle(index)} />
-        ))}
+        {filteredMenuItems.map((item, index) => {
+          // Recalculate the visual index for dividers to account for filtered items
+          const visualIndex = menuItems.findIndex(i => i.path === item.path);
+          return (
+            <React.Fragment key={item.path}>
+              <button
+                style={getMenuItemStyle(visualIndex)}
+                onMouseEnter={(e) => {
+                  if (isExpanded) {
+                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
+                    setIsMenuOpen(true);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isExpanded) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.2)';
+                  }
+                }}
+                onClick={() => {
+                  if (isExpanded) {
+                    navigate(item.path);
+                    setIsMenuOpen(false);
+                    setIsLocked(false);
+                  }
+                }}
+              >
+                <div style={getIconContainerStyle(visualIndex)}>
+                  <i className={item.icon} style={getIconStyle(visualIndex)} />
+                </div>
+                <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+              </button>
+              
+              {/* Only show divider if not the last item */}
+              {index < filteredMenuItems.length - 1 && (
+                <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* Logo */}
@@ -371,56 +400,58 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Login/Signup buttons */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        marginLeft: 'auto',
-        paddingRight: '10px',
-        zIndex: 99,
-      }}>
-        <button 
-          style={navButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-            e.currentTarget.style.color = 'rgb(35, 17, 97)';
-            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgb(255, 220, 112)';
-            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/login');
-          }}
-        >
-          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-          Login
-        </button>
+      {/* Login/Signup buttons - only show when not authenticated */}
+      {!isAuthenticated && (
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          marginLeft: 'auto',
+          paddingRight: '10px',
+          zIndex: 99,
+        }}>
+          <button 
+            style={navButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
+              e.currentTarget.style.color = 'rgb(35, 17, 97)';
+              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'rgb(255, 220, 112)';
+              e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/login');
+            }}
+          >
+            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+            Login
+          </button>
         <span style={dividerStyle}>|</span>
-        <button 
+          <button 
           style={navButtonStyle}
-          onMouseEnter={(e) => {
+            onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
             e.currentTarget.style.color = 'rgb(35, 17, 97)';
-            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-          }}
-          onMouseLeave={(e) => {
+              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
             e.currentTarget.style.color = 'rgb(255, 220, 112)';
             e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/register');
-          }}
-        >
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/register');
+            }}
+          >
           <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-          Sign Up
-        </button>
-      </div>
+            Sign Up
+          </button>
+        </div>
+      )}
     </div>
   );
 };

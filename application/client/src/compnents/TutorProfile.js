@@ -19,7 +19,19 @@ const TutorProfile = () => {
   const [sessionType, setSessionType] = useState('zoom');
   const [notes, setNotes] = useState('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   
+  // Format time to 12-hour format with AM/PM
+  const formatTime = (dateTime) => {
+    const date = new Date(dateTime);
+    let hours = date.getHours();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes} ${ampm}`;
+  };
+
   // Fetch tutor data when component mounts
   useEffect(() => {
     const fetchTutorData = async () => {
@@ -28,25 +40,15 @@ const TutorProfile = () => {
         setError(null);
         
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-        const response = await fetch(`${apiBaseUrl}/api/tutors/${tutorId}`);
+        const response = await fetch(`${apiBaseUrl}/search/tutors/${tutorId}`);
         
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         const data = await response.json();
+        console.log('Tutor data:', data); // Log tutor data to check its structure
         setTutor(data);
-        
-        // Fetch available time slots (if needed)
-        // This is a placeholder - replace with actual API call if needed
-        setAvailableTimeSlots([
-          '09:00 AM - 09:30 AM',
-          '09:30 AM - 10:00 AM',
-          '10:00 AM - 10:30 AM',
-          '02:00 PM - 02:30 PM',
-          '02:30 PM - 03:00 PM',
-          '03:00 PM - 03:30 PM'
-        ]);
         
       } catch (err) {
         console.error('Error fetching tutor data:', err);
@@ -63,6 +65,46 @@ const TutorProfile = () => {
       setIsLoading(false);
     }
   }, [tutorId]);
+
+  // Fetch available time slots when date is selected
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      if (!selectedDate || !tutorId) return;
+      
+      try {
+        setIsLoadingSlots(true);
+        setSelectedTime('');
+        
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const response = await fetch(
+          `${apiBaseUrl}/search/tutors/${tutorId}/availability?date=${selectedDate}`
+        );
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch availability');
+        }
+        
+        const data = await response.json();
+        
+        // Format the time slots for display
+        const formattedSlots = data.slots.map(slot => ({
+          id: `${slot.start_time}-${slot.end_time}`,
+          start: new Date(slot.start_time),
+          end: new Date(slot.end_time),
+          display: `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`
+        }));
+        
+        setAvailableTimeSlots(formattedSlots);
+      } catch (err) {
+        console.error('Error fetching availability:', err);
+        setAvailableTimeSlots([]);
+      } finally {
+        setIsLoadingSlots(false);
+      }
+    };
+    
+    fetchAvailability();
+  }, [selectedDate, tutorId]);
   
   // Calculate max date (2 years from now)
   const getMaxDate = () => {
@@ -278,32 +320,37 @@ const TutorProfile = () => {
       gap: '30px',
       flexWrap: 'wrap',
     },
-    profileImage: {
-      width: '200px',
-      height: '200px',
-      borderRadius: '50%',
-      objectFit: 'cover',
-      border: '3px solid #f0f0f0',
-    },
     infoSection: {
       flex: 1,
       minWidth: '300px',
     },
     name: {
       fontSize: '38px',
-      margin: '0 0 15px 0',
+      margin: '0 0 8px 0',
       color: '#2c3e50',
+      fontWeight: '600',
+      lineHeight: '1.2',
+      display: 'block',
     },
     price: {
-      fontSize: '18px',
+      fontSize: '20px',
       color: '#9A2250',
-      margin: '0 0 0px 20px',
+      margin: '0 0 10px 0',
       fontWeight: '600',
+      display: 'block',
     },
     email: {
       color: '#666',
-      margin: '0 0 0px 20px',
+      margin: '0 0 15px 0',
       fontSize: '16px',
+      display: 'block',
+    },
+    profileImage: {
+      width: '200px',
+      height: '200px',
+      borderRadius: '50%',
+      objectFit: 'cover',
+      border: '3px solid #f0f0f0',
     },
     section: {
       marginBottom: '25px',
@@ -356,8 +403,12 @@ const TutorProfile = () => {
             }}
           />
           <div style={styles.infoSection}>
-            <h1 style={styles.name}>{tutor.name}</h1>
-            <p style={styles.price}>${tutor.price.toFixed(2)}/hour</p>
+            <h1 style={styles.name}>{tutor.first_name} {tutor.last_name}</h1>
+            <p style={styles.price}>
+              ${tutor && tutor.hourly_rate_cents !== undefined && tutor.hourly_rate_cents !== null 
+                ? (parseFloat(tutor.hourly_rate_cents) / 100).toFixed(2) 
+                : '0.00'}/hour
+            </p>
             <p style={styles.email}>{tutor.email}</p>
             
             <div style={styles.section}>
@@ -409,18 +460,24 @@ const TutorProfile = () => {
                 
                 {selectedDate && (
                   <div>
-                    <label style={styles.label}>Available Times:</label>
+                    <label style={styles.label}>
+                      Available Times:
+                      {isLoadingSlots && <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>Loading...</span>}
+                      {!isLoadingSlots && availableTimeSlots.length === 0 && (
+                        <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>No available time slots for this date</span>
+                      )}
+                    </label>
                     <div style={styles.timeSlotsGrid}>
-                      {availableTimeSlots.map((time, index) => (
+                      {availableTimeSlots.map((slot) => (
                         <div 
-                          key={index}
+                          key={slot.id}
                           style={{
                             ...styles.timeSlot,
-                            ...(selectedTime === time ? styles.selectedTimeSlot : {})
+                            ...(selectedTime === slot.display ? styles.selectedTimeSlot : {})
                           }}
-                          onClick={() => setSelectedTime(time)}
+                          onClick={() => setSelectedTime(slot.display)}
                         >
-                          {time}
+                          {slot.display}
                         </div>
                       ))}
                     </div>
@@ -441,7 +498,9 @@ const TutorProfile = () => {
                 >
                   <option value="">Select a course</option>
                   {tutor.courses.map((course, index) => (
-                    <option key={index} value={course}>{course}</option>
+                    <option key={index} value={`${course.department_code} ${course.course_number}`}>
+                      {course.department_code} {course.course_number} - {course.title}
+                    </option>
                   ))}
                 </select>
               </div>

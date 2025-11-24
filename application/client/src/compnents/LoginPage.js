@@ -92,7 +92,7 @@ const LoginPage = () => {
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:5000/api/login', {
+      const response = await fetch('http://localhost:8000/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -110,7 +110,7 @@ const LoginPage = () => {
       }
       
       // Get user details after successful login
-      const userResponse = await fetch(`http://localhost:5000/api/users/${data.user_id}`);
+      const userResponse = await fetch(`http://localhost:8000/api/users/${data.user_id}`);
       const userData = await userResponse.json();
       
       if (!userResponse.ok) {
@@ -131,9 +131,9 @@ const LoginPage = () => {
         if (userData.role === 'admin') {
           navigate('/admin');
         } else if (userData.role === 'tutor' || userData.role === 'both') {
-          navigate('/tutor-dashboard');
+          navigate('/');
         } else {
-          navigate('/student-dashboard');
+          navigate('/');
         }
       }
       

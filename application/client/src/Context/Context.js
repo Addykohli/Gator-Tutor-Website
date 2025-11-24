@@ -25,7 +25,7 @@ const reducer = (state, action) => {
           id: action.payload.id,
           firstName: action.payload.firstName || '',
           lastName: action.payload.lastName || '',
-          isTutor: action.payload.isTutor || true //false
+          isTutor: action.payload.isTutor || false
         },
         isAuthenticated: true,
         loading: false
@@ -95,7 +95,7 @@ export const ContextProvider = ({ children }) => {
           id: userData.id,
           firstName: userData.firstName,
           lastName: userData.lastName,
-          isTutor: userData.isTutor || true //false
+          isTutor: userData.isTutor || false
 
         }
       });
