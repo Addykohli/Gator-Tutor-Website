@@ -1,21 +1,42 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../Context/Context';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
   const menuRef = useRef(null);
+  const { isAuthenticated, user } = useAuth();
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
 
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
+    { icon: 'fas fa-search', label: 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
-    { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' }
+    { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
+    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
+    // Tutor-only menu items
+    { 
+      icon: 'fas fa-calendar-alt', 
+      label: 'Appointments', 
+      path: '/appointments',
+      tutorOnly: true
+    },
+    { 
+      icon: 'fas fa-calendar-check', 
+      label: 'Appointment Requests', 
+      path: '/appointment-requests',
+      tutorOnly: true
+    }
   ];
 
   const isExpanded = isMenuOpen || isLocked;
+
+  const buttonWidth = 100;
+  const expandedWidth = buttonWidth + 55; 
+  const leftShift = 20;
 
   useEffect(() => {
     const handleResize = () => {
@@ -77,7 +98,7 @@ const Header = () => {
     width: '100%',
     display: 'flex',
     alignItems: 'center',
-    padding: '0 10px',
+    padding: '0 20px',
     boxSizing: 'border-box',
     position: 'relative',
     zIndex: 100,
@@ -92,28 +113,43 @@ const Header = () => {
   // Hover area that covers both button and dropdown
   const hoverAreaStyle = {
     position: 'absolute',
-    top: '0',
-    left: '0',
-    width: isExpanded ? '200px' : '100px',
+    top: '0px',
+    left: isExpanded ? `-${leftShift}px` : '0',
+    width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
     height: isExpanded ? '220px' : '40px',
     zIndex: 999,
     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    color: 'rgb(255, 220, 112)',
   };
+
+  // Filter menu items based on authentication and tutor status
+  const filteredMenuItems = menuItems.filter(item => {
+    // Show all items that are not tutor-only
+    if (!item.tutorOnly) return true;
+    // Show tutor-only items only if user is authenticated and is a tutor
+    return isAuthenticated && user?.isTutor;
+  });
+
+  // Calculate dynamic height based on number of visible menu items
+  const menuItemHeight = 54; // height per menu item in pixels
+  const menuPadding = 55; // top and bottom padding
+  const dynamicHeight = (filteredMenuItems.length * menuItemHeight) + menuPadding;
 
   const borderContainerStyle = {
     position: 'absolute',
-    top: '0',
-    left: '0',
-    width: isExpanded ? '200px' : '100px',
-    height: isExpanded ? '220px' : '40px',
+    top: isExpanded ? '-8px' : '0',
+    left: isExpanded ? `-${leftShift}px` : '0',
+    width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
+    height: isExpanded ? `${dynamicHeight}px` : '40px',
     border: '1px solid rgb(255, 220, 112)',
-    borderRadius: isExpanded ? '8px' : '4px',
-    backgroundColor: isExpanded ? 'rgba(255, 220, 112, 0.98)' : 'transparent',
+    borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
+    backgroundColor: isExpanded ? 'rgb(35, 17, 97)' : 'transparent',
     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
     pointerEvents: 'none',
     zIndex: 1000,
     boxShadow: isExpanded ? '0 4px 20px rgba(0, 0, 0, 0.15)' : 'none',
+    color: 'rgb(255, 220, 112)',
   };
 
   const menuButtonStyle = {
@@ -121,7 +157,7 @@ const Header = () => {
     alignItems: 'center',
     padding: '8px 12px',
     backgroundColor: 'transparent',
-    color: isExpanded ? '#1e1b4b' : 'rgb(255, 220, 112)',
+    color: 'rgb(255, 220, 112)',
     border: 'none',
     borderRadius: '4px',
     cursor: 'pointer',
@@ -132,7 +168,7 @@ const Header = () => {
     transition: 'color 0.3s ease',
     position: 'relative',
     height: '40px',
-    width: '100px',
+    width: `${buttonWidth}px`,
   };
 
   const barsContainerStyle = {
@@ -144,6 +180,7 @@ const Header = () => {
     height: '14px',
     marginRight: '10px',
     position: 'relative',
+    color: 'rgb(255, 220, 112)',
   };
 
   const getBarInButtonStyle = (index) => ({
@@ -161,38 +198,42 @@ const Header = () => {
   const headerDividerStyle = {
     position: 'absolute',
     top: '40px',
-    left: '12px',
+    left: isExpanded ? `-${leftShift - 8}px` : '8px',
     height: '1px',
     backgroundColor: 'rgba(0,0,0,0.15)',
     opacity: isExpanded ? 1 : 0,
     transition: 'all 0.3s ease 0.2s',
     transformOrigin: 'left',
     zIndex: 1003,
-    width: isExpanded ? '176px' : '0px',
+    width: isExpanded ? `${expandedWidth - 16}px` : '0px',
+    color: 'rgb(255, 220, 112)',
   };
 
   const getMenuItemStyle = (index) => {
     const collapsedTop = 12 + (index * 6);
     const expandedTop = 48 + (index * 54);
+    const itemWidth = expandedWidth - 16; // 124px with 8px padding each side
     
     return {
       position: 'absolute',
-      left: '12px',
+      left: isExpanded ? `-${leftShift - 8}px` : '12px',
       display: 'flex',
       alignItems: 'center',
       top: isExpanded ? `${expandedTop}px` : `${collapsedTop}px`,
-      width: isExpanded ? '176px' : '18px',
+      width: isExpanded ? `${itemWidth}px` : '18px',
       height: isExpanded ? '46px' : '2px',
-      backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
+      color: 'rgb(255, 220, 112)',
+      backgroundColor: isExpanded ? 'rgba(255, 220, 112, 0.2)' : 'rgb(255, 220, 112)',
       borderRadius: isExpanded ? '6px' : '1px',
       transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
       cursor: isExpanded ? 'pointer' : 'default',
       overflow: 'hidden',
       border: 'none',
-      padding: isExpanded ? '8px' : '0',
+      padding: isExpanded ? '6px' : '0',
       boxSizing: 'border-box',
       pointerEvents: isExpanded ? 'auto' : 'none',
       zIndex: 1001,
+      opacity: isExpanded ? 1 : (index < 3 ? 1 : 0),
     };
   };
 
@@ -200,8 +241,8 @@ const Header = () => {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: isExpanded ? '24px' : '18px',
-    height: isExpanded ? '24px' : '2px',
+    minWidth: isExpanded ? '22px' : '18px',
+    height: isExpanded ? '22px' : '2px',
     transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
   });
 
@@ -209,17 +250,17 @@ const Header = () => {
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'scale(1) rotate(0deg)' : 'scale(0) rotate(-180deg)',
     transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.2 + index * 0.1}s`,
-    color: '#1e1b4b',
-    fontSize: '16px',
+    color: 'rgb(255, 220, 112)',
+    fontSize: '14px',
   });
 
   const getLabelStyle = (index) => ({
-    marginLeft: '10px',
-    color: '#1e1b4b',
-    fontSize: '13px',
+    marginLeft: '8px',
+    color: 'rgb(255, 220, 112)',
+    fontSize: '11px',
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: '0.5px',
+    letterSpacing: '0.3px',
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'translateX(0)' : 'translateX(-30px)',
     transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.25 + index * 0.1}s`,
@@ -227,11 +268,12 @@ const Header = () => {
     lineHeight: '1.2',
     textAlign: 'left',
     wordBreak: 'break-word',
+    flex: 1,
   });
 
   const getDividerStyle = (index) => ({
     position: 'absolute',
-    left: '12px',
+    left: isExpanded ? `-${leftShift - 8}px` : '8px',
     top: `${94 + index * 54}px`,
     height: '1px',
     backgroundColor: 'rgba(0,0,0,0.1)',
@@ -239,7 +281,7 @@ const Header = () => {
     transform: isExpanded ? 'scaleX(1)' : 'scaleX(0)',
     transition: `all 0.3s ease ${0.35 + index * 0.05}s`,
     transformOrigin: 'left',
-    width: isExpanded ? '176px' : '0px',
+    width: isExpanded ? `${expandedWidth - 16}px` : '0px',
     pointerEvents: 'none',
   });
 
@@ -260,6 +302,7 @@ const Header = () => {
       setIsMenuOpen(true);
     }
   };
+
 
   return (
     <div style={navBarStyle}>
@@ -293,40 +336,45 @@ const Header = () => {
         </button>
 
         {/* Menu items */}
-        {menuItems.map((item, index) => (
-          <button
-            key={item.path}
-            style={getMenuItemStyle(index)}
-            onMouseEnter={(e) => {
-              if (isExpanded) {
-                e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
-                setIsMenuOpen(true);
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (isExpanded) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }
-            }}
-            onClick={() => {
-              if (isExpanded) {
-                navigate(item.path);
-                setIsMenuOpen(false);
-                setIsLocked(false);
-              }
-            }}
-          >
-            <div style={getIconContainerStyle(index)}>
-              <i className={item.icon} style={getIconStyle(index)} />
-            </div>
-            <span style={getLabelStyle(index)}>{item.label}</span>
-          </button>
-        ))}
-
-        {/* Item dividers */}
-        {menuItems.slice(0, -1).map((_, index) => (
-          <div key={`divider-${index}`} style={getDividerStyle(index)} />
-        ))}
+        {filteredMenuItems.map((item, index) => {
+          // Recalculate the visual index for dividers to account for filtered items
+          const visualIndex = menuItems.findIndex(i => i.path === item.path);
+          return (
+            <React.Fragment key={item.path}>
+              <button
+                style={getMenuItemStyle(visualIndex)}
+                onMouseEnter={(e) => {
+                  if (isExpanded) {
+                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
+                    setIsMenuOpen(true);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (isExpanded) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.2)';
+                  }
+                }}
+                onClick={() => {
+                  if (isExpanded) {
+                    navigate(item.path);
+                    setIsMenuOpen(false);
+                    setIsLocked(false);
+                  }
+                }}
+              >
+                <div style={getIconContainerStyle(visualIndex)}>
+                  <i className={item.icon} style={getIconStyle(visualIndex)} />
+                </div>
+                <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+              </button>
+              
+              {/* Only show divider if not the last item */}
+              {index < filteredMenuItems.length - 1 && (
+                <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* Logo */}
@@ -335,7 +383,7 @@ const Header = () => {
         display: 'flex', 
         justifyContent: 'center', 
         position: 'absolute', 
-        left: '14%', 
+        left: '16.5%', 
         transform: 'translateX(-50%)',
         zIndex: 99,
       }}>
@@ -352,56 +400,58 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Login/Signup buttons */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center',
-        marginLeft: 'auto',
-        paddingRight: '10px',
-        zIndex: 99,
-      }}>
-        <button 
-          style={navButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
-            e.currentTarget.style.color = 'rgb(35, 17, 97)';
-            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgb(255, 220, 112)';
-            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/login');
-          }}
-        >
-          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-          Login
-        </button>
+      {/* Login/Signup buttons - only show when not authenticated */}
+      {!isAuthenticated && (
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          marginLeft: 'auto',
+          paddingRight: '10px',
+          zIndex: 99,
+        }}>
+          <button 
+            style={navButtonStyle}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
+              e.currentTarget.style.color = 'rgb(35, 17, 97)';
+              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.color = 'rgb(255, 220, 112)';
+              e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/login');
+            }}
+          >
+            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+            Login
+          </button>
         <span style={dividerStyle}>|</span>
-        <button 
+          <button 
           style={navButtonStyle}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(255, 228, 147, 0.47)';
+            onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
             e.currentTarget.style.color = 'rgb(35, 17, 97)';
-            e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-          }}
-          onMouseLeave={(e) => {
+              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+            }}
+            onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
             e.currentTarget.style.color = 'rgb(255, 220, 112)';
             e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            navigate('/register');
-          }}
-        >
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              navigate('/register');
+            }}
+          >
           <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-          Sign Up
-        </button>
-      </div>
+            Sign Up
+          </button>
+        </div>
+      )}
     </div>
   );
 };
