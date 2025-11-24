@@ -127,7 +127,7 @@ def create_booking(db: Session, booking_data: BookingCreate) -> Booking:
         notes=booking_data.notes,
         course_id=booking_data.course_id,
         meeting_link=booking_data.meeting_link,
-        status="confirmed"  # Auto-confirm for now
+        status="pending"  # Default to pending, requires tutor approval
     )
     
     db.add(new_booking)
@@ -157,9 +157,9 @@ def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
     ).order_by(Booking.start_time.desc()).all()
 
 
-def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Optional[int] = None) -> List[Booking]:
+def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Optional[int] = None, status: Optional[str] = None) -> List[Booking]:
     """
-    Get bookings filtered by student_id and/or tutor_id.
+    Get bookings filtered by student_id, tutor_id, and/or status.
     """
     query = db.query(Booking).options(
         joinedload(Booking.tutor_profile).joinedload(TutorProfile.user),
@@ -171,6 +171,8 @@ def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Option
         query = query.filter(Booking.student_id == student_id)
     if tutor_id:
         query = query.filter(Booking.tutor_id == tutor_id)
+    if status:
+        query = query.filter(Booking.status == status)
         
     bookings = query.order_by(Booking.start_time.desc()).all()
 
@@ -184,3 +186,46 @@ def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Option
             booking.course_title = booking.course.title
             
     return bookings
+
+
+def update_booking_status(db: Session, booking_id: int, new_status: str, tutor_id: int) -> Booking:
+    """
+    Update the status of a booking.
+    
+    Args:
+        db: Database session
+        booking_id: ID of the booking to update
+        new_status: New status value (pending, confirmed, cancelled, completed)
+        tutor_id: ID of the tutor (for authorization - only tutor can update their bookings)
+        
+    Returns:
+        Updated Booking object with relationships loaded
+        
+    Raises:
+        ValueError: If booking not found, tutor_id doesn't match, or invalid status
+    """
+    # Valid status values
+    valid_statuses = ["pending", "confirmed", "cancelled", "completed"]
+    if new_status not in valid_statuses:
+        raise ValueError(f"Invalid status. Must be one of: {', '.join(valid_statuses)}")
+    
+    # Get the booking with relationships loaded
+    booking = db.query(Booking).options(
+        joinedload(Booking.tutor_profile).joinedload(TutorProfile.user),
+        joinedload(Booking.student),
+        joinedload(Booking.course)
+    ).filter(Booking.booking_id == booking_id).first()
+    
+    if not booking:
+        raise ValueError(f"Booking with ID {booking_id} not found")
+    
+    # Validate tutor authorization
+    if booking.tutor_id != tutor_id:
+        raise ValueError("Only the tutor associated with this booking can update its status")
+    
+    # Update status
+    booking.status = new_status
+    db.commit()
+    db.refresh(booking)
+    
+    return booking

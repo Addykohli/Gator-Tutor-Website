@@ -16,6 +16,7 @@ from ..services import (
     get_tutor_bookings,
     get_bookings
 )
+from schedule.services.booking_service import update_booking_status
 from ..schemas import (
     TutorSearchResponse,
     TutorSearchResult,
@@ -33,7 +34,8 @@ from schedule.schemas.booking_schemas import (
     BookingCreate,
     BookingResponse,
     AvailabilityResponse,
-    TimeSlot
+    TimeSlot,
+    BookingStatusUpdate
 )
 from datetime import date
 
@@ -327,13 +329,53 @@ def get_tutor_bookings_endpoint(
 def search_bookings_endpoint(
     student_id: Optional[int] = Query(None, description="Filter by student ID"),
     tutor_id: Optional[int] = Query(None, description="Filter by tutor ID"),
+    status: Optional[str] = Query(None, description="Filter by status (pending, confirmed, cancelled, completed)"),
     db: Session = Depends(get_db)
 ):
     """
-    Search bookings by student_id or tutor_id.
+    Search bookings by student_id, tutor_id, and/or status.
     """
     try:
-        return get_bookings(db, student_id, tutor_id)
+        return get_bookings(db, student_id, tutor_id, status)
     except Exception as e:
         print(f"Search bookings error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.put("/bookings/{booking_id}/status", response_model=BookingResponse)
+def update_booking_status_endpoint(
+    booking_id: int,
+    status_update: BookingStatusUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update the status of a booking (approve/reject).
+    
+    - **booking_id**: ID of the booking to update
+    - **status**: New status (pending, confirmed, cancelled, completed)
+    - **tutor_id**: Tutor ID for authorization (must match the booking's tutor_id)
+    
+    Only the tutor associated with the booking can update its status.
+    """
+    try:
+        updated_booking = update_booking_status(
+            db, 
+            booking_id, 
+            status_update.status, 
+            status_update.tutor_id
+        )
+        
+        # Populate nested details for response
+        if updated_booking.tutor_profile and updated_booking.tutor_profile.user:
+            updated_booking.tutor_name = f"{updated_booking.tutor_profile.user.first_name} {updated_booking.tutor_profile.user.last_name}"
+        if updated_booking.student:
+            updated_booking.student_name = f"{updated_booking.student.first_name} {updated_booking.student.last_name}"
+        if updated_booking.course:
+            updated_booking.course_title = updated_booking.course.title
+        
+        return updated_booking
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Update booking status error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

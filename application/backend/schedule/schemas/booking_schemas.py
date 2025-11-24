@@ -52,3 +52,9 @@ class AvailabilityResponse(BaseModel):
     tutor_id: int
     date: date
     slots: List[TimeSlot]
+
+
+class BookingStatusUpdate(BaseModel):
+    """Schema for updating booking status."""
+    status: str = Field(..., description="New status: pending, confirmed, cancelled, or completed")
+    tutor_id: int = Field(..., description="Tutor ID for authorization")
