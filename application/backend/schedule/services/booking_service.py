@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 from ..models.booking import Booking
 from ..models.availability_slot import AvailabilitySlot
 from search.models import TutorProfile, User
-from ..schemas.booking_schemas import BookingCreate, TimeSlot
+from ..schemas.booking_schemas import BookingCreate, TimeSlot, AvailabilitySlotCreate, AvailabilitySlotUpdate
 
 
 def get_tutor_availability(db: Session, tutor_id: int, query_date: date) -> List[TimeSlot]:
@@ -229,3 +229,211 @@ def update_booking_status(db: Session, booking_id: int, new_status: str, tutor_i
     db.refresh(booking)
     
     return booking
+
+
+# ============================================================================
+# Availability Slot Management Functions
+# ============================================================================
+
+def _check_slot_overlap(
+    db: Session, 
+    tutor_id: int, 
+    weekday: int, 
+    start_time: time, 
+    end_time: time, 
+    exclude_slot_id: Optional[int] = None
+) -> bool:
+    """
+    Check if a time range overlaps with existing slots on the same weekday.
+    
+    Args:
+        db: Database session
+        tutor_id: ID of the tutor
+        weekday: Day of week (0=Sunday, 6=Saturday)
+        start_time: Start time of the new/updated slot
+        end_time: End time of the new/updated slot
+        exclude_slot_id: Optional slot ID to exclude (for updates)
+        
+    Returns:
+        True if there's an overlap, False otherwise
+    """
+    query = db.query(AvailabilitySlot).filter(
+        AvailabilitySlot.tutor_id == tutor_id,
+        AvailabilitySlot.weekday == weekday,
+        # Overlap logic: (start1 < end2) and (end1 > start2)
+        AvailabilitySlot.start_time < end_time,
+        AvailabilitySlot.end_time > start_time
+    )
+    
+    if exclude_slot_id:
+        query = query.filter(AvailabilitySlot.slot_id != exclude_slot_id)
+    
+    return query.first() is not None
+
+
+def get_availability_slots(db: Session, tutor_id: int) -> List[AvailabilitySlot]:
+    """
+    Get all availability slots for a tutor.
+    
+    Args:
+        db: Database session
+        tutor_id: ID of the tutor
+        
+    Returns:
+        List of AvailabilitySlot objects ordered by weekday and start_time
+    """
+    return db.query(AvailabilitySlot).filter(
+        AvailabilitySlot.tutor_id == tutor_id
+    ).order_by(
+        AvailabilitySlot.weekday,
+        AvailabilitySlot.start_time
+    ).all()
+
+
+def create_availability_slot(
+    db: Session, 
+    tutor_id: int, 
+    slot_data: AvailabilitySlotCreate
+) -> AvailabilitySlot:
+    """
+    Create a new availability slot for a tutor.
+    
+    Args:
+        db: Database session
+        tutor_id: ID of the tutor
+        slot_data: Slot creation data
+        
+    Returns:
+        Created AvailabilitySlot object
+        
+    Raises:
+        ValueError: If slot overlaps with existing slot or times are invalid
+    """
+    # Validate start_time < end_time
+    if slot_data.start_time >= slot_data.end_time:
+        raise ValueError("Start time must be before end time")
+    
+    # Check for overlapping slots
+    if _check_slot_overlap(
+        db, tutor_id, slot_data.weekday, 
+        slot_data.start_time, slot_data.end_time
+    ):
+        raise ValueError("This time slot overlaps with an existing availability slot")
+    
+    # Create the slot
+    new_slot = AvailabilitySlot(
+        tutor_id=tutor_id,
+        weekday=slot_data.weekday,
+        start_time=slot_data.start_time,
+        end_time=slot_data.end_time,
+        location_mode=slot_data.location_mode,
+        location_note=slot_data.location_note
+    )
+    
+    db.add(new_slot)
+    db.commit()
+    db.refresh(new_slot)
+    
+    return new_slot
+
+
+def update_availability_slot(
+    db: Session, 
+    slot_id: int, 
+    tutor_id: int, 
+    slot_data: AvailabilitySlotUpdate
+) -> AvailabilitySlot:
+    """
+    Update an existing availability slot.
+    
+    Args:
+        db: Database session
+        slot_id: ID of the slot to update
+        tutor_id: ID of the tutor (for authorization)
+        slot_data: Slot update data (partial updates allowed)
+        
+    Returns:
+        Updated AvailabilitySlot object
+        
+    Raises:
+        ValueError: If slot not found, tutor doesn't own slot, or update creates overlap
+    """
+    # Get the slot
+    slot = db.query(AvailabilitySlot).filter(
+        AvailabilitySlot.slot_id == slot_id
+    ).first()
+    
+    if not slot:
+        raise ValueError(f"Availability slot with ID {slot_id} not found")
+    
+    # Verify ownership
+    if slot.tutor_id != tutor_id:
+        raise ValueError("Only the tutor who owns this slot can update it")
+    
+    # Determine final values (use new if provided, otherwise keep existing)
+    new_weekday = slot_data.weekday if slot_data.weekday is not None else slot.weekday
+    new_start_time = slot_data.start_time if slot_data.start_time is not None else slot.start_time
+    new_end_time = slot_data.end_time if slot_data.end_time is not None else slot.end_time
+    
+    # Validate start_time < end_time
+    if new_start_time and new_end_time and new_start_time >= new_end_time:
+        raise ValueError("Start time must be before end time")
+    
+    # Check for overlapping slots (excluding this slot)
+    if new_start_time and new_end_time:
+        if _check_slot_overlap(
+            db, tutor_id, new_weekday, 
+            new_start_time, new_end_time,
+            exclude_slot_id=slot_id
+        ):
+            raise ValueError("This time slot overlaps with an existing availability slot")
+    
+    # Update fields
+    if slot_data.weekday is not None:
+        slot.weekday = slot_data.weekday
+    if slot_data.start_time is not None:
+        slot.start_time = slot_data.start_time
+    if slot_data.end_time is not None:
+        slot.end_time = slot_data.end_time
+    if slot_data.location_mode is not None:
+        slot.location_mode = slot_data.location_mode
+    if slot_data.location_note is not None:
+        slot.location_note = slot_data.location_note
+    
+    db.commit()
+    db.refresh(slot)
+    
+    return slot
+
+
+def delete_availability_slot(db: Session, slot_id: int, tutor_id: int) -> bool:
+    """
+    Delete an availability slot.
+    
+    Args:
+        db: Database session
+        slot_id: ID of the slot to delete
+        tutor_id: ID of the tutor (for authorization)
+        
+    Returns:
+        True if deleted successfully
+        
+    Raises:
+        ValueError: If slot not found or tutor doesn't own slot
+    """
+    # Get the slot
+    slot = db.query(AvailabilitySlot).filter(
+        AvailabilitySlot.slot_id == slot_id
+    ).first()
+    
+    if not slot:
+        raise ValueError(f"Availability slot with ID {slot_id} not found")
+    
+    # Verify ownership
+    if slot.tutor_id != tutor_id:
+        raise ValueError("Only the tutor who owns this slot can delete it")
+    
+    db.delete(slot)
+    db.commit()
+    
+    return True
