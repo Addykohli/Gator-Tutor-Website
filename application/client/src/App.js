@@ -10,7 +10,6 @@ import CourseCoverageRequestPage from './compnents/CourseCoverageRequestPage';
 import MessagesPage from './compnents/MessagesPage';
 import RegisterPage from './compnents/RegisterPage';
 import SessionsPage from './compnents/SessionsPage';
-import AppointmentsPage from './compnents/AppointmentPage';
 import AppointmentRequestsPage from './compnents/AppointmentRequestsPage';
 // Protected Route component for admin access
 const ProtectedRoute = ({ children }) => {
@@ -44,7 +43,6 @@ function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/sessions" element={<SessionsPage />} />
-            <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/appointment-requests" element={<AppointmentRequestsPage />} />
             <Route 
               path="/admin" 

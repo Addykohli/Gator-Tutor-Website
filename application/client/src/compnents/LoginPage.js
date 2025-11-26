@@ -25,7 +25,7 @@ const LoginPage = () => {
       color: "#333",
       textAlign: "center",
       padding: "0px",
-      borderBottom: "4px solid #9A2250",
+      borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
       margin: "20px auto",
       fontSize: "45px",
@@ -117,13 +117,18 @@ const LoginPage = () => {
         throw new Error('Failed to fetch user details');
       }
       
+      // Determine user role
+      const userRole = userData.role || 'student';
+      
       // Login user in context
       const loginSuccess = await login({
         id: data.user_id,
         firstName: userData.first_name || '',
         lastName: userData.last_name || '',
         email: email,
-        isTutor: userData.role === 'tutor' || userData.role === 'both'
+        isTutor: userRole === 'tutor' || userRole === 'both',
+        role: userRole,
+        authToken: data.token || null
       });
       
       if (loginSuccess) {

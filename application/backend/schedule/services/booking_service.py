@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 
 from ..models.booking import Booking
 from ..models.availability_slot import AvailabilitySlot
-from search.models import TutorProfile, User
+from search.models import TutorProfile, User, Course
 from ..schemas.booking_schemas import BookingCreate, TimeSlot
 
 
@@ -104,8 +104,12 @@ def create_booking(db: Session, booking_data: BookingCreate) -> Booking:
         Created Booking object
         
     Raises:
-        ValueError: If slot is not available
+        ValueError: If slot is not available or course_id is missing
     """
+    # Validate that course_id is provided (required field)
+    if not booking_data.course_id:
+        raise ValueError("Course ID is required to create a booking.")
+    
     # 1. Check if slot is available
     # Check for overlapping bookings
     overlapping = db.query(Booking).filter(
@@ -134,6 +138,17 @@ def create_booking(db: Session, booking_data: BookingCreate) -> Booking:
     db.commit()
     db.refresh(new_booking)
     
+    # Load the course relationship and populate course_title
+    if new_booking.course_id:
+        # Reload with course relationship
+        booking_with_course = db.query(Booking).options(
+            joinedload(Booking.course)
+        ).filter(Booking.booking_id == new_booking.booking_id).first()
+        
+        if booking_with_course and booking_with_course.course:
+            booking_with_course.course_title = booking_with_course.course.title
+            return booking_with_course
+    
     return new_booking
 
 
@@ -149,12 +164,28 @@ def get_student_bookings(db: Session, student_id: int) -> List[Booking]:
 
 def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
     """Get all bookings for a tutor."""
-    return db.query(Booking).options(
+    bookings = db.query(Booking).options(
         joinedload(Booking.student),
         joinedload(Booking.course)
     ).filter(
         Booking.tutor_id == tutor_id
     ).order_by(Booking.start_time.desc()).all()
+    
+    # Populate course_title for response
+    for booking in bookings:
+        if booking.course:
+            booking.course_title = booking.course.title
+        elif booking.course_id:
+            # Course ID exists but relationship didn't load - try to fetch it
+            course = db.query(Course).filter(Course.course_id == booking.course_id).first()
+            if course:
+                booking.course_title = course.title
+            else:
+                print(f"Warning: Course with ID {booking.course_id} not found for booking {booking.booking_id}")
+        else:
+            print(f"Warning: Booking {booking.booking_id} has no course_id")
+    
+    return bookings
 
 
 def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Optional[int] = None, status: Optional[str] = None) -> List[Booking]:

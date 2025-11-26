@@ -22,7 +22,7 @@ const CourseCoverageRequestPage = () => {
       color: "#333",
       textAlign: "center",
       padding: "0px",
-      borderBottom: "4px solid #9A2250",
+      borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
       margin: "20px auto",
       fontSize: "45px",

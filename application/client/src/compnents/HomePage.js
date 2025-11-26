@@ -14,10 +14,12 @@ import Header from './Header';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isAuthenticated, user} = useAuth();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
   const [tutorAvailability, setTutorAvailability] = useState([]);
+  const [tutorBookings, setTutorBookings] = useState([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -32,9 +34,7 @@ const HomePage = () => {
   
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   
-  // Fetch tutor availability if user is a tutor
-  useEffect(() => {
-    const fetchTutorAvailability = async () => {
+  const fetchTutorAvailability = async () => {
       if (user && user.isTutor) {
         try {
           setIsLoadingAvailability(true);
@@ -63,10 +63,18 @@ const HomePage = () => {
             const weeklyAvailability = {};
             const today = new Date();
             
+            // Helper function to format date as YYYY-MM-DD in local time (not UTC)
+            const formatLocalDate = (date) => {
+              const year = date.getFullYear();
+              const month = String(date.getMonth() + 1).padStart(2, '0');
+              const day = String(date.getDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+            };
+            
             for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
               const checkDate = new Date(today);
               checkDate.setDate(today.getDate() + dayOffset);
-              const dateStr = checkDate.toISOString().split('T')[0];
+              const dateStr = formatLocalDate(checkDate);
               
               try {
                 const availResponse = await fetch(
@@ -74,9 +82,7 @@ const HomePage = () => {
                 );
                 
                 if (availResponse.ok) {
-                  const availData = await availResponse.json();
-                  console.log(`Availability for ${dateStr}:`, availData);
-                  
+                  const availData = await availResponse.json();                  
                   if (availData.slots && availData.slots.length > 0) {
                     // Get day of week
                     const dayName = format(checkDate, 'EEEE').toLowerCase();
@@ -123,8 +129,77 @@ const HomePage = () => {
         }
       }
     };
+
+  // Fetch tutor bookings
+  const fetchTutorBookings = async () => {
+    if (user?.isTutor) {
+      try {
+        setIsLoadingBookings(true);
+        const apiBaseUrl = window.location.hostname === 'localhost' 
+          ? 'http://localhost:8000' 
+          : '/api';
+        
+        // Fetch confirmed and pending bookings separately since backend doesn't support comma-separated status
+        const [confirmedResponse, pendingResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/search/bookings?tutor_id=${user.id}&status=confirmed`),
+          fetch(`${apiBaseUrl}/search/bookings?tutor_id=${user.id}&status=pending`)
+        ]);
+        
+        if (!confirmedResponse.ok || !pendingResponse.ok) {
+          throw new Error(`HTTP error! status: ${confirmedResponse.status} or ${pendingResponse.status}`);
+        }
+        
+        const confirmedData = await confirmedResponse.json();
+        const pendingData = await pendingResponse.json();
+        
+        // Combine both arrays
+        const allBookings = [...(Array.isArray(confirmedData) ? confirmedData : []), ...(Array.isArray(pendingData) ? pendingData : [])];
+        
+        console.log('Fetched tutor bookings:', allBookings);
+        console.log('Bookings with parsed dates:', allBookings.map(b => {
+          const startTime = new Date(b.start_time);
+          const endTime = new Date(b.end_time);
+          return {
+            id: b.booking_id,
+            startUTC: b.start_time,
+            startLocal: startTime.toString(),
+            startDate: format(startTime, 'yyyy-MM-dd'),
+            startHour: startTime.getHours(),
+            startMinutes: startTime.getMinutes(),
+            endUTC: b.end_time,
+            endLocal: endTime.toString(),
+            endHour: endTime.getHours(),
+            endMinutes: endTime.getMinutes(),
+            status: b.status
+          };
+        }));
+        setTutorBookings(allBookings);
+      } catch (error) {
+        console.error('Error fetching tutor bookings:', error);
+        setTutorBookings([]);
+      } finally {
+        setIsLoadingBookings(false);
+      }
+    }
+  };
+
+  // Fetch data based on user type
+  useEffect(() => {
+    if (user) {
+      if (user.isTutor) {
+        fetchTutorAvailability();
+        fetchTutorBookings();
+      } else {
+        fetchStudentBookings();
+      }
+    }
     
-    fetchTutorAvailability();
+    // Check for any booking to highlight when component mounts
+    const params = new URLSearchParams(window.location.search);
+    const highlightId = params.get('highlight');
+    if (highlightId) {
+      setGlowBookingId(highlightId);
+    }
   }, [user]);
   
   // Check if a specific hour on a specific day is available
@@ -136,7 +211,7 @@ const HomePage = () => {
     
     // Get day name in lowercase (e.g., "monday")
     const dayOfWeek = format(date, 'EEEE').toLowerCase();
-    console.log(`Checking availability for ${dayOfWeek} at hour ${hour}`);
+    //console.log(`Checking availability for ${dayOfWeek} at hour ${hour}`);
     
     // Find availability for this day - check multiple possible field names
     const dayAvailability = tutorAvailability.find(
@@ -147,11 +222,11 @@ const HomePage = () => {
     );
     
     if (!dayAvailability) {
-      console.log(`No availability found for ${dayOfWeek}`);
+      //console.log(`No availability found for ${dayOfWeek}`);
       return false;
     }
     
-    console.log(`Found availability for ${dayOfWeek}:`, dayAvailability);
+    //console.log(`Found availability for ${dayOfWeek}:`, dayAvailability);
     
     // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
     const parseTimeToHour = (timeStr) => {
@@ -171,9 +246,7 @@ const HomePage = () => {
     
     const availStart = parseTimeToHour(startTimeStr);
     const availEnd = parseTimeToHour(endTimeStr);
-    
-    console.log(`Time range: ${availStart} - ${availEnd}, checking hour: ${hour}`);
-    
+        
     // Check if hour is within availability window
     const isAvailable = hour >= availStart && hour < availEnd;
     console.log(`Hour ${hour} is ${isAvailable ? 'available' : 'not available'}`);
@@ -181,57 +254,52 @@ const HomePage = () => {
     return isAvailable;
   };
   
-  // Mock data for calendar events (student view)
-  const mockEvents = [
-    {
-      id: 1,
-      title: 'CS 415 Review',
-      date: addDays(new Date(), 1),
-      time: '10:00 AM - 11:30 AM',
-      type: 'class',
-      location: 'Library Room 203',
-      color: '#4e73df'
-    },
-    {
-      id: 2,
-      title: 'Tutoring Session',
-      date: addDays(new Date(), 1),
-      time: '2:00 PM - 3:30 PM',
-      type: 'tutoring',
-      tutor: 'Dr. Smith',
-      color: '#1cc88a'
-    },
-    {
-      id: 3,
-      title: 'Group Study',
-      date: addDays(new Date(), 3),
-      time: '4:00 PM - 6:00 PM',
-      type: 'study',
-      group: 'CS Study Group',
-      location: 'Student Center',
-      color: '#f6c23e'
-    },
-    {
-      id: 4,
-      title: 'Office Hours',
-      date: addDays(new Date(), 4),
-      time: '1:00 PM - 3:00 PM',
-      type: 'office_hours',
-      professor: 'Prof. Johnson',
-      location: 'SCI 217',
-      color: '#e74a3b'
-    },
-    {
-      id: 5,
-      title: 'CS 600 Lecture',
-      date: addDays(new Date(), 5),
-      time: '9:30 AM - 11:00 AM',
-      type: 'class',
-      course: 'CS 600',
-      location: 'TH 101',
-      color: '#4e73df'
+  // State for student bookings
+  const [studentBookings, setStudentBookings] = useState([]);
+  const [isLoadingStudentBookings, setIsLoadingStudentBookings] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+  
+  // Fetch student bookings
+  const fetchStudentBookings = async () => {
+    if (!user?.id) return;
+    
+    try {
+      setIsLoadingStudentBookings(true);
+      setBookingError(null);
+      
+      const apiBaseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8000' 
+        : '/api';
+      
+      // Fetch both confirmed and pending bookings
+      const [confirmedResponse, pendingResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/search/bookings?student_id=${user.id}&status=confirmed`),
+        fetch(`${apiBaseUrl}/search/bookings?student_id=${user.id}&status=pending`)
+      ]);
+      
+      if (!confirmedResponse.ok || !pendingResponse.ok) {
+        throw new Error('Failed to fetch bookings');
+      }
+      
+      const confirmedData = await confirmedResponse.json();
+      const pendingData = await pendingResponse.json();
+      
+      // Combine and process bookings
+      const allBookings = [
+        ...(Array.isArray(confirmedData) ? confirmedData : []), 
+        ...(Array.isArray(pendingData) ? pendingData : [])
+      ];
+      
+      console.log('Fetched student bookings:', allBookings);
+      setStudentBookings(allBookings);
+    } catch (error) {
+      console.error('Error fetching student bookings:', error);
+      setBookingError('Failed to load bookings. Please try again later.');
+      setStudentBookings([]);
+    } finally {
+      setIsLoadingStudentBookings(false);
     }
-  ];
+  };
   
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
@@ -336,9 +404,9 @@ const HomePage = () => {
       color: "#333",
       textAlign: "center",
       padding: "0px",
-      borderBottom: "4px solid #9A2250",
+      borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
-      margin: "20px auto",
+      margin: "10px auto 5px",
       fontSize: "45px",
       fontWeight: "600",
       lineHeight: "1.2",
@@ -357,7 +425,7 @@ const HomePage = () => {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: '20px',
+      marginBottom: '12px',
     },
     weekDisplay: {
       fontSize: '1.2rem',
@@ -394,11 +462,15 @@ const HomePage = () => {
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
+      borderRight: '1px solid #f0f0f0',
+      borderBottom: '1px solid #f0f0f0',
     },
     dateNumber: {
       fontWeight: 'bold',
       marginBottom: '8px',
-      color: '#2c3e50'
+      color: '#2c3e50',
+      textAlign: 'center',
+      width: '100%'
     },
     todayMarker: {
       position: 'absolute',
@@ -485,7 +557,7 @@ const HomePage = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'top',
     },
     tutorTimeSlot: {
       backgroundColor: 'white',
@@ -497,6 +569,9 @@ const HomePage = () => {
     },
     availableSlot: {
       backgroundColor: 'rgba(255, 220, 100, 0.3)',
+    },
+    bookedSlot: {
+      backgroundColor: 'rgba(200, 200, 200, 0.2)',
     },
     searchContainer: {
       backgroundColor: "#ffffff",
@@ -566,7 +641,7 @@ const HomePage = () => {
   };
 
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8am to 7pm (12 hours)
+  const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8am to 11pm (16 hours)
   const today = new Date();
   
   const nextWeek = () => {
@@ -606,13 +681,37 @@ const HomePage = () => {
     const days = [];
     let startDate = currentWeekStart;
     
+    // Group bookings by date for easier lookup
+    const bookingsByDate = {};
+    if (Array.isArray(studentBookings)) {
+      studentBookings.forEach(booking => {
+        if (!booking.start_time) return;
+        
+        const startTime = parseTimeToLocal(booking.start_time);
+        const endTime = parseTimeToLocal(booking.end_time);
+        
+        if (!startTime || !endTime) return;
+        
+        const dateKey = format(startTime, 'yyyy-MM-dd');
+        if (!bookingsByDate[dateKey]) {
+          bookingsByDate[dateKey] = [];
+        }
+        
+        bookingsByDate[dateKey].push({
+          ...booking,
+          startTime,
+          endTime,
+          formattedTime: `${format(startTime, 'h:mma')} - ${format(endTime, 'h:mma')}`.toLowerCase(),
+          color: booking.status === 'confirmed' ? '#1cc88a' : '#f6c23e'
+        });
+      });
+    }
+    
     for (let i = 0; i < 7; i++) {
       const currentDate = addDays(startDate, i);
       const isToday = isSameDay(currentDate, today);
-      
-      const dayEvents = mockEvents.filter(event => 
-        isSameDay(event.date, currentDate)
-      );
+      const dateKey = format(currentDate, 'yyyy-MM-dd');
+      const dayBookings = bookingsByDate[dateKey] || [];
       
       days.push(
         <div key={i} style={styles.dayCell} className={isToday ? 'today' : ''}>
@@ -621,29 +720,42 @@ const HomePage = () => {
             {isToday && <span style={styles.todayMarker}>Today</span>}
           </div>
           
-          {dayEvents.length > 0 ? (
+          {isLoadingStudentBookings ? (
+            <div style={styles.noSessions}>Loading...</div>
+          ) : bookingError ? (
+            <div style={{ ...styles.noSessions, color: '#e74a3b' }}>Error loading bookings</div>
+          ) : dayBookings.length > 0 ? (
             <div style={styles.eventsContainer}>
-              {dayEvents.map(event => (
+              {dayBookings.map((booking, index) => (
                 <div 
-                  key={event.id} 
+                  key={`${booking.booking_id || index}`} 
                   style={{
                     ...styles.eventItem,
-                    borderLeft: `3px solid ${event.color}`,
-                    backgroundColor: `${event.color}15`
+                    borderLeft: `3px solid ${booking.color}`,
+                    backgroundColor: `${booking.color}15`,
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s, box-shadow 0.2s'
                   }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(2px)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
+                  onClick={() => handleStudentBookingClick(booking)}
+                  className={glowBookingId === booking.booking_id ? 'glow-animation' : ''}
                 >
-                  <div style={styles.eventTime}>{event.time}</div>
-                  <div style={styles.eventTitle}>{event.title}</div>
-                  {event.location && (
+                  <div style={styles.eventTime}>{booking.formattedTime}</div>
+                  <div style={styles.eventTitle}>
+                    {booking.tutor_name || 'Tutoring Session'}
+                    {booking.status === 'pending' && ' (Pending)'}
+                  </div>
+                  {booking.course_name && (
                     <div style={styles.eventDetail}>
-                      <i className="fas fa-map-marker-alt" style={{ marginRight: '4px' }}></i>
-                      {event.location}
+                      <i className="fas fa-book" style={{ marginRight: '4px' }}></i>
+                      {booking.course_name}
                     </div>
                   )}
-                  {event.tutor && (
+                  {booking.location && (
                     <div style={styles.eventDetail}>
-                      <i className="fas fa-chalkboard-teacher" style={{ marginRight: '4px' }}></i>
-                      {event.tutor}
+                      <i className="fas fa-map-marker-alt" style={{ marginRight: '4px' }}></i>
+                      {booking.location}
                     </div>
                   )}
                 </div>
@@ -660,7 +772,12 @@ const HomePage = () => {
   };
 
   // Handle opening edit availability for a specific date
-  const handleEditAvailability = (date) => {
+  const handleEditAvailability = (date, event) => {
+    // Get button position for animation
+    const rect = event.currentTarget.getBoundingClientRect();
+    setEditButtonPosition({ x: rect.left, y: rect.top });
+    
+    setIsEditPanelAnimating(true);
     setEditingDate(date);
     
     // Get existing availability for this day
@@ -678,6 +795,9 @@ const HomePage = () => {
       // Default empty slot
       setEditSlots([{ id: Date.now(), startTime: '09:00', endTime: '17:00' }]);
     }
+    
+    // Reset animation flag after animation completes
+    setTimeout(() => setIsEditPanelAnimating(false), 500);
   };
 
   // Add a new time slot
@@ -697,6 +817,77 @@ const HomePage = () => {
     ));
   };
 
+  // Helper function to parse time string to local time
+  const parseTimeToLocal = (timeStr) => {
+    if (!timeStr) return null;
+    
+    // If it's already a Date object, return it
+    if (timeStr instanceof Date) return timeStr;
+    
+    // If it's an ISO string without timezone, append 'Z' to treat as UTC
+    if (timeStr.includes('T') && !timeStr.includes('Z') && !timeStr.includes('+') && !timeStr.match(/[+-]\d{2}:\d{2}$/)) {
+      return new Date(timeStr + 'Z');
+    }
+    
+    // Otherwise, let the Date constructor handle it
+    return new Date(timeStr);
+  };
+
+  // Helper function to check if a booking exists for a specific date and hour
+  const getBookingForSlot = (date, hour) => {
+    if (!tutorBookings || !tutorBookings.length) {
+      return null;
+    }
+    
+    // Create date objects in local time for the slot
+    const slotDate = new Date(date);
+    const slotStart = new Date(slotDate);
+    slotStart.setHours(hour, 0, 0, 0);
+    const slotEnd = new Date(slotStart);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+    
+    // Convert to timestamps for comparison
+    const slotStartTime = slotStart.getTime();
+    const slotEndTime = slotEnd.getTime();
+    
+    // Find the first booking that overlaps with this hour slot
+    const matchingBooking = tutorBookings.find(booking => {
+      if (!booking.start_time || !booking.end_time) {
+        return false;
+      }
+      
+      // Parse the booking times to local time
+      const startTime = parseTimeToLocal(booking.start_time);
+      const endTime = parseTimeToLocal(booking.end_time);
+      
+      if (!startTime || !endTime) return false;
+      
+      // Convert to timestamps for comparison
+      const bookingStartTime = startTime.getTime();
+      const bookingEndTime = endTime.getTime();
+      
+      // Check if booking overlaps with the hour slot
+      const overlaps = bookingStartTime < slotEndTime && bookingEndTime > slotStartTime;
+      
+      if (overlaps) {
+        console.log(`✅ Booking MATCHED for ${format(slotStart, 'yyyy-MM-dd')} at hour ${hour}:`, {
+          bookingId: booking.booking_id || 'unknown',
+          bookingStart: format(startTime, 'yyyy-MM-dd HH:mm'),
+          bookingEnd: format(endTime, 'yyyy-MM-dd HH:mm'),
+          bookingLocal: startTime.toString(),
+          slotStart: format(slotStart, 'yyyy-MM-dd HH:mm'),
+          slotEnd: format(slotEnd, 'yyyy-MM-dd HH:mm'),
+          slotHour: hour,
+          status: booking.status || 'unknown'
+        });
+      }
+      
+      return overlaps;
+    });
+    
+    return matchingBooking || null;
+  };
+
   // Render tutor calendar with hourly slots
   const renderTutorCalendar = () => {
     const cells = [];
@@ -704,9 +895,11 @@ const HomePage = () => {
     // Header row - empty cell + day headers
     cells.push(<div key="empty-header" style={{ ...styles.timeLabel, backgroundColor: 'rgb(53, 0, 109)' }}></div>);
     
+    // Add day headers
     for (let i = 0; i < 7; i++) {
       const currentDate = addDays(currentWeekStart, i);
       const isToday = isSameDay(currentDate, today);
+      const isFutureDate = currentDate > today;
       
       cells.push(
         <div key={`header-${i}`} style={styles.tutorDayHeader}>
@@ -727,30 +920,32 @@ const HomePage = () => {
               Today
             </div>
           )}
-          <button
-            onClick={() => handleEditAvailability(currentDate)}
-            style={{
-              marginTop: '8px',
-              padding: '4px 12px',
-              fontSize: '0.7rem',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              color: 'white',
-              border: '1px solid rgba(255, 255, 255, 0.4)',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              fontWeight: '500'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
-            }}
-          >
-            <i className="fas fa-edit" style={{ marginRight: '4px' }}></i>
-            Edit
-          </button>
+          {isFutureDate && (
+            <button
+              onClick={(e) => handleEditAvailability(currentDate, e)}
+              style={{
+                marginTop: '8px',
+                padding: '4px 12px',
+                fontSize: '0.7rem',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontWeight: '500'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+              }}
+            >
+              <i className="fas fa-edit" style={{ marginRight: '4px' }}></i>
+              Edit
+            </button>
+          )}
         </div>
       );
     }
@@ -769,15 +964,83 @@ const HomePage = () => {
       for (let i = 0; i < 7; i++) {
         const currentDate = addDays(currentWeekStart, i);
         const isAvailable = isTimeSlotAvailable(currentDate, hour);
+        const booking = getBookingForSlot(currentDate, hour);
+        
+        // Debug logging for all slots when bookings exist
+        if (tutorBookings && tutorBookings.length > 0) {
+          const dateStr = format(currentDate, 'yyyy-MM-dd');
+          const matchingBookings = tutorBookings.filter(b => {
+            if (!b.start_time) return false;
+            const bookingDate = format(new Date(b.start_time), 'yyyy-MM-dd');
+            return bookingDate === dateStr;
+          });
+          
+          if (matchingBookings.length > 0) {
+            console.log(`🔍 Checking slot: ${dateStr} hour ${hour}`, {
+              foundBooking: booking ? booking.booking_id : 'none',
+              matchingBookingsOnDate: matchingBookings.map(b => {
+                const startTime = new Date(b.start_time);
+                const endTime = new Date(b.end_time);
+                return {
+                  id: b.booking_id,
+                  start: b.start_time,
+                  startLocal: startTime.toString(),
+                  startHour: startTime.getHours(),
+                  startMinutes: startTime.getMinutes(),
+                  endHour: endTime.getHours(),
+                  endMinutes: endTime.getMinutes(),
+                  // Check overlap manually
+                  hourStart: hour * 60,
+                  hourEnd: (hour + 1) * 60,
+                  bookingStart: startTime.getHours() * 60 + startTime.getMinutes(),
+                  bookingEnd: endTime.getHours() * 60 + endTime.getMinutes(),
+                  shouldOverlap: (startTime.getHours() * 60 + startTime.getMinutes()) < ((hour + 1) * 60) && 
+                                 (endTime.getHours() * 60 + endTime.getMinutes()) > (hour * 60)
+                };
+              })
+            });
+          }
+        }
+        
+        // Log when we're about to render a booking
+        if (booking) {
+          console.log(`🎨 RENDERING booking ${booking.booking_id} for ${format(currentDate, 'yyyy-MM-dd')} hour ${hour}`);
+        }
         
         cells.push(
           <div 
             key={`slot-${hour}-${i}`} 
             style={{
               ...styles.tutorTimeSlot,
-              ...(isAvailable ? styles.availableSlot : {})
+              ...(isAvailable ? styles.availableSlot : {}),
+              position: 'relative',
+              overflow: 'visible'
             }}
           >
+            {booking ? (
+              <button
+                id={`booking-btn-${booking.booking_id}`}
+                type="button"
+                className={`calendar-booking-btn${glowBookingId === booking.booking_id ? ' glow-animation' : ''}`}
+                onClick={() => handleBookingClick(booking.booking_id)}
+                style={{
+                  position: 'absolute',
+                  top: '4px', left: '4px', right: '4px', bottom: '4px',
+                  backgroundColor: booking.status === 'confirmed' ? 'rgba(76, 175, 80, 0.95)' : 'rgba(255, 193, 7, 0.95)',
+                  borderRadius: '6px', padding: '6px', color: '#fff', fontSize: '0.5rem', fontWeight: '500',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
+                  textAlign: 'center', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  zIndex: 10, border: '1px solid rgba(255,255,255,0.3)', cursor:'pointer', borderWidth:'2px', transition: 'box-shadow 0.5s, background 0.5s',
+                }}
+              >
+                <div style={{ fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '2px' }}>
+                  {booking.student_name || booking.student_first_name || 'Student'}
+                </div>
+                <div style={{ fontSize: '0.6rem', opacity: 0.95, marginBottom: '2px' }}>
+                  {formatHourRange(booking.start_time, booking.end_time, hour)}
+                </div>
+              </button>
+            ) : null}
           </div>
         );
       }
@@ -791,6 +1054,76 @@ const HomePage = () => {
   const [isAnimating, setIsAnimating] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [editSlots, setEditSlots] = useState([]);
+  const [isEditPanelAnimating, setIsEditPanelAnimating] = useState(false);
+  const [editButtonPosition, setEditButtonPosition] = useState({ x: 0, y: 0 });
+  const [glowBookingId, setGlowBookingId] = useState(null);
+
+  // Helper function to format hour range for booking display with timezone handling
+  const formatHourRange = (startTime, endTime, hour) => {
+    // Parse the times using our helper function
+    const start = parseTimeToLocal(startTime);
+    const end = parseTimeToLocal(endTime);
+    
+    if (!start || !end) return '';
+    
+    // Create slot times based on the current date and hour
+    const slotDate = new Date(start);
+    slotDate.setHours(0, 0, 0, 0);
+    
+    const slotStart = new Date(slotDate);
+    slotStart.setHours(hour, 0, 0, 0);
+    
+    const slotEnd = new Date(slotDate);
+    slotEnd.setHours(hour + 1, 0, 0, 0);
+    
+    // Calculate the display times, ensuring they're within the current hour slot
+    const displayStart = start < slotStart ? slotStart : start;
+    const displayEnd = end > slotEnd ? slotEnd : end;
+    
+    // Format the time range using the user's locale
+    const formatTime = (date) => {
+      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+    };
+    
+    return `${formatTime(displayStart)} - ${formatTime(displayEnd)}`;
+  };
+
+  // Handle tutor booking clicks (navigates to appointment requests)
+  function handleBookingClick(bookingId) {
+    setGlowBookingId(bookingId);
+    navigate(`/appointment-requests?booking=${bookingId}`);
+  }
+
+  // Handle student booking clicks (navigates to sessions page with correct tab)
+  const handleStudentBookingClick = (booking) => {
+    if (!booking) return;
+    
+    // Store the booking ID for highlighting
+    const bookingId = booking.booking_id || booking.id;
+    
+    // Set glow effect immediately for visual feedback
+    setGlowBookingId(bookingId);
+    
+    // Determine which tab to select based on booking status
+    let tab = 'upcoming';
+    if (booking.status === 'pending') {
+      tab = 'requests';
+    } else if (booking.status === 'completed' || (booking.end_time && new Date(booking.end_time) <= new Date())) {
+      tab = 'past';
+    }
+    
+    // Store in session storage as a fallback
+    sessionStorage.setItem('highlightBooking', bookingId);
+    
+    // Navigate to sessions page with the correct tab and highlight
+    navigate(`/sessions?tab=${tab}`, { 
+      state: { 
+        highlightBooking: bookingId,
+        fromCalendar: true
+      },
+      replace: true
+    });
+  };
 
   const keyframes = `
     @keyframes slideInLeft {
@@ -809,6 +1142,20 @@ const HomePage = () => {
       from { transform: translateX(0); opacity: 1; }
       to { transform: translateX(100%); opacity: 0; }
     }
+    @keyframes editPanelPopIn {
+      0% {
+        opacity: 0;
+        transform: scale(0.3) translateY(-50px);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(1.05) translateY(-10px);
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
   `;
 
   const calendarAnimation = {
@@ -816,19 +1163,53 @@ const HomePage = () => {
       transform: 'translateX(0)',
       opacity: 1,
       position: 'relative',
-      transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out'
+      transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
+      width: '100%',
+      minHeight: '400px' // Ensure minimum height for the calendar
     },
     'slide-in-left': {
-      animation: 'slideInLeft 0.3s ease-out forwards'
+      animation: 'slideInLeft 0.3s ease-out forwards',
+      position: 'absolute',
+      top: '40px', // Leave space for the header
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      backgroundColor: '#fff', // Ensure background covers the area
+      zIndex: 2
     },
     'slide-out-left': {
-      animation: 'slideOutLeft 0.3s ease-out forwards'
+      animation: 'slideOutLeft 0.3s ease-out forwards',
+      position: 'absolute',
+      top: '40px',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      backgroundColor: '#fff',
+      zIndex: 2
     },
     'slide-in-right': {
-      animation: 'slideInRight 0.3s ease-out forwards'
+      animation: 'slideInRight 0.3s ease-out forwards',
+      position: 'absolute',
+      top: '40px',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      backgroundColor: '#fff',
+      zIndex: 2
     },
     'slide-out-right': {
-      animation: 'slideOutRight 0.3s ease-out forwards'
+      animation: 'slideOutRight 0.3s ease-out forwards',
+      position: 'absolute',
+      top: '40px',
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100%',
+      backgroundColor: '#fff',
+      zIndex: 2
     }
   };
 
@@ -839,7 +1220,7 @@ const HomePage = () => {
       
       <div style={styles.content}>
         <div style={{ 
-          display: 'grid',
+          display: isAuthenticated ? 'grid' : 'flex',
           gridTemplateColumns: isSidebarCollapsed ? '80px 1fr' : '280px 1fr',
           width: '100%',
           gap: '20px',
@@ -850,6 +1231,8 @@ const HomePage = () => {
           transition: 'grid-template-columns 0.3s ease'
         }}>
           {/* Left Column - User Profile */}
+          {isAuthenticated ? (
+          <>
           <div style={{ 
             backgroundColor: '#fff',
             borderRadius: '12px',
@@ -1155,6 +1538,8 @@ const HomePage = () => {
             )}
             </div>
           </div>
+          </>
+          ):null}
           
           {/* Right Column - Search and Calendar */}
           <div style={{ 
@@ -1250,7 +1635,9 @@ const HomePage = () => {
               <div style={{
                 ...styles.searchContainer,
                 width: '100%',
-                margin: 0
+                margin: 0,
+                animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+                transformOrigin: 'center top'
               }}>
                 <div style={{ 
                   display: 'flex', 
@@ -1262,7 +1649,10 @@ const HomePage = () => {
                     Edit Availability - {format(editingDate, 'EEEE, MMMM d, yyyy')}
                   </h3>
                   <button
-                    onClick={() => setEditingDate(null)}
+                    onClick={() => {
+                      setEditingDate(null);
+                      setIsEditPanelAnimating(false);
+                    }}
                     style={{
                       backgroundColor: 'transparent',
                       border: 'none',
@@ -1289,7 +1679,8 @@ const HomePage = () => {
                       padding: '12px',
                       backgroundColor: '#f8f9fa',
                       borderRadius: '8px',
-                      border: '1px solid #e9ecef'
+                      border: '1px solid #e9ecef',
+                      animation: isEditPanelAnimating ? `editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.1 + index * 0.1}s backwards` : 'none'
                     }}>
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <label style={{ fontSize: '0.9rem', fontWeight: '500', color: '#495057', minWidth: '40px' }}>
@@ -1431,10 +1822,15 @@ const HomePage = () => {
             )}
             
             {/* Conditional Calendar Rendering */}
+            {isAuthenticated ? (
+              <>
             <div style={{
               ...styles.calendarContainer,
               width: '100%',
-              margin: 0
+              margin: 0,
+              position: 'relative',
+              overflow: 'hidden',
+              minHeight: '600px'
             }}>
               <div style={styles.calendarHeader}>
                 <button 
@@ -1444,7 +1840,7 @@ const HomePage = () => {
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
-                    padding: '10px 20px',
+                    padding: '6px 12px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1480,7 +1876,7 @@ const HomePage = () => {
                     color: 'white',
                     border: 'none',
                     borderRadius: '6px',
-                    padding: '10px 20px',
+                    padding: '6px 12px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -1512,24 +1908,64 @@ const HomePage = () => {
               
               {/* Student Calendar */}
               {!user?.isTutor && (
-                <div style={styles.calendarGrid}>
+                <div style={{
+                  ...styles.calendarGrid,
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}>
                   <div style={{
-                    position: 'relative',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
                     display: 'grid',
                     gridTemplateColumns: 'repeat(7, 1fr)',
+                    gridTemplateRows: 'auto repeat(12, 1fr)',
                     gap: '1px',
-                    width: '100%',
-                    minHeight: '200px',
-                    boxSizing: 'border-box',
-                    backgroundColor: '#e0e0e0',
+                    backgroundColor: '#e9ecef',
+                    border: '1px solid #dee2e6',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
                     ...calendarAnimation[slideDirection],
-                    willChange: 'transform, opacity'
+                    backgroundColor: 'white'
                   }}>
-                    {weekDays.map(day => (
-                      <div key={day} style={styles.dayHeader}>
-                        {day}
-                      </div>
-                    ))}
+                    {weekDays.map((day, index) => {
+                      const currentDate = addDays(currentWeekStart, index);
+                      const isToday = isSameDay(currentDate, today);
+                      return (
+                        <div key={day} style={{
+                          ...styles.dayHeader,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '8px 4px',
+                          position: 'relative'
+                        }}>
+                          <div style={{ 
+                            fontSize: '0.85rem',
+                            marginBottom: '4px',
+                            fontWeight: isToday ? 'bold' : 'normal'
+                          }}>
+                            {day}
+                          </div>
+                          <div style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            backgroundColor: isToday ? 'rgba(53, 0, 109, 0.1)' : 'transparent',
+                            color: isToday ? '#35006D' : 'inherit',
+                            fontWeight: isToday ? 'bold' : 'normal'
+                          }}>
+                            {format(currentDate, 'd')}
+                          </div>
+                        </div>
+                      );
+                    })}
                     {renderStudentDays()}
                   </div>
                 </div>
@@ -1538,27 +1974,39 @@ const HomePage = () => {
               {/* Tutor Calendar */}
               {user?.isTutor && (
                 <div style={{
-                  ...calendarAnimation[slideDirection],
-                  willChange: 'transform, opacity'
+                  position: 'relative',
+                  width: '100%',
+                  minHeight: '500px' // Ensure enough height for the calendar
                 }}>
                   {isLoadingAvailability ? (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#666' }}>
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '40px', 
+                      color: '#666',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0
+                    }}>
                       <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
                       <div>Loading availability...</div>
                     </div>
                   ) : (
                     <>
                       <div style={{ 
+                        position: 'relative',
+                        zIndex: 1,
                         marginBottom: '10px', 
                         padding: '8px 12px', 
-                        backgroundColor: 'rgba(255, 220, 100, 0.2)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         borderRadius: '6px',
-                        border: '1px solid rgba(255, 220, 100, 0.5)',
+                        border: '1px solid rgba(0, 0, 0, 0.1)',
                         fontSize: '0.85rem',
                         color: '#666',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px'
+                        gap: '8px',
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                       }}>
                         <div style={{
                           width: '16px',
@@ -1568,7 +2016,12 @@ const HomePage = () => {
                         }}></div>
                         Available hours
                       </div>
-                      <div style={styles.tutorCalendarGrid}>
+                      <div style={{
+                        ...styles.tutorCalendarGrid,
+                        position: 'relative',
+                        ...calendarAnimation[slideDirection],
+                        willChange: 'transform, opacity'
+                      }}>
                         {renderTutorCalendar()}
                       </div>
                     </>
@@ -1576,6 +2029,8 @@ const HomePage = () => {
                 </div>
               )}
             </div>
+            </>
+            ):null}
           </div>
         </div>
       </div>

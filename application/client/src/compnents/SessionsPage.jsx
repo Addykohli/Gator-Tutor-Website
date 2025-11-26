@@ -1,67 +1,146 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './Header';
+import { useAuth } from '../Context/Context';
+
 
 const SessionsPage = () => {
-  const [activeTab, setActiveTab] = useState("upcoming");
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('upcoming');
+  const [bookings, setBookings] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [highlightedBookingId, setHighlightedBookingId] = useState(null);
 
-  // Mock session data
-  const upcomingSessions = [
-    {
-      id: 1,
-      tutor: "John Doe",
-      course: "CSC 415 - Operating Systems",
-      date: "2025-11-25",
-      time: "10:00 - 11:00",
-      type: "In-Person",
-      location: "Library Room 301",
-      status: "Confirmed",
-    },
-    {
-      id: 2,
-      tutor: "Jane Wilson",
-      course: "BIOL 101 - Introduction to Biology",
-      date: "2025-11-27",
-      time: "14:00 - 15:00",
-      type: "Online",
-      location: "Zoom Link",
-      status: "Confirmed",
-    },
-    {
-      id: 3,
-      tutor: "John Smith",
-      course: "CSC 600 - Theory of Computation",
-      date: "2025-11-28",
-      time: "09:00 - 10:00",
-      type: "In-Person",
-      location: "Library Room 205",
-      status: "Pending",
-    },
-  ];
+  // Set active tab from URL and handle booking highlighting
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    const highlightId = params.get('highlight') || 
+                       (location.state && location.state.highlightBooking) ||
+                       sessionStorage.getItem('highlightBooking');
+    
+    if (tab && ['upcoming', 'requests', 'past'].includes(tab)) {
+      setActiveTab(tab);
+    }
+    
+    if (highlightId) {
+      setHighlightedBookingId(highlightId);
+      sessionStorage.removeItem('highlightBooking');
+      
+      // Scroll to the highlighted booking after a short delay to allow the DOM to update
+      const scrollToBooking = () => {
+        const element = document.getElementById(`booking-${highlightId}`);
+        if (element) {
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+        }
+      };
+      
+      // Need a small timeout to ensure the DOM has been updated with the new tab content
+      const scrollTimer = setTimeout(scrollToBooking, 100);
+      
+      // Clear highlight after 3 seconds
+      const highlightTimer = setTimeout(() => {
+        setHighlightedBookingId(null);
+      }, 3000);
+      
+      return () => {
+        clearTimeout(scrollTimer);
+        clearTimeout(highlightTimer);
+      };
+    }
+  }, [location, bookings]);  // Added bookings to dependencies to handle initial load
 
-  const pastSessions = [
-    {
-      id: 4,
-      tutor: "John Doe",
-      course: "CSC 415 - Operating Systems",
-      date: "2025-11-20",
-      time: "10:00 - 11:00",
-      type: "In-Person",
-      location: "Library Room 301",
-      status: "Completed",
-      rating: 5,
-    },
-    {
-      id: 5,
-      tutor: "Jane Wilson",
-      course: "BIOL 202 - Molecular Biology",
-      date: "2025-11-18",
-      time: "13:00 - 14:00",
-      type: "Online",
-      location: "Zoom Link",
-      status: "Completed",
-      rating: 4,
-    },
-  ];
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // Update URL without page reload
+    navigate(`?tab=${tab}`, { replace: true });
+  };
+
+  // Fetch student's bookings
+  useEffect(() => {
+    if (!user || !user.id) return;
+    setLoading(true);
+    setError(null);
+    fetch(`/search/bookings?student_id=${user.id}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch sessions');
+        return res.json();
+      })
+      .then(data => {
+        setBookings(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, [user]);
+
+  // Tab logic
+  function isUpcoming(b) {
+    return (
+      b.status === 'confirmed'
+      && new Date(b.end_time) > new Date()
+    );
+  }
+  function isPast(b) {
+    return (
+      (b.status === 'confirmed' && new Date(b.end_time) <= new Date())
+      || b.status === 'completed'
+    );
+  }
+  function isRequestSent(b) {
+    return b.status === "pending";
+  }
+  let filtered;
+  if (activeTab === "requests") filtered = bookings.filter(isRequestSent);
+  else if (activeTab === "upcoming") filtered = bookings.filter(isUpcoming);
+  else filtered = bookings.filter(isPast);
+
+  // Action handlers
+  async function handleCancel(bookingId) {
+    try {
+      setLoading(true);
+      setError(null);
+      // Find the session object to get its tutor_id
+      const session = bookings.find(b => b.booking_id === bookingId);
+      const payloadTutorId = session && session.tutor_id ? session.tutor_id : user?.id;
+      const res = await fetch(`/search/bookings/${bookingId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: 'cancelled', tutor_id: payloadTutorId })
+      });
+      if (!res.ok) throw new Error('Could not cancel booking');
+      setBookings(cur => cur.map(b => b.booking_id === bookingId ? { ...b, status: 'cancelled' } : b));
+    } catch (e) {
+      setError(e.message || 'Error cancelling');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Add glow effect for highlighted booking
+  const sessionCardStyle = (bookingId) => {
+    const isHighlighted = highlightedBookingId === bookingId;
+    return {
+      ...styles.sessionCard,
+      boxShadow: isHighlighted ? '0 0 10px rgba(53, 0, 109, 0.7)' : '0 2px 5px rgba(0,0,0,0.1)',
+      border: isHighlighted ? '2px solid #35006D' : '1px solid #ddd',
+      position: 'relative',
+      animation: isHighlighted ? 'pulse 1.5s infinite' : 'none',
+      transform: isHighlighted ? 'scale(1.01)' : 'scale(1)',
+      transition: 'all 0.3s ease-in-out',
+      zIndex: isHighlighted ? 10 : 1,
+    };
+  };
 
   const styles = {
     container: {
@@ -74,7 +153,7 @@ const SessionsPage = () => {
       color: "#333",
       textAlign: "center",
       paddingBottom: "3px",
-      borderBottom: "8px solid #9A2250",
+      borderBottom: "8px solid rgb(255, 220, 112)",
       display: "block",
       margin: "20px auto",
       fontSize: "45px",
@@ -190,10 +269,19 @@ const SessionsPage = () => {
       fontWeight: "600",
       cursor: "pointer",
       transition: "opacity 0.3s",
-    },
-    primaryButton: {
-      backgroundColor: "#35006D",
-      color: "#fff",
+      '@keyframes slideInLeft': {
+        from: { transform: 'translateX(-100%)', opacity: 0 },
+        to: { transform: 'translateX(0)', opacity: 1 },
+      },
+      '@keyframes slideOutLeft': {
+        from: { transform: 'translateX(0)', opacity: 1 },
+        to: { transform: 'translateX(-100%)', opacity: 0 },
+      },
+      '@keyframes pulse': {
+        '0%': { boxShadow: '0 0 5px rgba(53, 0, 109, 0.5)' },
+        '50%': { boxShadow: '0 0 20px rgba(53, 0, 109, 0.8)' },
+        '100%': { boxShadow: '0 0 5px rgba(53, 0, 109, 0.5)' },
+      }
     },
     secondaryButton: {
       backgroundColor: "#FFCF01",
@@ -225,120 +313,79 @@ const SessionsPage = () => {
     return "★".repeat(rating) + "☆".repeat(5 - rating);
   };
 
-  const sessions = activeTab === "upcoming" ? upcomingSessions : pastSessions;
-
   return (
     <div style={styles.container}>
       <Header />
-      
       <div style={styles.content}>
         <h1 style={styles.heading}>My Sessions</h1>
-
         <div style={styles.tabContainer}>
+          <button
+            style={activeTab === "requests" ? styles.activeTab : styles.tab}
+            onClick={() => setActiveTab("requests")}
+            data-testid="tab-requests"
+          >Requests Sent ({bookings.filter(isRequestSent).length})</button>
           <button
             style={activeTab === "upcoming" ? styles.activeTab : styles.tab}
             onClick={() => setActiveTab("upcoming")}
             data-testid="tab-upcoming"
-          >
-            Upcoming ({upcomingSessions.length})
-          </button>
+          >Upcoming ({bookings.filter(isUpcoming).length})</button>
           <button
             style={activeTab === "past" ? styles.activeTab : styles.tab}
             onClick={() => setActiveTab("past")}
             data-testid="tab-past"
-          >
-            Past ({pastSessions.length})
-          </button>
+          >Past ({bookings.filter(isPast).length})</button>
         </div>
 
-        {sessions.length === 0 ? (
+        {loading ? <div style={styles.emptyState}>Loading...</div> : null}
+        {error ? <div style={{ ...styles.emptyState, color: 'red' }}>{error}</div> : null}
+        {!loading && filtered.length === 0 && (
           <div style={styles.emptyState}>
-            <h3>No {activeTab} sessions</h3>
-            <p>You don't have any {activeTab} tutoring sessions yet.</p>
-          </div>
-        ) : (
-          <div style={styles.sessionsList}>
-            {sessions.map((session) => (
-              <div key={session.id} style={styles.sessionCard} data-testid={`session-${session.id}`}>
-                <div style={styles.sessionHeader}>
-                  <div style={styles.sessionTitle}>{session.course}</div>
-                  <div style={getStatusStyle(session.status)} data-testid={`status-${session.id}`}>
-                    {session.status}
-                  </div>
-                </div>
-
-                <div style={styles.sessionDetails}>
-                  <div style={styles.detailItem}>
-                    <div style={styles.detailLabel}>Tutor</div>
-                    <div style={styles.detailValue}>{session.tutor}</div>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <div style={styles.detailLabel}>Date</div>
-                    <div style={styles.detailValue}>{session.date}</div>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <div style={styles.detailLabel}>Time</div>
-                    <div style={styles.detailValue}>{session.time}</div>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <div style={styles.detailLabel}>Type</div>
-                    <div style={styles.detailValue}>{session.type}</div>
-                  </div>
-                  <div style={styles.detailItem}>
-                    <div style={styles.detailLabel}>Location</div>
-                    <div style={styles.detailValue}>{session.location}</div>
-                  </div>
-                  {session.rating && (
-                    <div style={styles.detailItem}>
-                      <div style={styles.detailLabel}>Your Rating</div>
-                      <div style={{ ...styles.detailValue, ...styles.stars }}>
-                        {renderStars(session.rating)}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {activeTab === "upcoming" && (
-                  <div style={styles.sessionActions}>
-                    {session.status === "Confirmed" && (
-                      <>
-                        <button
-                          style={{ ...styles.button, ...styles.primaryButton }}
-                          data-testid={`button-join-${session.id}`}
-                        >
-                          {session.type === "Online" ? "Join Session" : "Get Directions"}
-                        </button>
-                        <button
-                          style={{ ...styles.button, ...styles.secondaryButton }}
-                          data-testid={`button-reschedule-${session.id}`}
-                        >
-                          Reschedule
-                        </button>
-                      </>
-                    )}
-                    <button
-                      style={{ ...styles.button, ...styles.dangerButton }}
-                      data-testid={`button-cancel-${session.id}`}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-
-                {activeTab === "past" && !session.rating && (
-                  <div style={styles.sessionActions}>
-                    <button
-                      style={{ ...styles.button, ...styles.primaryButton }}
-                      data-testid={`button-rate-${session.id}`}
-                    >
-                      Rate Session
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+            <h3>No {activeTab === 'requests' ? 'requests sent' : activeTab} sessions</h3>
+            <p>You don't have any {activeTab === 'requests' ? 'sent requests' : activeTab + ' sessions'} at this time.</p>
           </div>
         )}
+        <div style={styles.sessionsList}>
+          {filtered.map(session => (
+            <div 
+              key={session.booking_id} 
+              id={`booking-${session.booking_id}`}
+              style={sessionCardStyle(session.booking_id)}>
+              <div style={styles.sessionHeader}>
+                <div style={styles.sessionTitle}>{session.course_title || session.course || 'Course'}</div>
+                <div style={styles.statusBadge}>
+                  {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                </div>
+              </div>
+              <div style={styles.sessionDetails}>
+                <div style={styles.detailItem}>
+                  <div style={styles.detailLabel}>Tutor</div>
+                  <div style={styles.detailValue}>{session.tutor_name || session.tutor || '-'}</div>
+                </div>
+                <div style={styles.detailItem}>
+                  <div style={styles.detailLabel}>Date</div>
+                  <div style={styles.detailValue}>{session.start_time ? new Date(session.start_time).toLocaleDateString() : '-'}</div>
+                </div>
+                <div style={styles.detailItem}>
+                  <div style={styles.detailLabel}>Time</div>
+                  <div style={styles.detailValue}>{session.start_time && session.end_time ? `${new Date(session.start_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} - ${new Date(session.end_time).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '-'}</div>
+                </div>
+                <div style={styles.detailItem}>
+                  <div style={styles.detailLabel}>Mode</div>
+                  <div style={styles.detailValue}>{session.meeting_link?.includes('zoom') ? 'Online' : 'In-Person'}</div>
+                </div>
+              </div>
+              {/* Show cancel for pending in requests and confirmed in upcoming */}
+              {((activeTab === 'requests' && session.status === 'pending')
+                || (activeTab === 'upcoming' && session.status === 'confirmed')) && (
+                <div style={styles.sessionActions}>
+                  <button style={{ ...styles.button, ...styles.dangerButton }} onClick={() => handleCancel(session.booking_id)} disabled={loading}>
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

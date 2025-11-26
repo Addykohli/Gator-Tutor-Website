@@ -10,7 +10,7 @@ class BookingBase(BaseModel):
     """Base schema for booking data."""
     start_time: datetime
     end_time: datetime
-    course_id: Optional[int] = None
+    course_id: int = Field(..., description="Course ID (required)")
     meeting_link: Optional[str] = None
     notes: Optional[str] = None
 
