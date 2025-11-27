@@ -10,12 +10,14 @@ import addDays from 'date-fns/addDays';
 import isSameDay from 'date-fns/isSameDay';
 import parse from 'date-fns/parse';
 import isWithinInterval from 'date-fns/isWithinInterval';
+import addMinutes from 'date-fns/addMinutes';
 import Header from './Header';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user} = useAuth();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const [isAnimating, setIsAnimating] = useState(false);
   const [tutorAvailability, setTutorAvailability] = useState([]);
   const [tutorBookings, setTutorBookings] = useState([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
@@ -714,47 +716,105 @@ const HomePage = () => {
       const dayBookings = bookingsByDate[dateKey] || [];
       
       days.push(
-        <div key={i} style={styles.dayCell} className={isToday ? 'today' : ''}>
-          <div style={styles.dateNumber}>
-            {format(currentDate, 'd')}
-            {isToday && <span style={styles.todayMarker}>Today</span>}
-          </div>
-          
+        <div key={i} style={{
+          minHeight: '150px',
+          borderRight: i < 6 ? '1px solid #e9ecef' : 'none',
+          padding: '12px 8px',
+          backgroundColor: isToday ? 'rgba(53, 0, 109, 0.02)' : 'white',
+          position: 'relative',
+          overflowY: 'auto',
+          maxHeight: '500px'
+        }}>
           {isLoadingStudentBookings ? (
             <div style={styles.noSessions}>Loading...</div>
           ) : bookingError ? (
             <div style={{ ...styles.noSessions, color: '#e74a3b' }}>Error loading bookings</div>
           ) : dayBookings.length > 0 ? (
-            <div style={styles.eventsContainer}>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              padding: '4px 0'
+            }}>
               {dayBookings.map((booking, index) => (
                 <div 
                   key={`${booking.booking_id || index}`} 
                   style={{
-                    ...styles.eventItem,
+                    backgroundColor: 'white',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     borderLeft: `3px solid ${booking.color}`,
-                    backgroundColor: `${booking.color}15`,
                     cursor: 'pointer',
-                    transition: 'transform 0.2s, box-shadow 0.2s'
+                    transition: 'all 0.2s ease',
+                    ':hover': {
+                      transform: 'translateX(2px)',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
+                    }
                   }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'translateX(2px)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'none'}
                   onClick={() => handleStudentBookingClick(booking)}
                   className={glowBookingId === booking.booking_id ? 'glow-animation' : ''}
                 >
-                  <div style={styles.eventTime}>{booking.formattedTime}</div>
-                  <div style={styles.eventTitle}>
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#6c757d',
+                    marginBottom: '4px'
+                  }}>
+                    {booking.formattedTime}
+                  </div>
+                  <div style={{
+                    fontWeight: '500',
+                    marginBottom: '4px',
+                    color: '#212529',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}>
                     {booking.tutor_name || 'Tutoring Session'}
-                    {booking.status === 'pending' && ' (Pending)'}
+                    {booking.status === 'pending' && (
+                      <span style={{
+                        fontSize: '0.7rem',
+                        backgroundColor: '#fff3cd',
+                        color: '#856404',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontWeight: '500'
+                      }}>
+                        Pending
+                      </span>
+                    )}
                   </div>
                   {booking.course_name && (
-                    <div style={styles.eventDetail}>
-                      <i className="fas fa-book" style={{ marginRight: '4px' }}></i>
+                    <div style={{
+                      fontSize: '0.8rem',
+                      color: '#495057',
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginTop: '4px'
+                    }}>
+                      <i className="fas fa-book" style={{ 
+                        marginRight: '6px',
+                        color: '#6c757d',
+                        width: '14px',
+                        textAlign: 'center'
+                      }}></i>
                       {booking.course_name}
                     </div>
                   )}
                   {booking.location && (
-                    <div style={styles.eventDetail}>
-                      <i className="fas fa-map-marker-alt" style={{ marginRight: '4px' }}></i>
+                    <div style={{
+                      fontSize: '0.8rem',
+                      color: '#6c757d',
+                      display: 'flex',
+                      alignItems: 'center',
+                      marginTop: '4px'
+                    }}>
+                      <i className="fas fa-map-marker-alt" style={{ 
+                        marginRight: '6px',
+                        color: '#6c757d',
+                        width: '14px',
+                        textAlign: 'center'
+                      }}></i>
                       {booking.location}
                     </div>
                   )}
@@ -762,7 +822,19 @@ const HomePage = () => {
               ))}
             </div>
           ) : (
-            <div style={styles.noSessions}>No scheduled sessions</div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: '100px',
+              color: '#6c757d',
+              fontSize: '0.9rem',
+              textAlign: 'center',
+              padding: '20px 10px',
+              opacity: 0.7
+            }}>
+              No sessions scheduled
+            </div>
           )}
         </div>
       );
@@ -1051,8 +1123,79 @@ const HomePage = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [slideDirection, setSlideDirection] = useState('none');
-  const [isAnimating, setIsAnimating] = useState(false);
+  const [isEditingAvailability, setIsEditingAvailability] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState({ success: false, message: '' });
+
+  // Function to save availability for a specific date
+  const saveAvailability = async (date, isRecurring = false) => {
+    if (!user?.isTutor || !editingDate) return;
+    
+    setIsSaving(true);
+    setSaveStatus({ success: false, message: '' });
+    
+    try {
+      const apiBaseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8000' 
+        : '/api';
+        
+      const response = await fetch(`${apiBaseUrl}/schedule/availability`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          tutor_id: user.id,
+          date: format(date, 'yyyy-MM-dd'),
+          start_time: format(editingDate, 'HH:mm'),
+          end_time: format(addMinutes(editingDate, 30), 'HH:mm'),
+          is_recurring: isRecurring
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSaveStatus({ 
+          success: true, 
+          message: isRecurring 
+            ? `Availability set for all ${format(editingDate, 'EEEE')}s successfully!`
+            : 'Availability set for this day successfully!'
+        });
+        // Refresh availability data
+        fetchTutorAvailability();
+      } else {
+        throw new Error(data.detail || 'Failed to save availability');
+      }
+    } catch (error) {
+      console.error('Error saving availability:', error);
+      setSaveStatus({ 
+        success: false, 
+        message: error.message || 'Error saving availability. Please try again.'
+      });
+    } finally {
+      setIsSaving(false);
+      
+      // Clear status message after 5 seconds
+      setTimeout(() => {
+        setSaveStatus({ success: false, message: '' });
+      }, 5000);
+    }
+  };
+  
+  // Handle apply to this day
+  const handleApplyToThisDay = () => {
+    if (!editingDate) return;
+    saveAvailability(editingDate, false);
+  };
+  
+  // Handle apply to all days of week
+  const handleApplyToAllDays = () => {
+    if (!editingDate) return;
+    saveAvailability(editingDate, true);
+  };
   const [editSlots, setEditSlots] = useState([]);
   const [isEditPanelAnimating, setIsEditPanelAnimating] = useState(false);
   const [editButtonPosition, setEditButtonPosition] = useState({ x: 0, y: 0 });
@@ -1781,42 +1924,70 @@ const HomePage = () => {
                   borderTop: '1px solid #e9ecef'
                 }}>
                   <button
+                    onClick={handleApplyToThisDay}
+                    disabled={isSaving}
                     style={{
                       flex: 1,
                       padding: '10px 20px',
-                      backgroundColor: '#35006D',
+                      backgroundColor: isSaving ? '#6c757d' : '#35006D',
                       color: 'white',
                       border: 'none',
                       borderRadius: '6px',
-                      cursor: 'pointer',
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
                       fontSize: '0.9rem',
                       fontWeight: '500',
-                      transition: 'background-color 0.2s'
+                      transition: 'background-color 0.2s',
+                      opacity: isSaving ? 0.7 : 1
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#4b1a80'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#35006D'}
+                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#4b1a80')}
+                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#35006D')}
                   >
-                    Apply to This Day
+                    {isSaving ? 'Saving...' : 'Apply to This Day'}
                   </button>
                   
                   <button
+                    onClick={handleApplyToAllDays}
+                    disabled={isSaving}
                     style={{
                       flex: 1,
                       padding: '10px 20px',
-                      backgroundColor: '#6c757d',
+                      backgroundColor: isSaving ? '#adb5bd' : '#6c757d',
                       color: 'white',
                       border: 'none',
                       borderRadius: '6px',
-                      cursor: 'pointer',
+                      cursor: isSaving ? 'not-allowed' : 'pointer',
                       fontSize: '0.9rem',
                       fontWeight: '500',
-                      transition: 'background-color 0.2s'
+                      transition: 'background-color 0.2s',
+                      opacity: isSaving ? 0.7 : 1
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a6268'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6c757d'}
+                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#5a6268')}
+                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#6c757d')}
                   >
-                    Apply to All {format(editingDate, 'EEEE')}s
+                    {isSaving ? 'Saving...' : `Apply to All ${format(editingDate, 'EEEE')}s`}
                   </button>
+                  
+                  {saveStatus.message && (
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '60px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      padding: '10px 20px',
+                      backgroundColor: saveStatus.success ? '#d4edda' : '#f8d7da',
+                      color: saveStatus.success ? '#155724' : '#721c24',
+                      borderRadius: '4px',
+                      fontSize: '0.9rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      zIndex: 1000,
+                      transition: 'all 0.3s ease-in-out',
+                      opacity: saveStatus.message ? 1 : 0,
+                      maxWidth: '80%',
+                      textAlign: 'center'
+                    }}>
+                      {saveStatus.message}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1911,7 +2082,8 @@ const HomePage = () => {
                 <div style={{
                   ...styles.calendarGrid,
                   position: 'relative',
-                  overflow: 'hidden'
+                  overflow: 'hidden',
+                  ...calendarAnimation[slideDirection]
                 }}>
                   <div style={{
                     position: 'absolute',
@@ -1921,13 +2093,11 @@ const HomePage = () => {
                     bottom: 0,
                     display: 'grid',
                     gridTemplateColumns: 'repeat(7, 1fr)',
-                    gridTemplateRows: 'auto repeat(12, 1fr)',
                     gap: '1px',
                     backgroundColor: '#e9ecef',
                     border: '1px solid #dee2e6',
                     borderRadius: '8px',
                     overflow: 'hidden',
-                    ...calendarAnimation[slideDirection],
                     backgroundColor: 'white'
                   }}>
                     {weekDays.map((day, index) => {
