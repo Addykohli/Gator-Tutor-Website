@@ -2,10 +2,10 @@ from pydantic import BaseModel, EmailStr, Field
 
 
 class RegistrationRequest(BaseModel):
-    first_name: str = Field(..., min_length=1)
-    last_name: str = Field(..., min_length=1)
+    first_name: str = Field(...)
+    last_name: str = Field(...)
     email: EmailStr
-    password: str = Field(..., min_length=1)
+    password: str = Field(...)
 
 
 class RegistrationResponse(BaseModel):
