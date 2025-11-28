@@ -68,7 +68,7 @@ const SessionsPage = () => {
     if (!user || !user.id) return;
     setLoading(true);
     setError(null);
-    fetch(`/search/bookings?student_id=${user.id}`)
+    fetch(`/schedule/bookings?student_id=${user.id}`)
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch sessions');
         return res.json();
@@ -112,7 +112,7 @@ const SessionsPage = () => {
       // Find the session object to get its tutor_id
       const session = bookings.find(b => b.booking_id === bookingId);
       const payloadTutorId = session && session.tutor_id ? session.tutor_id : user?.id;
-      const res = await fetch(`/search/bookings/${bookingId}/status`, {
+      const res = await fetch(`/schedule/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

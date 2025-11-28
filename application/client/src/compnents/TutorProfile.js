@@ -91,7 +91,7 @@ const TutorProfile = () => {
         
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
         const response = await fetch(
-          `${apiBaseUrl}/search/tutors/${tutorId}/availability?date=${selectedDate}`
+          `${apiBaseUrl}/schedule/tutors/${tutorId}/availability?date=${selectedDate}`
         );
         
         if (!response.ok) {
@@ -262,10 +262,10 @@ const TutorProfile = () => {
       console.log('Sending booking data:', bookingData);
 
       const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-      console.log('Sending booking request to:', `${apiBaseUrl}/search/bookings`);
+      console.log('Sending booking request to:', `${apiBaseUrl}/schedule/bookings`);
       console.log('Request payload:', bookingData);
       
-      const response = await fetch(`${apiBaseUrl}/search/bookings`, {
+      const response = await fetch(`${apiBaseUrl}/schedule/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

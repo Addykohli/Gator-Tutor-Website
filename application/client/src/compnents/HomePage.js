@@ -80,7 +80,7 @@ const HomePage = () => {
               
               try {
                 const availResponse = await fetch(
-                  `${apiBaseUrl}/search/tutors/${user.id}/availability?date=${dateStr}`
+                  `${apiBaseUrl}/schedule/tutors/${user.id}/availability?date=${dateStr}`
                 );
                 
                 if (availResponse.ok) {
@@ -143,8 +143,8 @@ const HomePage = () => {
         
         // Fetch confirmed and pending bookings separately since backend doesn't support comma-separated status
         const [confirmedResponse, pendingResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/search/bookings?tutor_id=${user.id}&status=confirmed`),
-          fetch(`${apiBaseUrl}/search/bookings?tutor_id=${user.id}&status=pending`)
+          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
+          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`)
         ]);
         
         if (!confirmedResponse.ok || !pendingResponse.ok) {
@@ -275,8 +275,8 @@ const HomePage = () => {
       
       // Fetch both confirmed and pending bookings
       const [confirmedResponse, pendingResponse] = await Promise.all([
-        fetch(`${apiBaseUrl}/search/bookings?student_id=${user.id}&status=confirmed`),
-        fetch(`${apiBaseUrl}/search/bookings?student_id=${user.id}&status=pending`)
+        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=confirmed`),
+        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=pending`)
       ]);
       
       if (!confirmedResponse.ok || !pendingResponse.ok) {
@@ -1140,18 +1140,23 @@ const HomePage = () => {
         ? 'http://localhost:8000' 
         : '/api';
         
-      const response = await fetch(`${apiBaseUrl}/schedule/availability`, {
+      // Convert the editing date to a weekday (0-6, where 0 is Sunday)
+      const weekday = date.getDay();
+      const startTime = format(editingDate, 'HH:mm');
+      const endTime = format(addMinutes(editingDate, 30), 'HH:mm');
+      
+      const response = await fetch(`${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          tutor_id: user.id,
-          date: format(date, 'yyyy-MM-dd'),
-          start_time: format(editingDate, 'HH:mm'),
-          end_time: format(addMinutes(editingDate, 30), 'HH:mm'),
-          is_recurring: isRecurring
+          weekday: weekday,
+          start_time: startTime,
+          end_time: endTime,
+          location_mode: 'online',
+          location_note: isRecurring ? 'Recurring weekly slot' : 'One-time availability'
         })
       });
       

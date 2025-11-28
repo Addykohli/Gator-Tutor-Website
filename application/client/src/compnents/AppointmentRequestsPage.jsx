@@ -78,7 +78,7 @@ const AppointmentRequestsPage = () => {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${apiBaseUrl}/search/bookings/tutor/${user.id}`, {
+      const response = await fetch(`${apiBaseUrl}/schedule/bookings/tutor/${user.id}`, {
         credentials: 'include'
       });
       
@@ -140,7 +140,7 @@ const AppointmentRequestsPage = () => {
   // Update booking status
   const updateBookingStatus = async (bookingId, status) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/search/bookings/${bookingId}/status`, {
+      const response = await fetch(`${apiBaseUrl}/schedule/bookings/${bookingId}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

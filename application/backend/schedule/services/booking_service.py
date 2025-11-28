@@ -8,13 +8,8 @@ from typing import List, Optional, Dict, Any
 
 from ..models.booking import Booking
 from ..models.availability_slot import AvailabilitySlot
-<<<<<<< HEAD
 from search.models import TutorProfile, User, Course
-from ..schemas.booking_schemas import BookingCreate, TimeSlot
-=======
-from search.models import TutorProfile, User
 from ..schemas.booking_schemas import BookingCreate, TimeSlot, AvailabilitySlotCreate, AvailabilitySlotUpdate
->>>>>>> origin/atharva/feature/booking-system
 
 
 def get_tutor_availability(db: Session, tutor_id: int, query_date: date) -> List[TimeSlot]:
