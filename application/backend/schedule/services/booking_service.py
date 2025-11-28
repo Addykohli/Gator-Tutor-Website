@@ -2,7 +2,7 @@
 Service functions for booking and availability operations.
 """
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 from datetime import datetime, date, timedelta, time
 from typing import List, Optional, Dict, Any
 
@@ -38,7 +38,9 @@ def get_tutor_availability(db: Session, tutor_id: int, query_date: date) -> List
     
     availability_slots = db.query(AvailabilitySlot).filter(
         AvailabilitySlot.tutor_id == tutor_id,
-        AvailabilitySlot.weekday == db_weekday
+        AvailabilitySlot.weekday == db_weekday,
+        # Filter out expired slots (valid_until is NULL or >= query_date)
+        or_(AvailabilitySlot.valid_until == None, AvailabilitySlot.valid_until >= query_date)
     ).all()
     
     if not availability_slots:
@@ -304,7 +306,7 @@ def _check_slot_overlap(
 
 def get_availability_slots(db: Session, tutor_id: int) -> List[AvailabilitySlot]:
     """
-    Get all availability slots for a tutor.
+    Get all availability slots for a tutor (excluding expired slots).
     
     Args:
         db: Database session
@@ -313,12 +315,24 @@ def get_availability_slots(db: Session, tutor_id: int) -> List[AvailabilitySlot]
     Returns:
         List of AvailabilitySlot objects ordered by weekday and start_time
     """
+    today = date.today()
     return db.query(AvailabilitySlot).filter(
-        AvailabilitySlot.tutor_id == tutor_id
+        AvailabilitySlot.tutor_id == tutor_id,
+        # Filter out expired slots (valid_until is NULL or >= today)
+        or_(AvailabilitySlot.valid_until == None, AvailabilitySlot.valid_until >= today)
     ).order_by(
         AvailabilitySlot.weekday,
         AvailabilitySlot.start_time
     ).all()
+
+
+# Duration mapping: duration string -> number of days
+DURATION_DAYS = {
+    "week": 7,
+    "month": 28,
+    "semester": 112,
+    "forever": None
+}
 
 
 def create_availability_slot(
@@ -351,6 +365,13 @@ def create_availability_slot(
     ):
         raise ValueError("This time slot overlaps with an existing availability slot")
     
+    # Calculate valid_until from duration
+    valid_until = None
+    duration = slot_data.duration or "semester"  # Default to semester
+    if duration != "forever":
+        days = DURATION_DAYS.get(duration, 112)  # Default to semester (112 days)
+        valid_until = date.today() + timedelta(days=days)
+    
     # Create the slot
     new_slot = AvailabilitySlot(
         tutor_id=tutor_id,
@@ -358,7 +379,8 @@ def create_availability_slot(
         start_time=slot_data.start_time,
         end_time=slot_data.end_time,
         location_mode=slot_data.location_mode,
-        location_note=slot_data.location_note
+        location_note=slot_data.location_note,
+        valid_until=valid_until
     )
     
     db.add(new_slot)
