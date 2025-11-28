@@ -288,7 +288,8 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
     "start_time": "10:00:00",
     "end_time": "14:00:00",
     "location_mode": "online",
-    "location_note": "Zoom link will be provided"
+    "location_note": "Zoom link will be provided",
+    "valid_until": "2025-03-20"
   },
   {
     "slot_id": 2,
@@ -297,7 +298,8 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
     "start_time": "09:00:00",
     "end_time": "12:00:00",
     "location_mode": "campus",
-    "location_note": "Library Room 201"
+    "location_note": "Library Room 201",
+    "valid_until": null
   }
 ]
 ```
@@ -305,6 +307,8 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
 **Notes:**
 - Slots are ordered by weekday and start time.
 - Weekday format: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+- `valid_until`: Expiry date for the slot. `null` means the slot never expires.
+- Expired slots (where `valid_until` < today) are automatically filtered out.
 
 ---
 
@@ -325,7 +329,8 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
     "start_time": "10:00:00",
     "end_time": "14:00:00",
     "location_mode": "online",
-    "location_note": "Zoom link will be provided"
+    "location_note": "Zoom link will be provided",
+    "duration": "semester"
   }'
 ```
 
@@ -338,7 +343,8 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
   "start_time": "10:00:00",
   "end_time": "14:00:00",
   "location_mode": "online",
-  "location_note": "Zoom link will be provided"
+  "location_note": "Zoom link will be provided",
+  "valid_until": "2025-03-20"
 }
 ```
 
@@ -348,6 +354,11 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
 - `end_time` (required): End time in HH:MM:SS format
 - `location_mode` (optional): Location mode (e.g., "online", "campus")
 - `location_note` (optional): Additional location details
+- `duration` (optional): How long the slot should be valid. Defaults to `"semester"`. Options:
+  - `"week"`: Valid for 7 days
+  - `"month"`: Valid for 28 days
+  - `"semester"`: Valid for 112 days (default)
+  - `"forever"`: Never expires (`valid_until` will be `null`)
 
 **Errors:**
 - `400 Bad Request`: "Start time must be before end time"
@@ -383,13 +394,15 @@ curl -X PUT http://127.0.0.1:8000/schedule/tutors/7/availability-slots/1 \
   "start_time": "11:00:00",
   "end_time": "15:00:00",
   "location_mode": "online",
-  "location_note": "Zoom link will be provided"
+  "location_note": "Zoom link will be provided",
+  "valid_until": "2025-03-20"
 }
 ```
 
 **Notes:**
 - Only provided fields will be updated; others remain unchanged.
 - Overlap validation is performed after applying updates.
+- `valid_until` is set at creation time based on the `duration` parameter and cannot be updated.
 
 **Errors:**
 - `400 Bad Request`: "Availability slot with ID {slot_id} not found"
@@ -436,8 +449,21 @@ curl -X DELETE http://127.0.0.1:8000/schedule/tutors/7/availability-slots/1
 
 ## Availability Slot vs Availability Check
 
-- **Availability Slots** (`/schedule/tutors/{id}/availability-slots`): Manage recurring weekly schedule (e.g., "Every Monday 10am-2pm")
-- **Availability Check** (`/schedule/tutors/{id}/availability?date=YYYY-MM-DD`): Get available 1-hour slots for a specific date, considering existing bookings
+- **Availability Slots** (`/schedule/tutors/{id}/availability-slots`): Manage recurring weekly schedule (e.g., "Every Monday 10am-2pm"). Slots have a `valid_until` date and expire automatically.
+- **Availability Check** (`/schedule/tutors/{id}/availability?date=YYYY-MM-DD`): Get available 1-hour slots for a specific date, considering existing bookings and slot expiry.
+
+## Slot Duration & Expiry
+
+When creating an availability slot, you can specify how long it should be valid:
+
+| Duration | Days | Example |
+|----------|------|---------|
+| `week` | 7 | Created Nov 28 → Expires Dec 5 |
+| `month` | 28 | Created Nov 28 → Expires Dec 26 |
+| `semester` (default) | 112 | Created Nov 28 → Expires Mar 20 |
+| `forever` | — | Never expires |
+
+Expired slots are automatically filtered out from all queries.
 
 ---
 

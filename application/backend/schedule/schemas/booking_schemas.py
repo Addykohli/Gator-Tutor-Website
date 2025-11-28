@@ -3,7 +3,7 @@ Pydantic schemas for booking-related operations.
 """
 from pydantic import BaseModel, Field
 from datetime import datetime, date, time
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 
 class BookingBase(BaseModel):
@@ -69,6 +69,10 @@ class AvailabilitySlotCreate(BaseModel):
     end_time: time = Field(..., description="End time of availability (HH:MM:SS)")
     location_mode: Optional[str] = Field(None, max_length=50, description="Location mode: online, campus, etc.")
     location_note: Optional[str] = Field(None, max_length=500, description="Additional location notes")
+    duration: Optional[Literal["week", "month", "semester", "forever"]] = Field(
+        "semester",
+        description="Duration: week=7d, month=28d, semester=112d, forever=no expiry"
+    )
 
 
 class AvailabilitySlotUpdate(BaseModel):
@@ -89,6 +93,7 @@ class AvailabilitySlotResponse(BaseModel):
     end_time: Optional[time] = None
     location_mode: Optional[str] = None
     location_note: Optional[str] = None
+    valid_until: Optional[date] = None
 
     class Config:
         from_attributes = True
