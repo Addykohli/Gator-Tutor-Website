@@ -8,12 +8,14 @@ from datetime import date
 
 from search.database import get_db
 from schedule.services.booking_service import (
-    get_tutor_availability,
     create_booking,
     get_student_bookings,
     get_tutor_bookings,
     get_bookings,
-    update_booking_status,
+    update_booking_status
+)
+from schedule.services.availability_service import (
+    get_tutor_availability,
     get_availability_slots,
     create_availability_slot,
     update_availability_slot,
@@ -22,9 +24,11 @@ from schedule.services.booking_service import (
 from schedule.schemas.booking_schemas import (
     BookingCreate,
     BookingResponse,
+    BookingStatusUpdate
+)
+from schedule.schemas.availability_schemas import (
     AvailabilityResponse,
     TimeSlot,
-    BookingStatusUpdate,
     AvailabilitySlotCreate,
     AvailabilitySlotUpdate,
     AvailabilitySlotResponse

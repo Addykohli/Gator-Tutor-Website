@@ -289,7 +289,8 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
     "end_time": "14:00:00",
     "location_mode": "online",
     "location_note": "Zoom link will be provided",
-    "valid_until": "2025-03-20"
+    "valid_from": "2025-01-15",
+    "valid_until": "2025-05-07"
   },
   {
     "slot_id": 2,
@@ -299,6 +300,7 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
     "end_time": "12:00:00",
     "location_mode": "campus",
     "location_note": "Library Room 201",
+    "valid_from": null,
     "valid_until": null
   }
 ]
@@ -307,8 +309,9 @@ curl "http://127.0.0.1:8000/schedule/tutors/7/availability-slots"
 **Notes:**
 - Slots are ordered by weekday and start time.
 - Weekday format: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday
+- `valid_from`: Start date for the slot. `null` means it starts immediately.
 - `valid_until`: Expiry date for the slot. `null` means the slot never expires.
-- Expired slots (where `valid_until` < today) are automatically filtered out.
+- Slots are automatically filtered: only shown if `valid_from <= today <= valid_until`.
 
 ---
 
@@ -330,6 +333,7 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
     "end_time": "14:00:00",
     "location_mode": "online",
     "location_note": "Zoom link will be provided",
+    "valid_from": "2025-01-15",
     "duration": "semester"
   }'
 ```
@@ -344,7 +348,8 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
   "end_time": "14:00:00",
   "location_mode": "online",
   "location_note": "Zoom link will be provided",
-  "valid_until": "2025-03-20"
+  "valid_from": "2025-01-15",
+  "valid_until": "2025-05-07"
 }
 ```
 
@@ -352,9 +357,11 @@ curl -X POST http://127.0.0.1:8000/schedule/tutors/7/availability-slots \
 - `weekday` (required): Day of week (0=Sunday, 1=Monday, ..., 6=Saturday)
 - `start_time` (required): Start time in HH:MM:SS format
 - `end_time` (required): End time in HH:MM:SS format
-- `location_mode` (optional): Location mode (e.g., "online", "campus")
+- `location_mode` (optional): Location mode (e.g., "online", "campus"). Defaults to `"online"`.
 - `location_note` (optional): Additional location details
-- `duration` (optional): How long the slot should be valid. Defaults to `"semester"`. Options:
+- `valid_from` (optional): Start date for availability (YYYY-MM-DD). Defaults to today.
+- `valid_until` (optional): Custom end date (YYYY-MM-DD). If provided, overrides `duration`.
+- `duration` (optional): How long the slot should be valid from `valid_from`. Defaults to `"semester"`. Ignored if `valid_until` is set. Options:
   - `"week"`: Valid for 7 days
   - `"month"`: Valid for 28 days
   - `"semester"`: Valid for 112 days (default)
