@@ -18,7 +18,7 @@ class ChatMedia(Base):
     media_id = Column(Integer, primary_key=True, index=True)
     message_id = Column(Integer, ForeignKey("chat_messages.message_id"))
     media_path = Column(String(500), nullable=True)
-    media_type = Column(String(500), nullable=True)#need to revisit when testing 
+    media_type = Column(String(500), nullable=True)
     created_at = Column(DateTime, default = datetime.utcnow)
 
     #point to chat_message model
