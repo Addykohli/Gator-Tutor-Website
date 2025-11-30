@@ -19,7 +19,7 @@ def send_endpoint(req:MessageInfo, db: Session = Depends(get_db), user_id:int = 
         raise HTTPException(status_code = 404, detail="sender id not found")
     
     message = send_message(db, user_id, req)
-    return  message
+    return message
 
 #chat endpoints for all chat messages between current 2 users
 @router.get("/chatroomhistory/{user1}/{user2}", response_model = list[MessageResponse])
