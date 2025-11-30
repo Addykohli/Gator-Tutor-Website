@@ -12,6 +12,7 @@ sent At(?), recieved at(?)- not sure if necessary
 
 if media is involved , point to chatmedia model
 should point to chat id
+Note: ConversationID or every chat is just determined by sender/reciever combo(?)
 """
 class ChatMessage(Base):
     __tablename__ ="chat_messages"
