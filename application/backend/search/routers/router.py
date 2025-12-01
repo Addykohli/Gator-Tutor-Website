@@ -22,8 +22,6 @@ from ..schemas import (
 from schedule.schemas.booking_schemas import (
     BookingCreate,
     BookingResponse,
-    AvailabilityResponse,
-    TimeSlot
 )
 from datetime import date
 
