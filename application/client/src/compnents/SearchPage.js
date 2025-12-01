@@ -259,6 +259,14 @@ export default function SearchPage() {
   const [status, setStatus] = useState("idle");          // idle | loading | done | error
   const [error, setError] = useState("");
 
+  // Use a ref to track the current status
+  const statusRef = React.useRef(status);
+  
+  // Update the ref whenever status changes
+  React.useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
   // Fetch results when URL query parameters change
   useEffect(() => {
     console.log('useEffect triggered with q:', q.toString());
@@ -337,7 +345,7 @@ export default function SearchPage() {
 
     // Set up a small delay to ensure the loading state is shown
     const timer = setTimeout(() => {
-      if (status === "loading") {
+      if (statusRef.current === "loading") {
         // Force a re-render if still loading
         setStatus(prev => prev === "loading" ? "done" : prev);
       }

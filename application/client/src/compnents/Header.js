@@ -127,7 +127,7 @@ const Header = () => {
 
   // Calculate dynamic height based on number of visible menu items
   const menuItemHeight = 54; // height per menu item in pixels
-  const menuPadding = 55; // top and bottom padding
+  const menuPadding = 58; // top and bottom padding
   const dynamicHeight = (filteredMenuItems.length * menuItemHeight) + menuPadding;
 
   const borderContainerStyle = {

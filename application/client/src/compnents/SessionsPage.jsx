@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation} from 'react-router-dom';
 import Header from './Header';
 import { useAuth } from '../Context/Context';
 
@@ -7,7 +7,6 @@ import { useAuth } from '../Context/Context';
 const SessionsPage = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('upcoming');
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,12 +55,6 @@ const SessionsPage = () => {
       };
     }
   }, [location, bookings]);  // Added bookings to dependencies to handle initial load
-
-  const handleTabChange = (tab) => {
-    setActiveTab(tab);
-    // Update URL without page reload
-    navigate(`?tab=${tab}`, { replace: true });
-  };
 
   // Fetch student's bookings
   useEffect(() => {
@@ -300,17 +293,6 @@ const SessionsPage = () => {
       padding: "60px 20px",
       color: "#666",
     },
-  };
-
-  const getStatusStyle = (status) => {
-    if (status === "Confirmed") return { ...styles.statusBadge, ...styles.statusConfirmed };
-    if (status === "Pending") return { ...styles.statusBadge, ...styles.statusPending };
-    if (status === "Completed") return { ...styles.statusBadge, ...styles.statusCompleted };
-    return styles.statusBadge;
-  };
-
-  const renderStars = (rating) => {
-    return "★".repeat(rating) + "☆".repeat(5 - rating);
   };
 
   return (

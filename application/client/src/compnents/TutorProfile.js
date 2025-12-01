@@ -26,10 +26,6 @@ const TutorProfile = () => {
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   
-  // State for appointment requests
-  const [appointmentRequests, setAppointmentRequests] = useState([]);
-  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
-  const [requestError, setRequestError] = useState(null);
   
   // Format time to 12-hour format with AM/PM
   const formatTime = (dateTime) => {
@@ -588,8 +584,8 @@ const TutorProfile = () => {
       <div style={styles.container}>
         <div style={styles.header}>
           <img 
-            src={tutor.image} 
-            alt={`${tutor.name}'s profile`} 
+            src={tutor.image || require('../assets/default_silhouette.png')} 
+            alt={`${tutor.first_name || 'User'} profile`} 
             style={styles.profileImage}
             onError={(e) => {
               e.target.onerror = null;

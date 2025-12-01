@@ -105,10 +105,15 @@ def _check_slot_overlap(
     weekday: int, 
     start_time: time, 
     end_time: time, 
+    valid_from: Optional[date] = None,
+    valid_until: Optional[date] = None,
     exclude_slot_id: Optional[int] = None
 ) -> bool:
     """
     Check if a time range overlaps with existing slots on the same weekday.
+    
+    Now includes date range checking: two slots only overlap if their time ranges
+    AND their date ranges intersect.
     
     Args:
         db: Database session
@@ -116,28 +121,62 @@ def _check_slot_overlap(
         weekday: Day of week (0=Sunday, 6=Saturday)
         start_time: Start time of the new/updated slot
         end_time: End time of the new/updated slot
+        valid_from: Start date of the new slot (None = starts immediately)
+        valid_until: End date of the new slot (None = no expiry)
         exclude_slot_id: Optional slot ID to exclude (for updates)
         
     Returns:
         True if there's an overlap, False otherwise
     """
-    query = db.query(AvailabilitySlot).filter(
+    # Get all slots for this weekday with time overlap
+    potential_overlaps = db.query(AvailabilitySlot).filter(
         AvailabilitySlot.tutor_id == tutor_id,
         AvailabilitySlot.weekday == weekday,
-        # Overlap logic: (start1 < end2) and (end1 > start2)
+        # Time overlap: (start1 < end2) and (end1 > start2)
         AvailabilitySlot.start_time < end_time,
         AvailabilitySlot.end_time > start_time
     )
     
     if exclude_slot_id:
-        query = query.filter(AvailabilitySlot.slot_id != exclude_slot_id)
+        potential_overlaps = potential_overlaps.filter(AvailabilitySlot.slot_id != exclude_slot_id)
     
-    return query.first() is not None
+    # Check each potential overlap for date range conflicts
+    for existing_slot in potential_overlaps:
+        # Check if date ranges overlap
+        # Two date ranges overlap if: (start1 <= end2 OR end2 is None) AND (end1 >= start2 OR end1 is None)
+        
+        existing_from = existing_slot.valid_from
+        existing_until = existing_slot.valid_until
+        
+        # Date range overlap logic:
+        # If either range is infinite (None), they overlap
+        # Otherwise, check: (start1 <= end2) AND (end1 >= start2)
+        
+        # Check start conditions
+        if valid_until is not None and existing_from is not None:
+            if valid_until < existing_from:
+                # New slot ends before existing starts
+                continue
+        
+        # Check end conditions  
+        if valid_from is not None and existing_until is not None:
+            if valid_from > existing_until:
+                # New slot starts after existing ends
+                continue
+        
+        # If we get here, the date ranges overlap
+        return True
+    
+    return False
 
 
 def get_availability_slots(db: Session, tutor_id: int) -> List[AvailabilitySlot]:
     """
-    Get all availability slots for a tutor (excluding expired and not-yet-started slots).
+    Get all availability slots for a tutor (including expired and future slots).
+    
+    Note: We return ALL slots so the frontend can properly manage and delete them.
+    Date filtering should only happen when calculating actual availability,
+    not when managing the slot configuration.
     
     Args:
         db: Database session
@@ -146,13 +185,8 @@ def get_availability_slots(db: Session, tutor_id: int) -> List[AvailabilitySlot]
     Returns:
         List of AvailabilitySlot objects ordered by weekday and start_time
     """
-    today = date.today()
     return db.query(AvailabilitySlot).filter(
-        AvailabilitySlot.tutor_id == tutor_id,
-        # Filter by valid_from (NULL or <= today)
-        or_(AvailabilitySlot.valid_from == None, AvailabilitySlot.valid_from <= today),
-        # Filter out expired slots (valid_until is NULL or >= today)
-        or_(AvailabilitySlot.valid_until == None, AvailabilitySlot.valid_until >= today)
+        AvailabilitySlot.tutor_id == tutor_id
     ).order_by(
         AvailabilitySlot.weekday,
         AvailabilitySlot.start_time
@@ -191,14 +225,7 @@ def create_availability_slot(
     if slot_data.start_time >= slot_data.end_time:
         raise ValueError("Start time must be before end time")
     
-    # Check for overlapping slots
-    if _check_slot_overlap(
-        db, tutor_id, slot_data.weekday, 
-        slot_data.start_time, slot_data.end_time
-    ):
-        raise ValueError("This time slot overlaps with an existing availability slot")
-    
-    # Calculate valid_from and valid_until
+    # Calculate valid_from and valid_until first
     valid_from = slot_data.valid_from  # Can be None (starts immediately)
     start_date = valid_from or date.today()  # Use valid_from or default to today
     
@@ -211,6 +238,14 @@ def create_availability_slot(
         if duration != "forever":
             days = DURATION_DAYS.get(duration, 112)  # Default to semester (112 days)
             valid_until = start_date + timedelta(days=days)
+    
+    # Check for overlapping slots (including date range check)
+    if _check_slot_overlap(
+        db, tutor_id, slot_data.weekday, 
+        slot_data.start_time, slot_data.end_time,
+        valid_from, valid_until
+    ):
+        raise ValueError("This time slot overlaps with an existing availability slot")
     
     # Create the slot
     new_slot = AvailabilitySlot(
@@ -273,11 +308,12 @@ def update_availability_slot(
     if new_start_time and new_end_time and new_start_time >= new_end_time:
         raise ValueError("Start time must be before end time")
     
-    # Check for overlapping slots (excluding this slot)
+    # Check for overlapping slots (excluding this slot, including date ranges)
     if new_start_time and new_end_time:
         if _check_slot_overlap(
             db, tutor_id, new_weekday, 
             new_start_time, new_end_time,
+            slot.valid_from, slot.valid_until,  # Use existing date range
             exclude_slot_id=slot_id
         ):
             raise ValueError("This time slot overlaps with an existing availability slot")

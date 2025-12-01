@@ -73,7 +73,7 @@ const AppointmentRequestsPage = () => {
   };
 
   // Fetch tutor's bookings
-  const fetchAppointmentRequests = async () => {
+  const fetchAppointmentRequests = React.useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -135,7 +135,7 @@ const AppointmentRequestsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   // Update booking status
   const updateBookingStatus = async (bookingId, status) => {
@@ -190,12 +190,12 @@ const AppointmentRequestsPage = () => {
     }
   };
 
-  // Fetch data on component mount
+  // Fetch data on component mount or when user changes
   useEffect(() => {
     if (user?.id) {
       fetchAppointmentRequests();
     }
-  }, [user]);
+  }, [user?.id, fetchAppointmentRequests]);
 
   // Highlight and scroll effect
   const location = useLocation();

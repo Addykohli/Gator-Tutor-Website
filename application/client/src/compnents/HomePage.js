@@ -8,9 +8,6 @@ import subWeeks from 'date-fns/subWeeks';
 import startOfWeek from 'date-fns/startOfWeek';
 import addDays from 'date-fns/addDays';
 import isSameDay from 'date-fns/isSameDay';
-import parse from 'date-fns/parse';
-import isWithinInterval from 'date-fns/isWithinInterval';
-import addMinutes from 'date-fns/addMinutes';
 import Header from './Header';
 
 const HomePage = () => {
@@ -36,242 +33,100 @@ const HomePage = () => {
   
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   
-  const fetchTutorAvailability = async () => {
-      if (user && user.isTutor) {
-        try {
-          setIsLoadingAvailability(true);
-          const apiBaseUrl = window.location.hostname === 'localhost' 
-            ? 'http://localhost:8000' 
-            : '/api';
-          
-          // First, try to get tutor profile which should include availability_slots
-          const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
-          
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+  // Memoize the API base URL with useMemo since it doesn't depend on any props or state
+  const apiBaseUrl = React.useMemo(() => {
+    return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+  }, []);
+
+  // Fetch tutor availability
+  const fetchTutorAvailability = React.useCallback(async () => {
+    if (!user?.isTutor) return;
+    
+    try {
+      setIsLoadingAvailability(true);
+      
+      // Fetch actual recurring availability slots from the dedicated endpoint
+      console.log('Fetching recurring availability slots from backend...');
+      const response = await fetch(
+        `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
           }
-          
-          const data = await response.json();
-          console.log('Tutor profile data:', data);
-          
-          // Check for availability_slots in the response
-          let availabilityData = data.availability_slots || data.availability || [];
-          
-          // If no availability in profile, try fetching from multiple dates to build a weekly pattern
-          if (!availabilityData || availabilityData.length === 0) {
-            console.log('No availability_slots in profile, fetching date-specific availability...');
-            
-            // Fetch availability for the current week to build the pattern
-            const weeklyAvailability = {};
-            const today = new Date();
-            
-            // Helper function to format date as YYYY-MM-DD in local time (not UTC)
-            const formatLocalDate = (date) => {
-              const year = date.getFullYear();
-              const month = String(date.getMonth() + 1).padStart(2, '0');
-              const day = String(date.getDate()).padStart(2, '0');
-              return `${year}-${month}-${day}`;
-            };
-            
-            for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
-              const checkDate = new Date(today);
-              checkDate.setDate(today.getDate() + dayOffset);
-              const dateStr = formatLocalDate(checkDate);
-              
-              try {
-                const availResponse = await fetch(
-                  `${apiBaseUrl}/schedule/tutors/${user.id}/availability?date=${dateStr}`
-                );
-                
-                if (availResponse.ok) {
-                  const availData = await availResponse.json();                  
-                  if (availData.slots && availData.slots.length > 0) {
-                    // Get day of week
-                    const dayName = format(checkDate, 'EEEE').toLowerCase();
-                    
-                    // Find the earliest and latest times for this day
-                    const times = availData.slots.map(slot => ({
-                      start: new Date(slot.start_time).getHours(),
-                      end: new Date(slot.end_time).getHours()
-                    }));
-                    
-                    const minStart = Math.min(...times.map(t => t.start));
-                    const maxEnd = Math.max(...times.map(t => t.end));
-                    
-                    weeklyAvailability[dayName] = {
-                      day_of_week: dayName,
-                      start_time: `${minStart.toString().padStart(2, '0')}:00:00`,
-                      end_time: `${maxEnd.toString().padStart(2, '0')}:00:00`
-                    };
-                  }
-                }
-              } catch (err) {
-                console.error(`Error fetching availability for ${dateStr}:`, err);
-              }
-            }
-            
-            // Convert weekly availability object to array
-            availabilityData = Object.values(weeklyAvailability);
-            console.log('Built weekly availability pattern:', availabilityData);
-          }
-          
-          console.log('Final parsed availability:', availabilityData);
-          
-          if (Array.isArray(availabilityData) && availabilityData.length > 0) {
-            setTutorAvailability(availabilityData);
-          } else {
-            console.warn('No availability data could be loaded');
-            setTutorAvailability([]);
-          }
-        } catch (error) {
-          console.error('Error fetching tutor availability:', error);
-          setTutorAvailability([]);
-        } finally {
-          setIsLoadingAvailability(false);
         }
+      );
+      
+      if (!response.ok) {
+        console.warn('Failed to fetch availability slots:', response.status);
+        setTutorAvailability([]);
+        return;
       }
-    };
+      
+      const availabilitySlots = await response.json();
+      console.log('Recurring availability slots from backend:', availabilitySlots);
+      
+      // Convert backend format to frontend format
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const availabilityData = availabilitySlots.map(slot => ({
+        day_of_week: dayNames[slot.weekday],
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        slot_id: slot.slot_id,
+        valid_from: slot.valid_from,
+        valid_until: slot.valid_until
+      }));
+      
+      console.log('Final parsed availability:', availabilityData);
+      setTutorAvailability(Array.isArray(availabilityData) && availabilityData.length > 0 ? availabilityData : []);
+    } catch (error) {
+      console.error('Error fetching tutor availability:', error);
+      setTutorAvailability([]);
+    } finally {
+      setIsLoadingAvailability(false);
+    }
+  }, [user?.isTutor, user?.id, apiBaseUrl]);
 
   // Fetch tutor bookings
-  const fetchTutorBookings = async () => {
-    if (user?.isTutor) {
-      try {
-        setIsLoadingBookings(true);
-        const apiBaseUrl = window.location.hostname === 'localhost' 
-          ? 'http://localhost:8000' 
-          : '/api';
-        
-        // Fetch confirmed and pending bookings separately since backend doesn't support comma-separated status
-        const [confirmedResponse, pendingResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
-          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`)
-        ]);
-        
-        if (!confirmedResponse.ok || !pendingResponse.ok) {
-          throw new Error(`HTTP error! status: ${confirmedResponse.status} or ${pendingResponse.status}`);
-        }
-        
-        const confirmedData = await confirmedResponse.json();
-        const pendingData = await pendingResponse.json();
-        
-        // Combine both arrays
-        const allBookings = [...(Array.isArray(confirmedData) ? confirmedData : []), ...(Array.isArray(pendingData) ? pendingData : [])];
-        
-        console.log('Fetched tutor bookings:', allBookings);
-        console.log('Bookings with parsed dates:', allBookings.map(b => {
-          const startTime = new Date(b.start_time);
-          const endTime = new Date(b.end_time);
-          return {
-            id: b.booking_id,
-            startUTC: b.start_time,
-            startLocal: startTime.toString(),
-            startDate: format(startTime, 'yyyy-MM-dd'),
-            startHour: startTime.getHours(),
-            startMinutes: startTime.getMinutes(),
-            endUTC: b.end_time,
-            endLocal: endTime.toString(),
-            endHour: endTime.getHours(),
-            endMinutes: endTime.getMinutes(),
-            status: b.status
-          };
-        }));
-        setTutorBookings(allBookings);
-      } catch (error) {
-        console.error('Error fetching tutor bookings:', error);
-        setTutorBookings([]);
-      } finally {
-        setIsLoadingBookings(false);
+  const fetchTutorBookings = React.useCallback(async () => {
+    if (!user?.isTutor) return;
+    
+    try {
+      setIsLoadingBookings(true);
+      
+      // Fetch confirmed and pending bookings separately since backend doesn't support comma-separated status
+      const [confirmedResponse, pendingResponse] = await Promise.all([
+        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
+        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`)
+      ]);
+      
+      if (!confirmedResponse.ok || !pendingResponse.ok) {
+        throw new Error(`HTTP error! status: ${confirmedResponse.status} or ${pendingResponse.status}`);
       }
+      
+      const confirmedData = await confirmedResponse.json();
+      const pendingData = await pendingResponse.json();
+      
+      // Combine both arrays
+      const allBookings = [...(Array.isArray(confirmedData) ? confirmedData : []), ...(Array.isArray(pendingData) ? pendingData : [])];
+      
+      console.log('Fetched tutor bookings:', allBookings);
+      setTutorBookings(allBookings);
+    } catch (error) {
+      console.error('Error fetching tutor bookings:', error);
+      setTutorBookings([]);
+    } finally {
+      setIsLoadingBookings(false);
     }
-  };
+  }, [user?.isTutor, user?.id, apiBaseUrl]);
 
-  // Fetch data based on user type
-  useEffect(() => {
-    if (user) {
-      if (user.isTutor) {
-        fetchTutorAvailability();
-        fetchTutorBookings();
-      } else {
-        fetchStudentBookings();
-      }
-    }
-    
-    // Check for any booking to highlight when component mounts
-    const params = new URLSearchParams(window.location.search);
-    const highlightId = params.get('highlight');
-    if (highlightId) {
-      setGlowBookingId(highlightId);
-    }
-  }, [user]);
-  
-  // Check if a specific hour on a specific day is available
-  const isTimeSlotAvailable = (date, hour) => {
-    if (!tutorAvailability || tutorAvailability.length === 0) {
-      console.log('No availability data');
-      return false;
-    }
-    
-    // Get day name in lowercase (e.g., "monday")
-    const dayOfWeek = format(date, 'EEEE').toLowerCase();
-    //console.log(`Checking availability for ${dayOfWeek} at hour ${hour}`);
-    
-    // Find availability for this day - check multiple possible field names
-    const dayAvailability = tutorAvailability.find(
-      avail => {
-        const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
-        return availDay === dayOfWeek;
-      }
-    );
-    
-    if (!dayAvailability) {
-      //console.log(`No availability found for ${dayOfWeek}`);
-      return false;
-    }
-    
-    //console.log(`Found availability for ${dayOfWeek}:`, dayAvailability);
-    
-    // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
-    const parseTimeToHour = (timeStr) => {
-      if (!timeStr) return null;
-      const [hours] = timeStr.split(':');
-      return parseInt(hours, 10);
-    };
-    
-    // Check multiple possible field names for start/end times
-    const startTimeStr = dayAvailability.start_time || dayAvailability.startTime;
-    const endTimeStr = dayAvailability.end_time || dayAvailability.endTime;
-    
-    if (!startTimeStr || !endTimeStr) {
-      console.log('Missing start or end time:', { startTimeStr, endTimeStr });
-      return false;
-    }
-    
-    const availStart = parseTimeToHour(startTimeStr);
-    const availEnd = parseTimeToHour(endTimeStr);
-        
-    // Check if hour is within availability window
-    const isAvailable = hour >= availStart && hour < availEnd;
-    console.log(`Hour ${hour} is ${isAvailable ? 'available' : 'not available'}`);
-    
-    return isAvailable;
-  };
-  
-  // State for student bookings
-  const [studentBookings, setStudentBookings] = useState([]);
-  const [isLoadingStudentBookings, setIsLoadingStudentBookings] = useState(false);
-  const [bookingError, setBookingError] = useState(null);
-  
   // Fetch student bookings
-  const fetchStudentBookings = async () => {
-    if (!user?.id) return;
+  const fetchStudentBookings = React.useCallback(async () => {
+    if (!user?.id || user?.isTutor) return;
     
     try {
       setIsLoadingStudentBookings(true);
       setBookingError(null);
-      
-      const apiBaseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
-        : '/api';
       
       // Fetch both confirmed and pending bookings
       const [confirmedResponse, pendingResponse] = await Promise.all([
@@ -301,7 +156,105 @@ const HomePage = () => {
     } finally {
       setIsLoadingStudentBookings(false);
     }
+  }, [user?.id, user?.isTutor, apiBaseUrl]);
+
+  // Memoized fetch functions for the main effect
+  const fetchData = React.useCallback(() => {
+    if (!user) return;
+    
+    if (user.isTutor) {
+      fetchTutorAvailability();
+      fetchTutorBookings();
+    } else {
+      fetchStudentBookings();
+    }
+  }, [user, fetchTutorAvailability, fetchTutorBookings, fetchStudentBookings]);
+  
+  // Effect to fetch data when component mounts or when user changes
+  useEffect(() => {
+    const fetchDataAndHighlight = async () => {
+      await fetchData();
+      
+      // Check for any booking to highlight when component mounts
+      const params = new URLSearchParams(window.location.search);
+      const highlightId = params.get('highlight');
+      if (highlightId) {
+        setGlowBookingId(highlightId);
+      }
+    };
+    
+    fetchDataAndHighlight();
+  }, [fetchData]);
+
+  
+  // Check if a specific hour on a specific day is available
+  const isTimeSlotAvailable = (date, hour) => {
+  if (!tutorAvailability || tutorAvailability.length === 0) {
+  return false;
+  }
+  
+  // Get day name in lowercase (e.g., "monday")
+  const dayOfWeek = format(date, 'EEEE').toLowerCase();
+  
+  // Convert date to YYYY-MM-DD string for comparison (avoid timezone issues)
+  const checkDateStr = format(date, 'yyyy-MM-dd');
+  
+  // Find ALL availability slots for this day (not just the first one)
+  const dayAvailabilitySlots = tutorAvailability.filter(
+    avail => {
+      const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
+      if (availDay !== dayOfWeek) return false;
+      
+    // Check date validity using string comparison (avoids timezone issues)
+  const validFrom = avail.valid_from; // Already a string "YYYY-MM-DD"
+  const validUntil = avail.valid_until; // Already a string "YYYY-MM-DD"
+  
+  // String comparison works correctly: "2025-12-01" <= "2025-12-01" <= "2025-12-01"
+  const isValidFrom = !validFrom || checkDateStr >= validFrom;
+  const isValidUntil = !validUntil || checkDateStr <= validUntil;
+  
+  return isValidFrom && isValidUntil;
+  }
+  );
+  
+  if (!dayAvailabilitySlots || dayAvailabilitySlots.length === 0) {
+  return false;
+  }
+  
+  // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
+  const parseTimeToHour = (timeStr) => {
+  if (!timeStr) return null;
+  const [hours] = timeStr.split(':');
+  return parseInt(hours, 10);
   };
+  
+  // Check if the hour falls within ANY of the availability slots for this day
+  for (const slot of dayAvailabilitySlots) {
+  const startTimeStr = slot.start_time || slot.startTime;
+  const endTimeStr = slot.end_time || slot.endTime;
+  
+  if (!startTimeStr || !endTimeStr) {
+  continue;
+  }
+  
+  const availStart = parseTimeToHour(startTimeStr);
+  const availEnd = parseTimeToHour(endTimeStr);
+  
+  // Check if hour is within this availability window
+  if (hour >= availStart && hour < availEnd) {
+  return true;
+  }
+  }
+  
+  // Hour doesn't fall within any availability slot
+  return false;
+  };
+  
+  // State for student bookings
+  const [studentBookings, setStudentBookings] = useState([]);
+  const [isLoadingStudentBookings, setIsLoadingStudentBookings] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+  
   
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
@@ -452,7 +405,8 @@ const HomePage = () => {
       textAlign: 'center',
       fontWeight: '600',
       fontSize: '1rem',
-      borderRight: '1px solid rgba(255, 255, 255, 0.2)'
+      borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+      height: '100px',
     },
     dayCell: {
       backgroundColor: 'white',
@@ -537,13 +491,13 @@ const HomePage = () => {
     },
     timeLabel: {
       backgroundColor: '#fff',
-      padding: '8px 4px',
+      padding: '0px 4px 20px',
       textAlign: 'center',
       fontSize: '0.75rem',
       fontWeight: '500',
       color: '#666',
       borderRight: '1px solid #e0e0e0',
-      borderBottom: '1px solid #f0f0f0',
+      borderBottom: 'none',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -561,14 +515,14 @@ const HomePage = () => {
       alignItems: 'center',
       justifyContent: 'top',
     },
-    tutorTimeSlot: {
-      backgroundColor: 'white',
+    tutorTimeSlot: (rowIndex) => ({
+      backgroundColor: rowIndex % 2 === 0 ? 'white' : '#f5f5f5',
       minHeight: '40px',
       borderRight: '1px solid #f0f0f0',
       borderBottom: '1px solid #f0f0f0',
       position: 'relative',
       transition: 'background-color 0.2s',
-    },
+    }),
     availableSlot: {
       backgroundColor: 'rgba(255, 220, 100, 0.3)',
     },
@@ -740,13 +694,17 @@ const HomePage = () => {
                 <div 
                   key={`${booking.booking_id || index}`} 
                   style={{
-                    backgroundColor: 'white',
+                    backgroundColor: `${booking.color}22`,
+                    color: '#333',
                     borderRadius: '6px',
                     padding: '10px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
                     borderLeft: `3px solid ${booking.color}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
                     ':hover': {
                       transform: 'translateX(2px)',
                       boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
@@ -755,34 +713,35 @@ const HomePage = () => {
                   onClick={() => handleStudentBookingClick(booking)}
                   className={glowBookingId === booking.booking_id ? 'glow-animation' : ''}
                 >
-                  <div style={{
-                    fontSize: '0.8rem',
-                    color: '#6c757d',
-                    marginBottom: '4px'
-                  }}>
-                    {booking.formattedTime}
-                  </div>
-                  <div style={{
-                    fontWeight: '500',
-                    marginBottom: '4px',
-                    color: '#212529',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}>
-                    {booking.tutor_name || 'Tutoring Session'}
-                    {booking.status === 'pending' && (
+                  {booking.status === 'pending' && (
+                    <div style={{
+                      alignSelf: 'flex-start',
+                      marginBottom: '4px'
+                    }}>
                       <span style={{
                         fontSize: '0.7rem',
                         backgroundColor: '#fff3cd',
                         color: '#856404',
                         padding: '2px 6px',
                         borderRadius: '4px',
-                        fontWeight: '500'
+                        fontWeight: '500',
+                        display: 'inline-block'
                       }}>
                         Pending
                       </span>
-                    )}
+                    </div>
+                  )}
+                  <div style={{
+                    fontSize: '0.8rem',
+                    color: '#6c757d'
+                  }}>
+                    {booking.formattedTime}
+                  </div>
+                  <div style={{
+                    fontWeight: '500',
+                    color: '#212529'
+                  }}>
+                    {booking.tutor_name || 'Tutoring Session'}
                   </div>
                   {booking.course_name && (
                     <div style={{
@@ -852,24 +811,51 @@ const HomePage = () => {
     setIsEditPanelAnimating(true);
     setEditingDate(date);
     
-    // Get existing availability for this day
+    // Get existing availability for this day - find ALL slots for this weekday
+    // that are valid on this specific date
     const dayName = format(date, 'EEEE').toLowerCase();
-    const dayAvail = tutorAvailability.find(
-      avail => (avail.day_of_week || avail.day || '').toLowerCase() === dayName
+    const checkDateStr = format(date, 'yyyy-MM-dd'); // Use string comparison
+    
+    const daySlots = tutorAvailability.filter(
+      avail => {
+        const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
+        if (availDay !== dayName) return false;
+        
+        // Check date validity using string comparison (avoids timezone issues)
+        const validFrom = avail.valid_from; // Already a string "YYYY-MM-DD"
+        const validUntil = avail.valid_until; // Already a string "YYYY-MM-DD"
+        
+        // String comparison works correctly
+        const isValidFrom = !validFrom || checkDateStr >= validFrom;
+        const isValidUntil = !validUntil || checkDateStr <= validUntil;
+        
+        return isValidFrom && isValidUntil;
+      }
     );
     
-    if (dayAvail) {
-      // Parse existing slot
-      const startTime = dayAvail.start_time || dayAvail.startTime || '09:00';
-      const endTime = dayAvail.end_time || dayAvail.endTime || '17:00';
-      setEditSlots([{ id: Date.now(), startTime, endTime }]);
+    if (daySlots && daySlots.length > 0) {
+      // Create edit slots from all existing slots for this day
+      const slots = daySlots.map((slot, index) => {
+        // Parse time (format: "HH:MM:SS" -> "HH:MM")
+        const startTime = (slot.start_time || slot.startTime || '09:00').substring(0, 5);
+        const endTime = (slot.end_time || slot.endTime || '17:00').substring(0, 5);
+        return { id: Date.now() + index, startTime, endTime };
+      });
+      setEditSlots(slots);
     } else {
-      // Default empty slot
+      // Default empty slot if no availability
       setEditSlots([{ id: Date.now(), startTime: '09:00', endTime: '17:00' }]);
     }
     
     // Reset animation flag after animation completes
-    setTimeout(() => setIsEditPanelAnimating(false), 500);
+    setTimeout(() => {
+      setIsEditPanelAnimating(false);
+      // Scroll to the edit panel after it's rendered
+      const editPanel = document.querySelector('[data-edit-panel]');
+      if (editPanel) {
+        editPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 500);
   };
 
   // Add a new time slot
@@ -982,7 +968,7 @@ const HomePage = () => {
           {isToday && (
             <div style={{ 
               fontSize: '0.7rem', 
-              marginTop: '2px',
+              marginTop: '8px',
               backgroundColor: 'rgba(255, 220, 100, 0.9)',
               color: '#333',
               padding: '2px 6px',
@@ -999,19 +985,19 @@ const HomePage = () => {
                 marginTop: '8px',
                 padding: '4px 12px',
                 fontSize: '0.7rem',
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                color: 'white',
-                border: '1px solid rgba(255, 255, 255, 0.4)',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: 'rgba(255, 220, 100, 0.95)',
+                border: '1px solid rgba(255, 220, 100, 0.95)',
                 borderRadius: '4px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 fontWeight: '500'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.3)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
               }}
             >
               <i className="fas fa-edit" style={{ marginRight: '4px' }}></i>
@@ -1023,7 +1009,7 @@ const HomePage = () => {
     }
     
     // Time slots
-    hours.forEach(hour => {
+    hours.forEach((hour, rowIndex) => {
       // Time label
       const timeLabel = hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`;
       cells.push(
@@ -1048,7 +1034,7 @@ const HomePage = () => {
           });
           
           if (matchingBookings.length > 0) {
-            console.log(`🔍 Checking slot: ${dateStr} hour ${hour}`, {
+            /*console.log(`🔍 Checking slot: ${dateStr} hour ${hour}`, {
               foundBooking: booking ? booking.booking_id : 'none',
               matchingBookingsOnDate: matchingBookings.map(b => {
                 const startTime = new Date(b.start_time);
@@ -1070,7 +1056,7 @@ const HomePage = () => {
                                  (endTime.getHours() * 60 + endTime.getMinutes()) > (hour * 60)
                 };
               })
-            });
+            });*/
           }
         }
         
@@ -1083,7 +1069,7 @@ const HomePage = () => {
           <div 
             key={`slot-${hour}-${i}`} 
             style={{
-              ...styles.tutorTimeSlot,
+              ...styles.tutorTimeSlot(rowIndex), // Pass the row index for alternating row colors
               ...(isAvailable ? styles.availableSlot : {}),
               position: 'relative',
               overflow: 'visible'
@@ -1098,11 +1084,13 @@ const HomePage = () => {
                 style={{
                   position: 'absolute',
                   top: '4px', left: '4px', right: '4px', bottom: '4px',
-                  backgroundColor: booking.status === 'confirmed' ? 'rgba(76, 175, 80, 0.95)' : 'rgba(255, 193, 7, 0.95)',
-                  borderRadius: '6px', padding: '6px', color: '#fff', fontSize: '0.5rem', fontWeight: '500',
+                  backgroundColor: booking.status === 'confirmed' ? 'rgba(53, 0, 109, 0.55)' : 'rgba(255, 193, 7, 0.55)',
+                  borderRadius: '6px', padding: '6px 3px', color: '#fff', fontSize: '0.5rem', fontWeight: '500',
                   display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
                   textAlign: 'center', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  zIndex: 10, border: '1px solid rgba(255,255,255,0.3)', cursor:'pointer', borderWidth:'2px', transition: 'box-shadow 0.5s, background 0.5s',
+                  zIndex: 10, border: '1px solid rgba(255,255,255,0.3) ',
+                  borderLeft: booking.status === 'confirmed' ? '6px solid rgba(53, 0, 109, 0.95)' : '6px solid rgba(255, 193, 7, 0.95)',
+                  cursor:'pointer', transition: 'box-shadow 0.5s, background 0.5s',
                 }}
               >
                 <div style={{ fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '2px' }}>
@@ -1123,72 +1111,389 @@ const HomePage = () => {
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [slideDirection, setSlideDirection] = useState('none');
-  const [isEditingAvailability, setIsEditingAvailability] = useState(false);
   const [editingDate, setEditingDate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ success: false, message: '' });
 
   // Function to save availability for a specific date
-  const saveAvailability = async (date, isRecurring = false) => {
-    if (!user?.isTutor || !editingDate) return;
+  // Replace the saveAvailability function in HomePage.js with this corrected version
+
+// Replace the saveAvailability function in HomePage.js with this corrected version
+
+const saveAvailability = async (date, isRecurring = false) => {
+  if (!user?.isTutor || !editingDate) return;
+  
+  setIsSaving(true);
+  setSaveStatus({ success: false, message: '' });
+  
+  try {
+    const apiBaseUrl = window.location.hostname === 'localhost' 
+      ? 'http://localhost:8000' 
+      : '/api';
     
-    setIsSaving(true);
-    setSaveStatus({ success: false, message: '' });
+    const weekday = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    const dayBefore = format(addDays(date, -1), 'yyyy-MM-dd');
+    const dayAfter = format(addDays(date, 1), 'yyyy-MM-dd');
     
-    try {
-      const apiBaseUrl = window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
-        : '/api';
-        
-      // Convert the editing date to a weekday (0-6, where 0 is Sunday)
-      const weekday = date.getDay();
-      const startTime = format(editingDate, 'HH:mm');
-      const endTime = format(addMinutes(editingDate, 30), 'HH:mm');
-      
-      const response = await fetch(`${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`, {
-        method: 'POST',
+    console.log('========================================');
+    console.log('SAVE AVAILABILITY STARTED');
+    console.log('Date:', formattedDate, 'Weekday:', weekday);
+    console.log('IsRecurring:', isRecurring);
+    console.log('Edit Slots:', editSlots);
+    console.log('========================================');
+    
+    // STEP 1: Fetch all existing slots for this tutor
+    console.log('STEP 1: Fetching all existing slots...');
+    const allSlotsResponse = await fetch(
+      `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+      {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          weekday: weekday,
-          start_time: startTime,
-          end_time: endTime,
-          location_mode: 'online',
-          location_note: isRecurring ? 'Recurring weekly slot' : 'One-time availability'
-        })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        setSaveStatus({ 
-          success: true, 
-          message: isRecurring 
-            ? `Availability set for all ${format(editingDate, 'EEEE')}s successfully!`
-            : 'Availability set for this day successfully!'
-        });
-        // Refresh availability data
-        fetchTutorAvailability();
-      } else {
-        throw new Error(data.detail || 'Failed to save availability');
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
       }
-    } catch (error) {
-      console.error('Error saving availability:', error);
-      setSaveStatus({ 
-        success: false, 
-        message: error.message || 'Error saving availability. Please try again.'
-      });
-    } finally {
-      setIsSaving(false);
-      
-      // Clear status message after 5 seconds
-      setTimeout(() => {
-        setSaveStatus({ success: false, message: '' });
-      }, 5000);
+    );
+    
+    if (!allSlotsResponse.ok) {
+      const errorText = await allSlotsResponse.text();
+      console.error('Failed to fetch slots:', allSlotsResponse.status, errorText);
+      throw new Error(`Failed to fetch existing slots: ${allSlotsResponse.status}`);
     }
-  };
+    
+    const allSlots = await allSlotsResponse.json();
+    console.log('All existing slots received:', JSON.stringify(allSlots, null, 2));
+    
+    // Ensure allSlots is an array
+    const slotsArray = Array.isArray(allSlots) ? allSlots : [];
+    
+    // STEP 2: Filter slots that match this weekday
+    console.log('STEP 2: Filtering slots for weekday:', weekday);
+    
+    const slotsToDelete = [];
+    const slotsToModify = [];
+    
+    for (const slot of slotsArray) {
+      const slotWeekday = slot.weekday;
+      
+      console.log('Checking slot:', {
+        slot_id: slot.slot_id,
+        weekday: slotWeekday,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        valid_from: slot.valid_from,
+        valid_until: slot.valid_until
+      });
+      
+      // First check: does the weekday match?
+      if (slotWeekday !== weekday) {
+        console.log('Weekday mismatch - Skip');
+        continue;
+      }
+      
+      const slotValidFrom = slot.valid_from ? new Date(slot.valid_from) : null;
+      const slotValidUntil = slot.valid_until ? new Date(slot.valid_until) : null;
+      const targetDate = new Date(formattedDate);
+      
+      // If recurring mode (apply to all future occurrences):
+      // Delete slots that are still active on or after the target date
+      if (isRecurring) {
+        // Keep slots that ended before the target date (don't delete past slots)
+        if (slotValidUntil && slotValidUntil < targetDate) {
+          console.log('Past slot (ended before target) - Skip');
+          continue;
+        }
+        // Delete all other slots for this weekday (active now or in the future)
+        console.log('Recurring mode - slot active on/after target date - MATCH (will delete)');
+        slotsToDelete.push(slot);
+        continue;
+      }
+      
+      // For single day mode:
+      // Check if this slot covers the target date
+      const isValidFrom = !slotValidFrom || slotValidFrom <= targetDate;
+      const isValidUntil = !slotValidUntil || slotValidUntil >= targetDate;
+      const coversTargetDate = isValidFrom && isValidUntil;
+      
+      if (!coversTargetDate) {
+        console.log('Slot does not cover target date - Skip');
+        continue;
+      }
+      
+      console.log('Slot covers target date - need to split');
+      
+      // This slot needs to be split:
+      // 1. If slot starts before target date, keep the "before" part
+      // 2. Delete the slot (it will be replaced)
+      // 3. If slot continues after target date, create an "after" part
+      
+      const startsBeforeTarget = !slotValidFrom || slotValidFrom < targetDate;
+      const continuesAfterTarget = !slotValidUntil || slotValidUntil > targetDate;
+      
+      if (startsBeforeTarget || continuesAfterTarget) {
+        // We need to split this recurring slot
+        slotsToModify.push({
+          original: slot,
+          startsBeforeTarget,
+          continuesAfterTarget
+        });
+      }
+      
+      // Always delete the original slot when applying to single day
+      slotsToDelete.push(slot);
+    }
+    
+    console.log(`Found ${slotsToDelete.length} slots to delete:`, 
+      slotsToDelete.map(s => ({ id: s.slot_id, weekday: s.weekday, time: `${s.start_time}-${s.end_time}` }))
+    );
+    
+    // STEP 3: Handle slot modifications for single-day mode
+    if (!isRecurring && slotsToModify.length > 0) {
+      console.log('STEP 3: Creating split slots for recurring availability...');
+      
+      for (const modification of slotsToModify) {
+        const { original, startsBeforeTarget, continuesAfterTarget } = modification;
+        
+        // Create "before" part if needed
+        if (startsBeforeTarget) {
+          const beforeSlot = {
+            weekday: original.weekday,
+            start_time: original.start_time,
+            end_time: original.end_time,
+            location_mode: original.location_mode || 'online',
+            location_note: `Recurring slot (before ${formattedDate})`,
+            valid_from: original.valid_from,
+            valid_until: dayBefore, // End the day before target
+            duration: 'custom'
+          };
+          
+          console.log('Creating before slot:', JSON.stringify(beforeSlot, null, 2));
+          
+          const beforeResponse = await fetch(
+            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify(beforeSlot)
+            }
+          );
+          
+          if (!beforeResponse.ok) {
+            const errorData = await beforeResponse.json().catch(() => ({}));
+            console.error('Failed to create before slot:', errorData);
+          } else {
+            console.log('Successfully created before slot');
+          }
+        }
+        
+        // Create "after" part if needed
+        if (continuesAfterTarget) {
+          const afterSlot = {
+            weekday: original.weekday,
+            start_time: original.start_time,
+            end_time: original.end_time,
+            location_mode: original.location_mode || 'online',
+            location_note: `Recurring slot (after ${formattedDate})`,
+            valid_from: dayAfter, // Start the day after target
+            valid_until: original.valid_until,
+            duration: 'custom'
+          };
+          
+          console.log('Creating after slot:', JSON.stringify(afterSlot, null, 2));
+          
+          const afterResponse = await fetch(
+            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify(afterSlot)
+            }
+          );
+          
+          if (!afterResponse.ok) {
+            const errorData = await afterResponse.json().catch(() => ({}));
+            console.error('Failed to create after slot:', errorData);
+          } else {
+            console.log('Successfully created after slot');
+          }
+        }
+      }
+    }
+    
+    // STEP 4: Delete all matching slots
+    if (slotsToDelete.length > 0) {
+      console.log('STEP 4: Deleting slots...');
+      
+      for (const slot of slotsToDelete) {
+        const slotId = slot.slot_id;
+        console.log(`Deleting slot ID: ${slotId}`);
+        
+        try {
+          const deleteResponse = await fetch(
+            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots/${slotId}`,
+            {
+              method: 'DELETE',
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          
+          if (!deleteResponse.ok) {
+            const errorData = await deleteResponse.json().catch(() => ({}));
+            const errorMsg = errorData.detail || deleteResponse.statusText;
+            console.error(`Failed to delete slot ${slotId}:`, errorMsg);
+            throw new Error(`Failed to delete slot ${slotId}: ${errorMsg}`);
+          }
+          
+          const deleteResult = await deleteResponse.json();
+          console.log(`Successfully deleted slot ${slotId}:`, deleteResult);
+        } catch (error) {
+          console.error(`Error deleting slot ${slotId}:`, error);
+          throw error;
+        }
+      }
+      
+      console.log(`Successfully deleted all ${slotsToDelete.length} slots`);
+    } else {
+      console.log('No slots to delete');
+    }
+    
+    // STEP 5: If editSlots is empty, we're done (just deleted everything)
+    if (!editSlots || editSlots.length === 0) {
+      console.log('STEP 5: No new slots to create - availability cleared');
+      setSaveStatus({ 
+        success: true, 
+        message: isRecurring 
+          ? `Cleared availability for all future ${format(editingDate, 'EEEE')}s`
+          : 'Cleared availability for this day'
+      });
+      await fetchTutorAvailability();
+      console.log('========================================');
+      console.log('SAVE AVAILABILITY COMPLETED (CLEARED)');
+      console.log('========================================');
+      return;
+    }
+    
+    // STEP 6: Create new slots
+    console.log('STEP 6: Creating new slots...');
+    
+    for (const slot of editSlots) {
+      if (!slot.startTime || !slot.endTime) {
+        throw new Error('Please set both start and end times');
+      }
+      
+      // Format times in HH:MM:SS
+      const startTime = slot.startTime.includes(':') 
+        ? (slot.startTime.length === 5 ? `${slot.startTime}:00` : slot.startTime)
+        : `${slot.startTime}:00:00`;
+      const endTime = slot.endTime.includes(':') 
+        ? (slot.endTime.length === 5 ? `${slot.endTime}:00` : slot.endTime)
+        : `${slot.endTime}:00:00`;
+      
+      // Prepare request body
+      const requestBody = {
+        weekday: weekday,
+        start_time: startTime,
+        end_time: endTime,
+        location_mode: 'online',
+        location_note: isRecurring 
+          ? `Recurring weekly slot starting ${formattedDate}` 
+          : `One-time availability for ${formattedDate}`,
+        valid_from: formattedDate,
+        valid_until: isRecurring ? null : formattedDate,
+        ...(isRecurring && { duration: 'forever' })
+      };
+      
+      console.log('Creating slot with data:', JSON.stringify(requestBody, null, 2));
+      
+      try {
+        const createResponse = await fetch(
+          `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestBody)
+          }
+        );
+        
+        if (!createResponse.ok) {
+          const errorData = await createResponse.json().catch(() => ({}));
+          const errorMsg = errorData.detail || createResponse.statusText;
+          console.error('Failed to create slot:', errorMsg);
+          throw new Error(errorMsg);
+        }
+        
+        const createResult = await createResponse.json();
+        console.log('Successfully created slot:', createResult);
+      } catch (error) {
+        console.error('Error creating slot:', error);
+        throw error;
+      }
+    }
+    
+    console.log('Successfully created all slots');
+    
+    // STEP 7: Success!
+    setSaveStatus({ 
+      success: true, 
+      message: isRecurring 
+        ? `Availability updated for all future ${format(editingDate, 'EEEE')}s!`
+        : 'Availability updated for this day!'
+    });
+    
+    // Refresh availability data
+    console.log('Refreshing availability data...');
+    await fetchTutorAvailability();
+    
+    console.log('========================================');
+    console.log('SAVE AVAILABILITY COMPLETED (SUCCESS)');
+    console.log('========================================');
+    
+  } catch (error) {
+    console.error('========================================');
+    console.error('SAVE AVAILABILITY ERROR:', error);
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('========================================');
+    
+    setSaveStatus({ 
+      success: false, 
+      message: error.message || 'Error saving availability. Please try again.'
+    });
+  } finally {
+    setIsSaving(false);
+    
+    // Clear status message after 5 seconds with fade out
+    const timer = setTimeout(() => {
+      const statusElement = document.querySelector('[data-status-message]');
+      if (statusElement) {
+        statusElement.style.opacity = '0';
+        statusElement.style.transform = 'translate(-50%, -20px)';
+        statusElement.style.pointerEvents = 'none';
+        
+        // Remove from DOM after animation completes
+        setTimeout(() => {
+          setSaveStatus({ success: false, message: '' });
+        }, 300);
+      } else {
+        setSaveStatus({ success: false, message: '' });
+      }
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }
+};
   
   // Handle apply to this day
   const handleApplyToThisDay = () => {
@@ -1196,8 +1501,8 @@ const HomePage = () => {
     saveAvailability(editingDate, false);
   };
   
-  // Handle apply to all days of week
-  const handleApplyToAllDays = () => {
+  // Handle apply to all future days of week
+  const handleApplyToAllFutureDays = () => {
     if (!editingDate) return;
     saveAvailability(editingDate, true);
   };
@@ -1282,13 +1587,23 @@ const HomePage = () => {
       from { transform: translateX(0); opacity: 1; }
       to { transform: translateX(-100%); opacity: 0; }
     }
-    @keyframes slideInRight {
+    @keyframes slideInFromRight {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
-    @keyframes slideOutRight {
+    @keyframes slideOutToRight {
       from { transform: translateX(0); opacity: 1; }
       to { transform: translateX(100%); opacity: 0; }
+    }
+    @keyframes slideDown {
+      from { 
+        transform: translate(-50%, -20px);
+        opacity: 0;
+      }
+      to { 
+        transform: translate(-50%, 0);
+        opacity: 1;
+      }
     }
     @keyframes editPanelPopIn {
       0% {
@@ -1780,9 +2095,11 @@ const HomePage = () => {
             
             {/* Edit Availability Section */}
             {user?.isTutor && editingDate && (
-              <div style={{
-                ...styles.searchContainer,
-                width: '100%',
+              <div 
+                data-edit-panel
+                style={{
+                  ...styles.searchContainer,
+                  width: '100%',
                 margin: 0,
                 animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
                 transformOrigin: 'center top'
@@ -1825,7 +2142,7 @@ const HomePage = () => {
                       gap: '12px',
                       marginBottom: '12px',
                       padding: '12px',
-                      backgroundColor: '#f8f9fa',
+                      backgroundColor: 'rgba(255, 220, 100, 0.3)',
                       borderRadius: '8px',
                       border: '1px solid #e9ecef',
                       animation: isEditPanelAnimating ? `editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.1 + index * 0.1}s backwards` : 'none'
@@ -1894,7 +2211,7 @@ const HomePage = () => {
                       width: '100%',
                       padding: '10px',
                       backgroundColor: 'transparent',
-                      border: '2px dashed #ced4da',
+                      border: '2px dashed rgb(206, 212, 218)',
                       borderRadius: '8px',
                       color: '#6c757d',
                       cursor: 'pointer',
@@ -1907,12 +2224,12 @@ const HomePage = () => {
                       gap: '8px'
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.borderColor = '#35006D';
+                      e.currentTarget.style.borderColor = 'rgb(196, 180, 7)';
                       e.currentTarget.style.color = '#35006D';
                       e.currentTarget.style.backgroundColor = '#f8f9fa';
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.borderColor = '#ced4da';
+                      e.currentTarget.style.borderColor = 'rgb(206, 212, 218)';
                       e.currentTarget.style.color = '#6c757d';
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
@@ -1951,12 +2268,12 @@ const HomePage = () => {
                   </button>
                   
                   <button
-                    onClick={handleApplyToAllDays}
+                    onClick={handleApplyToAllFutureDays}
                     disabled={isSaving}
                     style={{
                       flex: 1,
                       padding: '10px 20px',
-                      backgroundColor: isSaving ? '#adb5bd' : '#6c757d',
+                      backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
                       color: 'white',
                       border: 'none',
                       borderRadius: '6px',
@@ -1966,31 +2283,41 @@ const HomePage = () => {
                       transition: 'background-color 0.2s',
                       opacity: isSaving ? 0.7 : 1
                     }}
-                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#5a6268')}
-                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#6c757d')}
+                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
+                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
                   >
-                    {isSaving ? 'Saving...' : `Apply to All ${format(editingDate, 'EEEE')}s`}
+                    {isSaving ? 'Saving...' : `Apply to All Future ${format(editingDate, 'EEEE')}s`}
                   </button>
                   
                   {saveStatus.message && (
                     <div style={{
-                      position: 'absolute',
-                      bottom: '60px',
+                      position: 'fixed',
+                      top: '20px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      padding: '10px 20px',
-                      backgroundColor: saveStatus.success ? '#d4edda' : '#f8d7da',
+                      padding: '12px 24px',
+                      backgroundColor: saveStatus.success ? 'rgba(212, 237, 218, 0.95)' : 'rgba(248, 215, 218, 0.95)',
                       color: saveStatus.success ? '#155724' : '#721c24',
-                      borderRadius: '4px',
-                      fontSize: '0.9rem',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                       zIndex: 1000,
                       transition: 'all 0.3s ease-in-out',
-                      opacity: saveStatus.message ? 1 : 0,
-                      maxWidth: '80%',
-                      textAlign: 'center'
+                      opacity: 1,
+                      maxWidth: '90%',
+                      textAlign: 'center',
+                      backdropFilter: 'blur(4px)',
+                      border: `1px solid ${saveStatus.success ? '#c3e6cb' : '#f5c6cb'}`,
+                      animation: 'slideDown 0.3s ease-out'
                     }}>
-                      {saveStatus.message}
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}>
+                        <i className={`fas ${saveStatus.success ? 'fa-check-circle' : 'fa-exclamation-circle'}`}></i>
+                        {saveStatus.message}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2076,7 +2403,7 @@ const HomePage = () => {
                     e.currentTarget.style.transform = 'translateY(0)';
                   }}
                 >
-                  Next Week <i className="fas fa-chevron-right"></i>
+                  Next Week <i className="fas fa-chevron-right" style={{ marginLeft: '8px' }}></i>
                 </button>
               </div>
               
@@ -2103,7 +2430,6 @@ const HomePage = () => {
                     border: '1px solid #dee2e6',
                     borderRadius: '8px',
                     overflow: 'hidden',
-                    backgroundColor: 'white'
                   }}>
                     {weekDays.map((day, index) => {
                       const currentDate = addDays(currentWeekStart, index);
@@ -2133,10 +2459,30 @@ const HomePage = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             backgroundColor: isToday ? 'rgba(53, 0, 109, 0.1)' : 'transparent',
-                            color: isToday ? '#35006D' : 'inherit',
-                            fontWeight: isToday ? 'bold' : 'normal'
+                            color: 'inherit',
+                            fontWeight: isToday ? 'bold' : 'normal',
+                            position: 'relative'
                           }}>
                             {format(currentDate, 'd')}
+                            {isToday && (
+                              <div style={{
+                                position: 'absolute',
+                                top: '-42px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                fontSize: '10px',
+                                fontWeight: 'bold',
+                                color: '#35006D',
+                                whiteSpace: 'nowrap',
+                                backgroundColor: 'white',
+                                borderRadius: '6px',
+                                padding: '0px 4px',
+                                zIndex: 1,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                              }}>
+                                Today
+                              </div>
+                            )}
                           </div>
                         </div>
                       );
@@ -2168,11 +2514,12 @@ const HomePage = () => {
                     </div>
                   ) : (
                     <>
-                      <div style={{ 
-                        position: 'relative',
+                      <div style={{
+                        position: 'sticky',
+                        top: '0',
                         zIndex: 1,
-                        marginBottom: '10px', 
-                        padding: '8px 12px', 
+                        marginBottom: '10px',
+                        padding: '8px 12px',
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         borderRadius: '6px',
                         border: '1px solid rgba(0, 0, 0, 0.1)',
@@ -2180,16 +2527,39 @@ const HomePage = () => {
                         color: '#666',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '8px',
+                        flexWrap: 'wrap',
+                        gap: '16px',
                         boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                       }}>
-                        <div style={{
-                          width: '16px',
-                          height: '16px',
-                          backgroundColor: 'rgba(255, 220, 100, 0.6)',
-                          borderRadius: '3px'
-                        }}></div>
-                        Available hours
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: 'rgba(255, 220, 100, 0.4)',
+                            borderRadius: '3px'
+                          }}></div>
+                          <span>Available hours</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: 'rgba(255, 193, 7, 0.9)',
+                            borderRadius: '3px',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                          }}></div>
+                          <span>Pending requests</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{
+                            width: '16px',
+                            height: '16px',
+                            backgroundColor: 'rgba(53, 0, 109, 0.5)',
+                            borderRadius: '3px',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                          }}></div>
+                          <span>Confirmed appointments</span>
+                        </div>
                       </div>
                       <div style={{
                         ...styles.tutorCalendarGrid,
