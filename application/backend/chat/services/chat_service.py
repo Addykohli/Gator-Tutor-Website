@@ -3,6 +3,10 @@ from chat.schemas.chat_schemas import MessageInfo
 from sqlalchemy.orm import Session
 
 def send_message(db: Session, sender_id: int, req:MessageInfo):
+    #attempt: fix dict error
+    if isinstance(req,dict):
+        req= MessageInfo(**req)
+        
     chat_message = ChatMessage(
         sender_id = sender_id,
         receiver_id = req.receiver_id,

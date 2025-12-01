@@ -62,3 +62,9 @@ GET /api/chat/allchats/1
 ```json
 [2, 5, 8]
 ```
+
+## Websocket for realtime messaging##
+### /ws/chat/{user_id}
+Opens a WebSocket connection for a user.Broadcasts to both users.
+when connecting the server will also store the WebSocket in manger.active_connections[user_id]
+

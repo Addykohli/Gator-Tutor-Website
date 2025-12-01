@@ -6,7 +6,7 @@ from datetime import datetime
 
 class MessageInfo(BaseModel):
     receiver_id: int
-    content: str | None =None
+    content: str
 
 class MessageResponse(BaseModel):
     message_id: int

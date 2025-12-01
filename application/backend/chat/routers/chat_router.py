@@ -3,6 +3,8 @@ from chat.services.chat_service import send_message, get_chat, get_user_chats
 from auth.services.auth_service import get_user_by_id
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
+from fastapi import WebSocket, WebSocketDisconnect
+from chat.services.connection_manager import manager
 
 
 from search.database import get_db
@@ -32,3 +34,33 @@ def get_chat_endpoint(user1:int, user2:int, db: Session = Depends(get_db)):
 def get_user_chats_endpoint(user_id:int, db: Session = Depends(get_db)):
     related_chats = get_user_chats(db, user_id)
     return related_chats
+
+#adding the websocket to have realtime chat(ie user sends message and 
+# it is sent/recieved wihout having to reload page)
+# while it is also still storing them in the db
+@router.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: int):
+    await manager.connect(user_id, websocket)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            receiver_id= data["receiver_id"]
+            content = data["content"]
+            db = next(get_db())
+            chat_message = send_message(db =db, sender_id=user_id, req=data)
+
+            await manager.broadcast_to_pair(
+                user1=user_id,
+                user2=receiver_id,
+                message={
+                    "message_id":chat_message.message_id,
+                    "sender_id": user_id,
+                    "receiver_id":receiver_id,
+                    "content": content,
+                    "created_at": str(chat_message.created_at)
+                }
+            )
+
+    except WebSocketDisconnect:
+        manager.disconnect(user_id, websocket)
+
