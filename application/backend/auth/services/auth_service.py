@@ -16,6 +16,9 @@ def get_user(db: Session, email:str):
 def get_user_by_id(db: Session, user_id: int):
     return db.query(User).filter(User.user_id == user_id).first()
 
+def get_user_by_id(db: Session, user_id: int):
+    return db.query(User).filter(User.user_id == user_id).first()
+
 def authenticate_user(db: Session, email:str, password:str):
     user = get_user(db, email)
     if not user:
