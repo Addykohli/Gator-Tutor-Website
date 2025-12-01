@@ -22,7 +22,7 @@ Send a **text** or **media** message between two users.
   "receiver_id": 2,
   "content": "Hello!",
   "media_url": null,
-  "timestamp": "2025-11-07T19:35:21"
+  "created_at": "2025-11-07T19:35:21"
 }
 ```
 ## **GET /api/chat/chatroomhistory/{user1_id}/{user2_id}**
