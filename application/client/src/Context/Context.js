@@ -9,7 +9,9 @@ const initialState = {
     id: null,
     firstName: '',
     lastName: '',
-    isTutor: false
+    email: '',
+    isTutor: false,
+    role: 'student' // 'student', 'tutor', 'admin', or 'both'
   },
   isAuthenticated: false,
   loading: true
@@ -25,21 +27,28 @@ const reducer = (state, action) => {
           id: action.payload.id,
           firstName: action.payload.firstName || '',
           lastName: action.payload.lastName || '',
-          isTutor: action.payload.isTutor || false
+          email: action.payload.email || '',
+          isTutor: action.payload.isTutor || false,
+          role: action.payload.role || 'student'
         },
         isAuthenticated: true,
         loading: false
       };
     case 'LOGOUT':
+      // Clear user data from localStorage
+      localStorage.removeItem('user');
+      localStorage.removeItem('authToken');
       return {
         ...state,
         user: {
           id: null,
           firstName: '',
           lastName: '',
-          isTutor: false
+          email: '',
+          isTutor: false,
+          role: 'student'
         },
-        isAuthenticated: true, //false
+        isAuthenticated: false,
         loading: false
       };
     case 'SET_LOADING':
@@ -69,7 +78,10 @@ export const ContextProvider = ({ children }) => {
             payload: {
               id: userData.id,
               firstName: userData.firstName,
-              lastName: userData.lastName
+              lastName: userData.lastName,
+              email: userData.email,
+              isTutor: userData.isTutor || false,
+              role: userData.role || 'student'
             }
           });
         }
@@ -87,17 +99,24 @@ export const ContextProvider = ({ children }) => {
   const login = async (userData) => {
     try {
       // Store user data in localStorage
-      localStorage.setItem('user', JSON.stringify(userData));
-      console.log(userData);
+      const userToStore = {
+        id: userData.id,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        isTutor: userData.isTutor || false,
+        role: userData.role || 'student',
+        authToken: userData.authToken
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userToStore));
+      if (userData.authToken) {
+        localStorage.setItem('authToken', userData.authToken);
+      }
+      
       dispatch({
         type: 'LOGIN',
-        payload: {
-          id: userData.id,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          isTutor: userData.isTutor || false
-
-        }
+        payload: userToStore
       });
       
       return true;
@@ -109,23 +128,12 @@ export const ContextProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
-    try {
-      // Remove user data from localStorage
-      localStorage.removeItem('user');
-      
-      dispatch({ type: 'LOGOUT' });
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
+    dispatch({ type: 'LOGOUT' });
   };
 
   return (
-    <Context.Provider value={{
-      ...state,
-      login,
-      logout
-    }}>
-      {!state.loading && children}
+    <Context.Provider value={{ ...state, login, logout }}>
+      {!state.loading ? children : <div>Loading...</div>}
     </Context.Provider>
   );
 };

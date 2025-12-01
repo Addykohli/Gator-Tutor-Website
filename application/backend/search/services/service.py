@@ -234,6 +234,8 @@ def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
     
     courses = [
         {
+            "id": c.course_id,
+            "course_id": c.course_id,
             "department_code": c.department_code,
             "course_number": c.course_number,
             "title": c.title

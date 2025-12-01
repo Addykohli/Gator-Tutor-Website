@@ -2,15 +2,15 @@
 Pydantic schemas for booking-related operations.
 """
 from pydantic import BaseModel, Field
-from datetime import datetime, date, time
-from typing import List, Optional
+from datetime import datetime
+from typing import Optional
 
 
 class BookingBase(BaseModel):
     """Base schema for booking data."""
     start_time: datetime
     end_time: datetime
-    course_id: Optional[int] = None
+    course_id: int = Field(..., description="Course ID (required)")
     meeting_link: Optional[str] = None
     notes: Optional[str] = None
 
@@ -40,15 +40,7 @@ class BookingResponse(BookingBase):
         from_attributes = True
 
 
-class TimeSlot(BaseModel):
-    """Schema for an available time slot."""
-    start_time: datetime
-    end_time: datetime
-    is_available: bool = True
-
-
-class AvailabilityResponse(BaseModel):
-    """Schema for availability response."""
-    tutor_id: int
-    date: date
-    slots: List[TimeSlot]
+class BookingStatusUpdate(BaseModel):
+    """Schema for updating booking status."""
+    status: str = Field(..., description="New status: pending, confirmed, cancelled, or completed")
+    tutor_id: int = Field(..., description="Tutor ID for authorization")

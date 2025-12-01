@@ -21,7 +21,7 @@ export default function SearchPage() {
       color: "#333",
       textAlign: "center",
       paddingBottom: "3px",
-      borderBottom: "8px solid #9A2250",
+      borderBottom: "8px solid rgb(255, 220, 112)",
       display: "block",
       margin: "20px auto",
       fontSize: "45px",

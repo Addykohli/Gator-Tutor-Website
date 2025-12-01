@@ -3,7 +3,8 @@ import Header from './Header';
 import Footer from './Footer';
 
 const RegisterPage = () => {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,7 +25,7 @@ const RegisterPage = () => {
         color: "#333",
         textAlign: "center",
         paddingBottom: "3px",
-        borderBottom: "8px solid #9A2250",
+        borderBottom: "8px solid rgb(255, 220, 112)",
         display: "block",
         margin: "20px auto",
         fontSize: "45px",
@@ -114,7 +115,12 @@ const RegisterPage = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ 
+          first_name: firstName, 
+          last_name: lastName,
+          email, 
+          password 
+        }),
       });
 
       const data = await response.json();
@@ -145,15 +151,34 @@ const RegisterPage = () => {
 
         <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
           <div style={styles.inputContainer}>
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ ...styles.inputField, ...styles.firstField }}
-              required
-              disabled={isLoading}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  required
+                />
+              </div>
+            </div>
             <div style={{ borderTop: '1px solid #e9ecef' }} />
             <input
               type="email"

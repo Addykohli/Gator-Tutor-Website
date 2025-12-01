@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const menuRef = useRef(null);
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
 
@@ -18,12 +19,6 @@ const Header = () => {
     { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
     { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
     // Tutor-only menu items
-    { 
-      icon: 'fas fa-calendar-alt', 
-      label: 'Appointments', 
-      path: '/appointments',
-      tutorOnly: true
-    },
     { 
       icon: 'fas fa-calendar-check', 
       label: 'Appointment Requests', 
@@ -400,15 +395,59 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Login/Signup buttons - only show when not authenticated */}
-      {!isAuthenticated && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          marginLeft: 'auto',
-          paddingRight: '10px',
-          zIndex: 99,
-        }}>
+      {/* Auth buttons */}
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center',
+        marginLeft: 'auto',
+        paddingRight: '10px',
+        zIndex: 99,
+      }}>
+        {!isAuthenticated ? (
+          <>
+            <button 
+              style={navButtonStyle}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
+                e.currentTarget.style.color = 'rgb(35, 17, 97)';
+                e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'rgb(255, 220, 112)';
+                e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/login');
+              }}
+            >
+              <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+              Login
+            </button>
+            <span style={dividerStyle}>|</span>
+            <button 
+              style={navButtonStyle}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
+                e.currentTarget.style.color = 'rgb(35, 17, 97)';
+                e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.color = 'rgb(255, 220, 112)';
+                e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/register');
+              }}
+            >
+              <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+              Sign Up
+            </button>
+          </>
+        ) : (
           <button 
             style={navButtonStyle}
             onMouseEnter={(e) => {
@@ -421,37 +460,33 @@ const Header = () => {
               e.currentTarget.style.color = 'rgb(255, 220, 112)';
               e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
             }}
-            onClick={(e) => {
+            onClick={async (e) => {
               e.preventDefault();
-              navigate('/login');
+              
+              // Show confirmation dialog
+              const confirmLogout = window.confirm('Are you sure you want to log out?');
+              
+              if (confirmLogout) {
+                try {
+                  // Call the logout function from context
+                  logout();
+                  // Redirect to home page after logout
+                  if (location.pathname === '/') {
+                    window.location.reload(); // Force a full page reload if already on home page
+                  } else {
+                    navigate('/');
+                  }
+                } catch (error) {
+                  console.error('Logout failed:', error);
+                }
+              }
             }}
           >
-            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-            Login
+            <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+            Logout
           </button>
-        <span style={dividerStyle}>|</span>
-          <button 
-          style={navButtonStyle}
-            onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-            e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgb(255, 220, 112)';
-            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/register');
-            }}
-          >
-          <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-            Sign Up
-          </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

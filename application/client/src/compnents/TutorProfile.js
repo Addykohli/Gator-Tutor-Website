@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../Context/Context';
 import Header from './Header';
 import Footer from './Footer';
 
@@ -11,6 +12,7 @@ const TutorProfile = () => {
   const [tutor, setTutor] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { user } = useAuth();
   
   // State for the booking form
   const [selectedDate, setSelectedDate] = useState('');
@@ -20,6 +22,14 @@ const TutorProfile = () => {
   const [notes, setNotes] = useState('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingError, setBookingError] = useState(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+  
+  // State for appointment requests
+  const [appointmentRequests, setAppointmentRequests] = useState([]);
+  const [isLoadingRequests, setIsLoadingRequests] = useState(false);
+  const [requestError, setRequestError] = useState(null);
   
   // Format time to 12-hour format with AM/PM
   const formatTime = (dateTime) => {
@@ -48,6 +58,10 @@ const TutorProfile = () => {
         
         const data = await response.json();
         console.log('Tutor data:', data); // Log tutor data to check its structure
+        console.log('Tutor courses:', data.courses); // Log courses to check if they have id/course_id
+        if (data.courses && data.courses.length > 0) {
+          console.log('First course structure:', data.courses[0]);
+        }
         setTutor(data);
         
       } catch (err) {
@@ -77,7 +91,7 @@ const TutorProfile = () => {
         
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
         const response = await fetch(
-          `${apiBaseUrl}/search/tutors/${tutorId}/availability?date=${selectedDate}`
+          `${apiBaseUrl}/schedule/tutors/${tutorId}/availability?date=${selectedDate}`
         );
         
         if (!response.ok) {
@@ -114,28 +128,208 @@ const TutorProfile = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!tutor) return;
+    if (!tutor || !user) {
+      setBookingError('Please log in to book a session');
+      return;
+    }
     
-    // Prepare booking data
-    const bookingData = {
-      tutorId: tutor.id,
-      date: selectedDate,
-      time: selectedTime,
-      course: selectedCourse,
-      sessionType,
-      notes,
-      price: tutor.hourly_rate_cents ? tutor.hourly_rate_cents / 100 : 0
-    };
-    
-    console.log('Submitting booking:', bookingData);
-    // Here you would typically send this to your backend
-    // await fetch('/api/bookings', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(bookingData)
-    // });
+    // Reset messages
+    setBookingError(null);
+    setBookingSuccess(false);
+    setIsBooking(true);
+
+    try {
+      // Parse the selected time slot
+      console.log('Selected time string:', selectedTime);
+      const [startTimeStr] = selectedTime.split(' - ');
+      console.log('Start time string:', startTimeStr);
+      
+      // Handle both 12-hour and 24-hour formats
+      let hours, minutes;
+      if (startTimeStr.includes(' ')) {
+        // 12-hour format (e.g., "2:30 PM")
+        const [time, period] = startTimeStr.split(' ');
+        [hours, minutes] = time.split(':').map(Number);
+        
+        // Convert to 24-hour format
+        if (period && period.toLowerCase() === 'pm' && hours < 12) {
+          hours += 12;
+        } else if (period && period.toLowerCase() === 'am' && hours === 12) {
+          hours = 0;
+        }
+      } else {
+        // 24-hour format (e.g., "14:30")
+        [hours, minutes] = startTimeStr.split(':').map(Number);
+      }
+      
+      console.log('Parsed hours:', hours, 'minutes:', minutes);
+      
+      const [year, month, day] = selectedDate.split('-').map(Number);
+      console.log('Parsed date:', { year, month: month - 1, day });
+      
+      // Create date objects in local time
+      const startDateTime = new Date(year, month - 1, day, hours, minutes || 0);
+      const endDateTime = new Date(startDateTime.getTime() + 60 * 60000); // Add 60 minutes (1 hour)
+      
+      console.log('Start date time:', startDateTime);
+      console.log('End date time:', endDateTime);
+
+      // Format dates in ISO 8601 format
+      const formatDateTime = (date) => {
+        return date.toISOString();
+      };
+
+      // Validate that a course is selected
+      if (!selectedCourse || selectedCourse.trim() === '') {
+        throw new Error('Please select a course');
+      }
+
+      // Find the selected course
+      const selectedCourseObj = tutor.courses.find(c => 
+        `${c.department_code} ${c.course_number}` === selectedCourse
+      );
+
+      if (!selectedCourseObj) {
+        console.error('Available courses:', tutor.courses);
+        console.error('Selected course string:', selectedCourse);
+        throw new Error('Selected course not found in tutor courses');
+      }
+
+      // Get course_id - check multiple possible field names
+      let courseId = selectedCourseObj.id || selectedCourseObj.course_id || selectedCourseObj.courseId;
+      
+      // If course_id is still not found, try to fetch it from the API
+      if (!courseId) {
+        console.warn('Course ID not found in course object, attempting to fetch from API...');
+        console.log('Course object:', selectedCourseObj);
+        console.log('Available courses:', tutor.courses);
+        
+        // Try to fetch course by department_code and course_number
+        try {
+          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+          const courseResponse = await fetch(
+            `${apiBaseUrl}/search/courses?department_code=${selectedCourseObj.department_code}&course_number=${selectedCourseObj.course_number}&limit=1`
+          );
+          
+          if (courseResponse.ok) {
+            const courseData = await courseResponse.json();
+            if (courseData.items && courseData.items.length > 0) {
+              courseId = courseData.items[0].course_id || courseData.items[0].id;
+              console.log('Fetched course ID from API:', courseId);
+            }
+          }
+        } catch (fetchError) {
+          console.error('Error fetching course ID:', fetchError);
+        }
+      }
+      
+      if (!courseId) {
+        console.error('Course object structure:', selectedCourseObj);
+        console.error('Available courses:', tutor.courses);
+        setBookingError(`Course ID not found. Please refresh the page and try again. Course: ${selectedCourseObj.department_code} ${selectedCourseObj.course_number}`);
+        setIsBooking(false);
+        return;
+      }
+
+      // Validate courseId is a number
+      const courseIdNum = parseInt(courseId, 10);
+      if (isNaN(courseIdNum) || courseIdNum <= 0) {
+        setBookingError(`Invalid course ID: ${courseId}. Please refresh the page and try again.`);
+        setIsBooking(false);
+        return;
+      }
+
+      // Prepare booking data according to API schema
+      const bookingData = {
+        tutor_id: tutor.id,
+        student_id: user.id, // Use the ID from the authenticated user context
+        start_time: formatDateTime(startDateTime),
+        end_time: formatDateTime(endDateTime),
+        course_id: courseIdNum, // Ensure it's a number
+        meeting_link: sessionType === 'zoom' ? 'https://sfsu.zoom.us/j/meeting-id' : 'In-person meeting',
+        notes: notes || ''
+      };
+      
+      console.log('Selected course object:', selectedCourseObj);
+      console.log('Course ID being sent:', courseIdNum);
+      console.log('Full booking data:', JSON.stringify(bookingData, null, 2));
+
+      console.log('User context:', user); // Debug log
+      console.log('Using student_id:', user.id); // Debug log
+
+      console.log('Sending booking data:', bookingData);
+
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      console.log('Sending booking request to:', `${apiBaseUrl}/schedule/bookings`);
+      console.log('Request payload:', bookingData);
+      
+      const response = await fetch(`${apiBaseUrl}/schedule/bookings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingData),
+        credentials: 'include'  // Include cookies for authentication
+      });
+
+      const responseData = await response.json().catch((error) => {
+        console.error('Failed to parse response:', error);
+        return { detail: 'Invalid response from server' };
+      });
+      
+      console.log('Response status:', response.status);
+      console.log('Response data:', responseData);
+      
+      if (!response.ok) {
+        console.error('Error response details:', {
+          status: response.status,
+          statusText: response.statusText,
+          data: responseData,
+          requestData: bookingData  // Log the request data that caused the error
+        });
+        
+        // Check for validation errors
+        if (response.status === 422 && responseData.detail) {
+          if (Array.isArray(responseData.detail)) {
+            // Handle Pydantic validation errors
+            const errorMessages = responseData.detail.map(err => 
+              `${err.loc.join('.')}: ${err.msg}`
+            ).join('\n');
+            throw new Error(`Validation error:\n${errorMessages}`);
+          } else if (typeof responseData.detail === 'string') {
+            // Handle simple error message
+            throw new Error(responseData.detail);
+          }
+        }
+        
+        throw new Error(
+          responseData.detail || 
+          responseData.message || 
+          `Failed to book appointment (${response.status} ${response.statusText})`
+        );
+      }
+
+      console.log('Booking successful:', responseData);
+
+      // Handle successful booking
+      setBookingSuccess(true);
+      
+      // Reset form
+      setSelectedDate('');
+      setSelectedTime('');
+      setSelectedCourse('');
+      setNotes('');
+      setSessionType('zoom');
+      setAvailableTimeSlots([]);
+
+    } catch (error) {
+      console.error('Booking error:', error);
+      setBookingError(error.message || 'Failed to book appointment. Please try again.');
+    } finally {
+      setIsBooking(false);
+    }
   };
   
   // Show loading state
@@ -536,12 +730,44 @@ const TutorProfile = () => {
                 </div>
               </div>
               
+              {bookingError && (
+                <div style={{ 
+                  color: '#dc3545', 
+                  backgroundColor: '#f8d7da', 
+                  padding: '10px', 
+                  borderRadius: '4px', 
+                  marginBottom: '15px',
+                  fontSize: '14px',
+                  border: '1px solid #f5c6cb'
+                }}>
+                  {bookingError}
+                </div>
+              )}
+
+              {bookingSuccess && (
+                <div style={{ 
+                  color: '#0f5132', 
+                  backgroundColor: '#d1e7dd', 
+                  padding: '10px', 
+                  borderRadius: '4px', 
+                  marginBottom: '15px',
+                  fontSize: '14px',
+                  border: '1px solid #badbcc'
+                }}>
+                  Booking successful! The tutor will confirm your appointment shortly.
+                </div>
+              )}
+
               <button 
-                style={styles.bookButton}
+                style={{
+                  ...styles.bookButton,
+                  opacity: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 0.7 : 1,
+                  cursor: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 'not-allowed' : 'pointer'
+                }}
                 onClick={handleSubmit}
-                disabled={!selectedDate || !selectedTime || !selectedCourse}
+                disabled={!selectedDate || !selectedTime || !selectedCourse || isBooking}
               >
-                Book Session
+                {isBooking ? 'Booking...' : 'Book Session'}
               </button>
             </div>
           </div>

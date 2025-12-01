@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth.routers.auth_router import router as auth_router
 from search.routers.router import router as search_router
-from chat.routers.chat_router import router as chat_router
+from schedule.routers.router import router as schedule_router
 
 app = FastAPI(title="Team08 API", version="0.1.0")
 
@@ -24,7 +24,7 @@ app.add_middleware(
 # Include routers
 app.include_router(search_router)
 app.include_router(auth_router)
-app.include_router(chat_router)
+app.include_router(schedule_router)
 
 @app.get("/")
 def root():
