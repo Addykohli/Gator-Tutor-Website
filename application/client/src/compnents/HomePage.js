@@ -12,27 +12,29 @@ import Header from './Header';
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, user} = useAuth();
+  const { isAuthenticated, user, darkMode } = useAuth();
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
   const [isAnimating, setIsAnimating] = useState(false);
   const [tutorAvailability, setTutorAvailability] = useState([]);
   const [tutorBookings, setTutorBookings] = useState([]);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [tutorCourses, setTutorCourses] = useState([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
-  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
-  
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false);
+
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
     const saved = localStorage.getItem('searchQuery');
     return saved || '';
   });
-  
+
   const [searchCategory, setSearchCategory] = useState(() => {
     const saved = localStorage.getItem('searchCategory');
     return saved || 'default';
   });
-  
+
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  
+
   // Memoize the API base URL with useMemo since it doesn't depend on any props or state
   const apiBaseUrl = React.useMemo(() => {
     return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
@@ -41,10 +43,10 @@ const HomePage = () => {
   // Fetch tutor availability
   const fetchTutorAvailability = React.useCallback(async () => {
     if (!user?.isTutor) return;
-    
+
     try {
       setIsLoadingAvailability(true);
-      
+
       // Fetch actual recurring availability slots from the dedicated endpoint
       console.log('Fetching recurring availability slots from backend...');
       const response = await fetch(
@@ -56,16 +58,16 @@ const HomePage = () => {
           }
         }
       );
-      
+
       if (!response.ok) {
         console.warn('Failed to fetch availability slots:', response.status);
         setTutorAvailability([]);
         return;
       }
-      
+
       const availabilitySlots = await response.json();
       console.log('Recurring availability slots from backend:', availabilitySlots);
-      
+
       // Convert backend format to frontend format
       const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const availabilityData = availabilitySlots.map(slot => ({
@@ -76,7 +78,7 @@ const HomePage = () => {
         valid_from: slot.valid_from,
         valid_until: slot.valid_until
       }));
-      
+
       console.log('Final parsed availability:', availabilityData);
       setTutorAvailability(Array.isArray(availabilityData) && availabilityData.length > 0 ? availabilityData : []);
     } catch (error) {
@@ -87,66 +89,129 @@ const HomePage = () => {
     }
   }, [user?.isTutor, user?.id, apiBaseUrl]);
 
+  // Fetch tutor's courses
+  const fetchTutorCourses = React.useCallback(async () => {
+    if (!user?.isTutor) return;
+
+    try {
+      setIsLoadingCourses(true);
+      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+
+      if (!response.ok) {
+        console.warn('Failed to fetch tutor courses:', response.status);
+        setTutorCourses([]);
+        return;
+      }
+
+      const tutorData = await response.json();
+      setTutorCourses(tutorData.courses || []);
+    } catch (error) {
+      console.error('Error fetching tutor courses:', error);
+      setTutorCourses([]);
+    } finally {
+      setIsLoadingCourses(false);
+    }
+  }, [user?.isTutor, user?.id, apiBaseUrl]);
+
   // Fetch tutor bookings
   const fetchTutorBookings = React.useCallback(async () => {
     if (!user?.isTutor) return;
-    
+
     try {
-      setIsLoadingBookings(true);
-      
-      // Fetch confirmed and pending bookings separately since backend doesn't support comma-separated status
-      const [confirmedResponse, pendingResponse] = await Promise.all([
+      // Get current timezone offset in minutes
+      const timezoneOffset = new Date().getTimezoneOffset();
+
+      // Fetch bookings where user is tutor and student
+      const [
+        confirmedResponse,
+        pendingResponse,
+        studentConfirmedResponse,
+        studentPendingResponse
+      ] = await Promise.all([
         fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
-        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`)
+        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`),
+        // Fetch confirmed bookings where user is student
+        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=confirmed&timezone_offset=${timezoneOffset}`),
+        // Also fetch pending bookings where user is student
+        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=pending&timezone_offset=${timezoneOffset}`)
       ]);
-      
-      if (!confirmedResponse.ok || !pendingResponse.ok) {
-        throw new Error(`HTTP error! status: ${confirmedResponse.status} or ${pendingResponse.status}`);
+
+      if (!confirmedResponse.ok || !pendingResponse.ok || !studentConfirmedResponse.ok || !studentPendingResponse.ok) {
+        throw new Error(`HTTP error! status: ${confirmedResponse.status} or ${pendingResponse.status} or ${studentConfirmedResponse.status} or ${studentPendingResponse.status}`);
       }
-      
+
       const confirmedData = await confirmedResponse.json();
       const pendingData = await pendingResponse.json();
-      
-      // Combine both arrays
-      const allBookings = [...(Array.isArray(confirmedData) ? confirmedData : []), ...(Array.isArray(pendingData) ? pendingData : [])];
-      
-      console.log('Fetched tutor bookings:', allBookings);
+      const studentConfirmedData = await studentConfirmedResponse.json();
+      const studentPendingData = await studentPendingResponse.json();
+
+      // Combine all student bookings (both confirmed and pending)
+      const studentBookingsData = [
+        ...(Array.isArray(studentConfirmedData) ? studentConfirmedData : []),
+        ...(Array.isArray(studentPendingData) ? studentPendingData : [])
+      ];
+
+      // Mark student bookings with isStudentBooking flag
+      const studentBookings = Array.isArray(studentBookingsData)
+        ? studentBookingsData.map(booking => {
+          // Use parseTimeToLocal to properly convert UTC times to local time
+          // This ensures the times are correctly displayed and placed in the calendar
+          return {
+            ...booking,
+            isStudentBooking: true,
+            // Keep the original time strings - parseTimeToLocal will handle them correctly
+            // when they're used in formatHourRange and getBookingForSlot
+          };
+        })
+        : [];
+
+      // Combine all bookings
+      const allBookings = [
+        ...(Array.isArray(confirmedData) ? confirmedData : []),
+        ...(Array.isArray(pendingData) ? pendingData : []),
+        ...studentBookings
+      ];
+
+      console.log('Fetched tutor and student bookings:', allBookings);
       setTutorBookings(allBookings);
+
+      // Update pending requests count
+      const pendingCount = Array.isArray(pendingData) ? pendingData.length : 0;
+      setPendingRequestsCount(pendingCount);
     } catch (error) {
       console.error('Error fetching tutor bookings:', error);
       setTutorBookings([]);
-    } finally {
-      setIsLoadingBookings(false);
+      setPendingRequestsCount(0);
     }
   }, [user?.isTutor, user?.id, apiBaseUrl]);
 
   // Fetch student bookings
   const fetchStudentBookings = React.useCallback(async () => {
     if (!user?.id || user?.isTutor) return;
-    
+
     try {
       setIsLoadingStudentBookings(true);
       setBookingError(null);
-      
+
       // Fetch both confirmed and pending bookings
       const [confirmedResponse, pendingResponse] = await Promise.all([
         fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=confirmed`),
         fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=pending`)
       ]);
-      
+
       if (!confirmedResponse.ok || !pendingResponse.ok) {
         throw new Error('Failed to fetch bookings');
       }
-      
+
       const confirmedData = await confirmedResponse.json();
       const pendingData = await pendingResponse.json();
-      
+
       // Combine and process bookings
       const allBookings = [
-        ...(Array.isArray(confirmedData) ? confirmedData : []), 
+        ...(Array.isArray(confirmedData) ? confirmedData : []),
         ...(Array.isArray(pendingData) ? pendingData : [])
       ];
-      
+
       console.log('Fetched student bookings:', allBookings);
       setStudentBookings(allBookings);
     } catch (error) {
@@ -161,20 +226,21 @@ const HomePage = () => {
   // Memoized fetch functions for the main effect
   const fetchData = React.useCallback(() => {
     if (!user) return;
-    
+
     if (user.isTutor) {
       fetchTutorAvailability();
       fetchTutorBookings();
+      fetchTutorCourses(); // Fetch tutor's courses when the component mounts
     } else {
       fetchStudentBookings();
     }
   }, [user, fetchTutorAvailability, fetchTutorBookings, fetchStudentBookings]);
-  
+
   // Effect to fetch data when component mounts or when user changes
   useEffect(() => {
     const fetchDataAndHighlight = async () => {
       await fetchData();
-      
+
       // Check for any booking to highlight when component mounts
       const params = new URLSearchParams(window.location.search);
       const highlightId = params.get('highlight');
@@ -182,138 +248,145 @@ const HomePage = () => {
         setGlowBookingId(highlightId);
       }
     };
-    
+
     fetchDataAndHighlight();
   }, [fetchData]);
 
-  
+
   // Check if a specific hour on a specific day is available
   const isTimeSlotAvailable = (date, hour) => {
-  if (!tutorAvailability || tutorAvailability.length === 0) {
-  return false;
-  }
-  
-  // Get day name in lowercase (e.g., "monday")
-  const dayOfWeek = format(date, 'EEEE').toLowerCase();
-  
-  // Convert date to YYYY-MM-DD string for comparison (avoid timezone issues)
-  const checkDateStr = format(date, 'yyyy-MM-dd');
-  
-  // Find ALL availability slots for this day (not just the first one)
-  const dayAvailabilitySlots = tutorAvailability.filter(
-    avail => {
-      const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
-      if (availDay !== dayOfWeek) return false;
-      
-    // Check date validity using string comparison (avoids timezone issues)
-  const validFrom = avail.valid_from; // Already a string "YYYY-MM-DD"
-  const validUntil = avail.valid_until; // Already a string "YYYY-MM-DD"
-  
-  // String comparison works correctly: "2025-12-01" <= "2025-12-01" <= "2025-12-01"
-  const isValidFrom = !validFrom || checkDateStr >= validFrom;
-  const isValidUntil = !validUntil || checkDateStr <= validUntil;
-  
-  return isValidFrom && isValidUntil;
-  }
-  );
-  
-  if (!dayAvailabilitySlots || dayAvailabilitySlots.length === 0) {
-  return false;
-  }
-  
-  // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
-  const parseTimeToHour = (timeStr) => {
-  if (!timeStr) return null;
-  const [hours] = timeStr.split(':');
-  return parseInt(hours, 10);
+    if (!tutorAvailability || tutorAvailability.length === 0) {
+      return false;
+    }
+
+    // Get day name in lowercase (e.g., "monday")
+    const dayOfWeek = format(date, 'EEEE').toLowerCase();
+
+    // Convert date to YYYY-MM-DD string for comparison (avoid timezone issues)
+    const checkDateStr = format(date, 'yyyy-MM-dd');
+
+    // Find ALL availability slots for this day (not just the first one)
+    const dayAvailabilitySlots = tutorAvailability.filter(
+      avail => {
+        const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
+        if (availDay !== dayOfWeek) return false;
+
+        // Check date validity using string comparison (avoids timezone issues)
+        const validFrom = avail.valid_from; // Already a string "YYYY-MM-DD"
+        const validUntil = avail.valid_until; // Already a string "YYYY-MM-DD"
+
+        // String comparison works correctly: "2025-12-01" <= "2025-12-01" <= "2025-12-01"
+        const isValidFrom = !validFrom || checkDateStr >= validFrom;
+        const isValidUntil = !validUntil || checkDateStr <= validUntil;
+
+        return isValidFrom && isValidUntil;
+      }
+    );
+
+    if (!dayAvailabilitySlots || dayAvailabilitySlots.length === 0) {
+      return false;
+    }
+
+    // Parse start and end times (format: "HH:MM:SS" or "HH:MM")
+    const parseTimeToHour = (timeStr) => {
+      if (!timeStr) return null;
+      const [hours] = timeStr.split(':');
+      return parseInt(hours, 10);
+    };
+
+    // Check if the hour falls within ANY of the availability slots for this day
+    for (const slot of dayAvailabilitySlots) {
+      const startTimeStr = slot.start_time || slot.startTime;
+      const endTimeStr = slot.end_time || slot.endTime;
+
+      if (!startTimeStr || !endTimeStr) {
+        continue;
+      }
+
+      const availStart = parseTimeToHour(startTimeStr);
+      const availEnd = parseTimeToHour(endTimeStr);
+
+      // Check if hour is within this availability window
+      if (hour >= availStart && hour < availEnd) {
+        return true;
+      }
+    }
+
+    // Hour doesn't fall within any availability slot
+    return false;
   };
-  
-  // Check if the hour falls within ANY of the availability slots for this day
-  for (const slot of dayAvailabilitySlots) {
-  const startTimeStr = slot.start_time || slot.startTime;
-  const endTimeStr = slot.end_time || slot.endTime;
-  
-  if (!startTimeStr || !endTimeStr) {
-  continue;
-  }
-  
-  const availStart = parseTimeToHour(startTimeStr);
-  const availEnd = parseTimeToHour(endTimeStr);
-  
-  // Check if hour is within this availability window
-  if (hour >= availStart && hour < availEnd) {
-  return true;
-  }
-  }
-  
-  // Hour doesn't fall within any availability slot
-  return false;
-  };
-  
+
   // State for student bookings
   const [studentBookings, setStudentBookings] = useState([]);
   const [isLoadingStudentBookings, setIsLoadingStudentBookings] = useState(false);
   const [bookingError, setBookingError] = useState(null);
-  
-  
+
+
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    localStorage.setItem('searchQuery', value);
   };
-  
+
   const handleSearch = async (e) => {
     e.preventDefault();
     const searchText = searchQuery.trim();
-    localStorage.setItem('searchQuery', searchText);
+    // Only update localStorage when there's an actual search query
+    if (searchText) {
+      localStorage.setItem('searchQuery', searchText);
+      localStorage.setItem('searchCategory', searchCategory);
+    } else {
+      // Clear the search from localStorage if the search is empty
+      localStorage.removeItem('searchQuery');
+      localStorage.removeItem('searchCategory');
+    }
 
-    const apiBaseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8000' 
+    const apiBaseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
       : '/api';
-    
+
     const typeMap = {
       'tutor': 'tutor',
       'course': 'course',
       'default': 'all'
     };
-    
+
     const searchType = typeMap[searchCategory] || 'all';
-    
+
     try {
       let results = [];
-      
+
       if (searchType === 'tutor' || searchType === 'all') {
         const params = new URLSearchParams({
           limit: 20,
           offset: 0,
           ...(searchText && { q: searchText })
         });
-        
+
         const response = await fetch(
           `${apiBaseUrl}/search/tutors?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'tutor', ...item }))];
       }
-      
+
       if (searchType === 'course' || searchType === 'all') {
         const params = new URLSearchParams({
           limit: 20,
           offset: 0,
           ...(searchText && { q: searchText })
         });
-        
+
         const response = await fetch(
           `${apiBaseUrl}/search/courses?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'course', ...item }))];
       }
-      
+
       navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
         state: { results }
       });
-      
+
     } catch (error) {
       console.error('Search error:', error);
       navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
@@ -321,25 +394,25 @@ const HomePage = () => {
       });
     }
   };
-  
+
   const toggleCategory = () => {
     setIsCategoryOpen(!isCategoryOpen);
   };
-  
+
   const selectCategory = (category) => {
     setSearchCategory(category);
     localStorage.setItem('searchCategory', category);
     setIsCategoryOpen(false);
   };
-  
+
   const styles = {
-    container: { 
-      display: "flex", 
-      flexDirection: "column", 
-      minHeight: "100vh", 
-      width: "100%", 
+    container: {
+      display: "flex",
+      flexDirection: "column",
+      minHeight: "100vh",
+      width: "100%",
       overflowX: "hidden",
-      backgroundColor: "rgb(250, 245, 255)",
+      backgroundColor: darkMode ? "rgb(30, 30, 30)" : "rgb(250, 245, 255)",
     },
     primaryButton: {
       backgroundColor: '#35006D',
@@ -356,7 +429,7 @@ const HomePage = () => {
       transition: 'all 0.2s',
     },
     heading: {
-      color: "#333",
+      color: darkMode ? "#fff" : "#333",
       textAlign: "center",
       padding: "0px",
       borderBottom: "4px solid rgb(255, 220, 112)",
@@ -367,12 +440,12 @@ const HomePage = () => {
       lineHeight: "1.2",
       position: "relative"
     },
-    content: { 
-      width: "100%", 
+    content: {
+      width: "100%",
       maxWidth: "100%",
-      margin: "0 auto", 
-      padding: "20px 10px 20px 5px", 
-      flex: 1, 
+      margin: "0 auto",
+      padding: "20px 10px 20px 5px",
+      flex: 1,
       boxSizing: "border-box",
       marginBottom: '80px'
     },
@@ -385,31 +458,43 @@ const HomePage = () => {
     weekDisplay: {
       fontSize: '1.2rem',
       fontWeight: '600',
-      color: '#2c3e50'
+      color: darkMode ? "#fff" : "#2c3e50"
     },
     calendarGrid: {
       width: '100%',
       position: 'relative',
       overflow: 'hidden',
-      backgroundColor: '#e0e0e0',
-      border: '1px solid #e0e0e0',
+      backgroundColor: darkMode ? '#2d2d2d' : '#e0e0e0',
+      border: darkMode ? '1px solid rgb(33, 33, 33)' : '1px solid #e0e0e0',
       borderRadius: '8px',
       boxSizing: 'border-box',
-      minHeight: '200px'
+      minHeight: '200px',
+      '--calendar-cell-bg': darkMode ? '#1e1e1e' : '#fff',
+      '--calendar-cell-border': darkMode ? '#333' : '#f0f0f0',
+      '--calendar-cell-text': darkMode ? '#fff' : '#2c3e50',
+      '--calendar-cell-hover': darkMode ? '#2a2a2a' : '#f8f9fa',
+      '--calendar-time-bg': darkMode ? '#2d2d2d' : '#fff',
+      '--calendar-time-text': darkMode ? '#bbb' : '#666',
+      '--calendar-time-border': darkMode ? '#3d3d3d' : '#e0e0e0',
+      '--calendar-striped-bg': darkMode ? '#252525' : '#f8f9fa',
+      '--calendar-today-bg': darkMode ? 'rgba(83, 0, 169, 0.1)' : 'rgba(53, 0, 109, 0.1)',
+      '--calendar-today-text': darkMode ? '#fff' : '#2c3e50',
     },
     // Student calendar styles
     dayHeader: {
       backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
-      padding: '12px',
+      color: '#fff',
+      padding: '10px',
       textAlign: 'center',
-      fontWeight: '600',
-      fontSize: '1rem',
-      borderRight: '1px solid rgba(255, 255, 255, 0.2)',
-      height: '100px',
+      fontWeight: '500',
+      borderBottom: '1px solid #3d3d3d',
+      '&.today': {
+        backgroundColor: darkMode ? '#3a3a3a' : '#e9ecef',
+        fontWeight: 'bold',
+      },
     },
     dayCell: {
-      backgroundColor: 'white',
+      backgroundColor: 'var(--calendar-cell-bg, white)',
       minHeight: '120px',
       height: 'auto',
       padding: '8px',
@@ -418,15 +503,35 @@ const HomePage = () => {
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
-      borderRight: '1px solid #f0f0f0',
-      borderBottom: '1px solid #f0f0f0',
+      borderRight: '1px solid var(--calendar-cell-border, #f0f0f0)',
+      borderBottom: '1px solid var(--calendar-cell-border, #f0f0f0)',
+      '&:hover': {
+        backgroundColor: darkMode ? '#2a2a2a' : '#f8f9fa',
+      },
+      '&.striped': {
+        backgroundColor: 'var(--calendar-striped-bg, #f8f9fa)',
+        '&:hover': {
+          backgroundColor: darkMode ? '#2a2a2a' : '#f0f0f0',
+        },
+      },
+      '&.today': {
+        backgroundColor: 'var(--calendar-today-bg, rgba(53, 0, 109, 0.1))',
+        '& .date-number': {
+          color: 'var(--calendar-today-text, #2c3e50)',
+          fontWeight: 'bold',
+        },
+      },
     },
     dateNumber: {
       fontWeight: 'bold',
       marginBottom: '8px',
-      color: '#2c3e50',
+      color: 'var(--calendar-cell-text, #2c3e50)',
       textAlign: 'center',
-      width: '100%'
+      width: '100%',
+      '&.today': {
+        color: 'var(--calendar-today-text, #2c3e50)',
+        fontWeight: 'bold',
+      },
     },
     todayMarker: {
       position: 'absolute',
@@ -484,19 +589,25 @@ const HomePage = () => {
       width: '100%',
       display: 'grid',
       gridTemplateColumns: '60px repeat(7, 1fr)',
-      backgroundColor: '#f5f5f5',
-      border: '1px solid #e0e0e0',
+      backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
+      border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
       borderRadius: '8px',
       overflow: 'hidden',
+      '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
+      '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
+      '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
+      '--tutor-time-text': darkMode ? '#bbb' : '#666',
+      '--tutor-time-border': darkMode ? '#3d3d3d' : '#e0e0e0',
+      '--tutor-striped-bg': darkMode ? '#252525' : '#f8f9fa',
     },
     timeLabel: {
-      backgroundColor: '#fff',
+      backgroundColor: 'var(--tutor-time-bg, #fff)',
       padding: '0px 4px 20px',
       textAlign: 'center',
       fontSize: '0.75rem',
       fontWeight: '500',
-      color: '#666',
-      borderRight: '1px solid #e0e0e0',
+      color: 'var(--tutor-time-text, #666)',
+      borderRight: '1px solid var(--tutor-time-border, #e0e0e0)',
       borderBottom: 'none',
       display: 'flex',
       alignItems: 'center',
@@ -504,24 +615,31 @@ const HomePage = () => {
     },
     tutorDayHeader: {
       backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
+      color: '#fff',
       padding: '12px 8px',
       textAlign: 'center',
-      fontWeight: '600',
+      fontWeight: '500',
       fontSize: '0.9rem',
-      borderRight: '1px solid rgba(255, 255, 255, 0.2)',
+      borderRight: darkMode ? '1px solid #3d3d3d' : '1px solid #dee2e6',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'top',
     },
     tutorTimeSlot: (rowIndex) => ({
-      backgroundColor: rowIndex % 2 === 0 ? 'white' : '#f5f5f5',
       minHeight: '40px',
-      borderRight: '1px solid #f0f0f0',
-      borderBottom: '1px solid #f0f0f0',
+      padding: '4px',
       position: 'relative',
+      backgroundColor: rowIndex % 2 === 0
+        ? 'var(--tutor-cell-bg, white)'
+        : 'var(--tutor-striped-bg, #f8f9fa)',
+      borderRight: '1px solid var(--tutor-cell-border, #f0f0f0)',
+      borderBottom: '1px solid var(--tutor-cell-border, #f0f0f0)',
+      boxSizing: 'border-box',
       transition: 'background-color 0.2s',
+      '&:hover': {
+        backgroundColor: darkMode ? '#2a2a2a' : '#f0f0f0',
+      },
     }),
     availableSlot: {
       backgroundColor: 'rgba(255, 220, 100, 0.3)',
@@ -530,10 +648,10 @@ const HomePage = () => {
       backgroundColor: 'rgba(200, 200, 200, 0.2)',
     },
     searchContainer: {
-      backgroundColor: "#ffffff",
+      backgroundColor: darkMode ? "rgb(60, 60, 60)" : "#ffffff",
       borderRadius: "12px",
       padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
       boxSizing: 'border-box',
       width: '100%',
       margin: '0 0 20px 0',
@@ -548,9 +666,11 @@ const HomePage = () => {
     searchInput: {
       flex: 1,
       padding: '12px 16px',
-      border: '1px solid #ced4da',
+      border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
       fontSize: '16px',
+      color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
+      backgroundColor: darkMode ? "rgb(80, 80, 80)" : "#ffffff",
     },
     categoryDropdown: {
       position: 'relative',
@@ -560,8 +680,9 @@ const HomePage = () => {
     },
     categoryButton: {
       padding: '12px 16px',
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #ced4da',
+      backgroundColor: darkMode ? "rgb(80, 80, 80)" : '#f8f9fa',
+      color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
+      border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
       cursor: 'pointer',
       width: '100%',
@@ -578,17 +699,17 @@ const HomePage = () => {
       width: '100%',
       padding: '8px 8px',
       margin: '4px 0 0',
-      backgroundColor: 'white',
-      border: '1px solid rgba(0,0,0,.15)',
+      backgroundColor: darkMode ? "rgb(80, 80, 80)" : 'white',
+      border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
       listStyle: 'none',
     },
     calendarContainer: {
-      backgroundColor: "#ffffff",
+      backgroundColor: darkMode ? "rgb(60, 60, 60)" : "#ffffff",
       borderRadius: "12px",
       padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
       boxSizing: 'border-box',
       width: '100%',
       margin: '0 0 20px 0',
@@ -599,32 +720,32 @@ const HomePage = () => {
   const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8am to 11pm (16 hours)
   const today = new Date();
-  
+
   const nextWeek = () => {
     if (isAnimating) return;
     setSlideDirection('slide-out-left');
     setIsAnimating(true);
-    
+
     setTimeout(() => {
       setCurrentWeekStart(addWeeks(currentWeekStart, 1));
       setSlideDirection('slide-in-right');
-      
+
       setTimeout(() => {
         setSlideDirection('none');
         setIsAnimating(false);
       }, 300);
     }, 300);
   };
-  
+
   const prevWeek = () => {
     if (isAnimating) return;
     setSlideDirection('slide-out-right');
     setIsAnimating(true);
-    
+
     setTimeout(() => {
       setCurrentWeekStart(subWeeks(currentWeekStart, 1));
       setSlideDirection('slide-in-left');
-      
+
       setTimeout(() => {
         setSlideDirection('none');
         setIsAnimating(false);
@@ -636,23 +757,23 @@ const HomePage = () => {
   const renderStudentDays = () => {
     const days = [];
     let startDate = currentWeekStart;
-    
+
     // Group bookings by date for easier lookup
     const bookingsByDate = {};
     if (Array.isArray(studentBookings)) {
       studentBookings.forEach(booking => {
         if (!booking.start_time) return;
-        
+
         const startTime = parseTimeToLocal(booking.start_time);
         const endTime = parseTimeToLocal(booking.end_time);
-        
+
         if (!startTime || !endTime) return;
-        
+
         const dateKey = format(startTime, 'yyyy-MM-dd');
         if (!bookingsByDate[dateKey]) {
           bookingsByDate[dateKey] = [];
         }
-        
+
         bookingsByDate[dateKey].push({
           ...booking,
           startTime,
@@ -662,13 +783,13 @@ const HomePage = () => {
         });
       });
     }
-    
+
     for (let i = 0; i < 7; i++) {
       const currentDate = addDays(startDate, i);
       const isToday = isSameDay(currentDate, today);
       const dateKey = format(currentDate, 'yyyy-MM-dd');
       const dayBookings = bookingsByDate[dateKey] || [];
-      
+
       days.push(
         <div key={i} style={{
           minHeight: '150px',
@@ -691,8 +812,8 @@ const HomePage = () => {
               padding: '4px 0'
             }}>
               {dayBookings.map((booking, index) => (
-                <div 
-                  key={`${booking.booking_id || index}`} 
+                <div
+                  key={`${booking.booking_id || index}`}
                   style={{
                     backgroundColor: `${booking.color}22`,
                     color: '#333',
@@ -751,7 +872,7 @@ const HomePage = () => {
                       alignItems: 'center',
                       marginTop: '4px'
                     }}>
-                      <i className="fas fa-book" style={{ 
+                      <i className="fas fa-book" style={{
                         marginRight: '6px',
                         color: '#6c757d',
                         width: '14px',
@@ -768,7 +889,7 @@ const HomePage = () => {
                       alignItems: 'center',
                       marginTop: '4px'
                     }}>
-                      <i className="fas fa-map-marker-alt" style={{ 
+                      <i className="fas fa-map-marker-alt" style={{
                         marginRight: '6px',
                         color: '#6c757d',
                         width: '14px',
@@ -798,7 +919,7 @@ const HomePage = () => {
         </div>
       );
     }
-    
+
     return days;
   };
 
@@ -807,32 +928,32 @@ const HomePage = () => {
     // Get button position for animation
     const rect = event.currentTarget.getBoundingClientRect();
     setEditButtonPosition({ x: rect.left, y: rect.top });
-    
+
     setIsEditPanelAnimating(true);
     setEditingDate(date);
-    
+
     // Get existing availability for this day - find ALL slots for this weekday
     // that are valid on this specific date
     const dayName = format(date, 'EEEE').toLowerCase();
     const checkDateStr = format(date, 'yyyy-MM-dd'); // Use string comparison
-    
+
     const daySlots = tutorAvailability.filter(
       avail => {
         const availDay = (avail.day_of_week || avail.day || '').toLowerCase();
         if (availDay !== dayName) return false;
-        
+
         // Check date validity using string comparison (avoids timezone issues)
         const validFrom = avail.valid_from; // Already a string "YYYY-MM-DD"
         const validUntil = avail.valid_until; // Already a string "YYYY-MM-DD"
-        
+
         // String comparison works correctly
         const isValidFrom = !validFrom || checkDateStr >= validFrom;
         const isValidUntil = !validUntil || checkDateStr <= validUntil;
-        
+
         return isValidFrom && isValidUntil;
       }
     );
-    
+
     if (daySlots && daySlots.length > 0) {
       // Create edit slots from all existing slots for this day
       const slots = daySlots.map((slot, index) => {
@@ -846,7 +967,7 @@ const HomePage = () => {
       // Default empty slot if no availability
       setEditSlots([{ id: Date.now(), startTime: '09:00', endTime: '17:00' }]);
     }
-    
+
     // Reset animation flag after animation completes
     setTimeout(() => {
       setIsEditPanelAnimating(false);
@@ -870,7 +991,7 @@ const HomePage = () => {
 
   // Update slot time
   const handleSlotTimeChange = (slotId, field, value) => {
-    setEditSlots(editSlots.map(slot => 
+    setEditSlots(editSlots.map(slot =>
       slot.id === slotId ? { ...slot, [field]: value } : slot
     ));
   };
@@ -878,15 +999,15 @@ const HomePage = () => {
   // Helper function to parse time string to local time
   const parseTimeToLocal = (timeStr) => {
     if (!timeStr) return null;
-    
+
     // If it's already a Date object, return it
     if (timeStr instanceof Date) return timeStr;
-    
+
     // If it's an ISO string without timezone, append 'Z' to treat as UTC
     if (timeStr.includes('T') && !timeStr.includes('Z') && !timeStr.includes('+') && !timeStr.match(/[+-]\d{2}:\d{2}$/)) {
       return new Date(timeStr + 'Z');
     }
-    
+
     // Otherwise, let the Date constructor handle it
     return new Date(timeStr);
   };
@@ -896,37 +1017,37 @@ const HomePage = () => {
     if (!tutorBookings || !tutorBookings.length) {
       return null;
     }
-    
+
     // Create date objects in local time for the slot
     const slotDate = new Date(date);
     const slotStart = new Date(slotDate);
     slotStart.setHours(hour, 0, 0, 0);
     const slotEnd = new Date(slotStart);
     slotEnd.setHours(hour + 1, 0, 0, 0);
-    
+
     // Convert to timestamps for comparison
     const slotStartTime = slotStart.getTime();
     const slotEndTime = slotEnd.getTime();
-    
+
     // Find the first booking that overlaps with this hour slot
     const matchingBooking = tutorBookings.find(booking => {
       if (!booking.start_time || !booking.end_time) {
         return false;
       }
-      
+
       // Parse the booking times to local time
       const startTime = parseTimeToLocal(booking.start_time);
       const endTime = parseTimeToLocal(booking.end_time);
-      
+
       if (!startTime || !endTime) return false;
-      
+
       // Convert to timestamps for comparison
       const bookingStartTime = startTime.getTime();
       const bookingEndTime = endTime.getTime();
-      
+
       // Check if booking overlaps with the hour slot
       const overlaps = bookingStartTime < slotEndTime && bookingEndTime > slotStartTime;
-      
+
       if (overlaps) {
         console.log(`✅ Booking MATCHED for ${format(slotStart, 'yyyy-MM-dd')} at hour ${hour}:`, {
           bookingId: booking.booking_id || 'unknown',
@@ -939,26 +1060,26 @@ const HomePage = () => {
           status: booking.status || 'unknown'
         });
       }
-      
+
       return overlaps;
     });
-    
+
     return matchingBooking || null;
   };
 
   // Render tutor calendar with hourly slots
   const renderTutorCalendar = () => {
     const cells = [];
-    
+
     // Header row - empty cell + day headers
     cells.push(<div key="empty-header" style={{ ...styles.timeLabel, backgroundColor: 'rgb(53, 0, 109)' }}></div>);
-    
+
     // Add day headers
     for (let i = 0; i < 7; i++) {
       const currentDate = addDays(currentWeekStart, i);
       const isToday = isSameDay(currentDate, today);
       const isFutureDate = currentDate > today;
-      
+
       cells.push(
         <div key={`header-${i}`} style={styles.tutorDayHeader}>
           <div>{weekDays[i]}</div>
@@ -966,8 +1087,8 @@ const HomePage = () => {
             {format(currentDate, 'MMM d')}
           </div>
           {isToday && (
-            <div style={{ 
-              fontSize: '0.7rem', 
+            <div style={{
+              fontSize: '0.7rem',
               marginTop: '8px',
               backgroundColor: 'rgba(255, 220, 100, 0.9)',
               color: '#333',
@@ -1007,7 +1128,7 @@ const HomePage = () => {
         </div>
       );
     }
-    
+
     // Time slots
     hours.forEach((hour, rowIndex) => {
       // Time label
@@ -1017,13 +1138,13 @@ const HomePage = () => {
           {timeLabel}
         </div>
       );
-      
+
       // Day cells for this hour
       for (let i = 0; i < 7; i++) {
         const currentDate = addDays(currentWeekStart, i);
         const isAvailable = isTimeSlotAvailable(currentDate, hour);
         const booking = getBookingForSlot(currentDate, hour);
-        
+
         // Debug logging for all slots when bookings exist
         if (tutorBookings && tutorBookings.length > 0) {
           const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -1032,7 +1153,7 @@ const HomePage = () => {
             const bookingDate = format(new Date(b.start_time), 'yyyy-MM-dd');
             return bookingDate === dateStr;
           });
-          
+
           if (matchingBookings.length > 0) {
             /*console.log(`🔍 Checking slot: ${dateStr} hour ${hour}`, {
               foundBooking: booking ? booking.booking_id : 'none',
@@ -1059,20 +1180,22 @@ const HomePage = () => {
             });*/
           }
         }
-        
+
         // Log when we're about to render a booking
         if (booking) {
           console.log(`🎨 RENDERING booking ${booking.booking_id} for ${format(currentDate, 'yyyy-MM-dd')} hour ${hour}`);
         }
-        
+
         cells.push(
-          <div 
-            key={`slot-${hour}-${i}`} 
+          <div
+            key={`slot-${hour}-${i}`}
             style={{
               ...styles.tutorTimeSlot(rowIndex), // Pass the row index for alternating row colors
               ...(isAvailable ? styles.availableSlot : {}),
               position: 'relative',
-              overflow: 'visible'
+              overflow: 'visible',
+              transition: 'background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease',
+              willChange: 'transform, background-color, border-color'
             }}
           >
             {booking ? (
@@ -1080,23 +1203,60 @@ const HomePage = () => {
                 id={`booking-btn-${booking.booking_id}`}
                 type="button"
                 className={`calendar-booking-btn${glowBookingId === booking.booking_id ? ' glow-animation' : ''}`}
-                onClick={() => handleBookingClick(booking.booking_id)}
+                onClick={() => booking.isStudentBooking ? handleStudentBookingClick(booking) : handleBookingClick(booking.booking_id)}
                 style={{
                   position: 'absolute',
-                  top: '4px', left: '4px', right: '4px', bottom: '4px',
-                  backgroundColor: booking.status === 'confirmed' ? 'rgba(53, 0, 109, 0.55)' : 'rgba(255, 193, 7, 0.55)',
-                  borderRadius: '6px', padding: '6px 3px', color: '#fff', fontSize: '0.5rem', fontWeight: '500',
-                  display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center',
-                  textAlign: 'center', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                  zIndex: 10, border: '1px solid rgba(255,255,255,0.3) ',
-                  borderLeft: booking.status === 'confirmed' ? '6px solid rgba(53, 0, 109, 0.95)' : '6px solid rgba(255, 193, 7, 0.95)',
-                  cursor:'pointer', transition: 'box-shadow 0.5s, background 0.5s',
+                  top: '1px', left: '1px', right: '1px', bottom: '1px',
+                  backgroundColor: booking.isStudentBooking
+                    ? 'rgba(255, 255, 255, 0.96)'
+                    : booking.status === 'confirmed'
+                      ? 'rgba(53, 0, 109, 0.55)'
+                      : 'rgba(255, 193, 7, 0.55)',
+                  color: booking.isStudentBooking ? '#333' : '#fff',
+                  borderRadius: '0px',
+                  padding: '6px 3px',
+                  fontSize: '0.5rem',
+                  fontWeight: '500',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  textAlign: 'center',
+                  overflow: 'hidden',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  zIndex: 10,
+                  border: `1px solid ${booking.isStudentBooking ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255,255,255,0.3)'}`,
+                  borderLeft: booking.status === 'confirmed'
+                    ? '6px solid rgba(53, 0, 109, 0.95)'
+                    : '6px solid rgba(255, 193, 7, 0.95)',
+                  cursor: 'pointer',
+                  transition: 'box-shadow 0.3s, background 0.3s, transform 0.2s',
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.25)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.2)';
                 }}
               >
-                <div style={{ fontWeight: 'bold', fontSize: '0.75rem', marginBottom: '2px' }}>
-                  {booking.student_name || booking.student_first_name || 'Student'}
+                <div style={{
+                  fontWeight: 'bold',
+                  fontSize: '0.75rem',
+                  marginBottom: '2px',
+                  color: booking.isStudentBooking ? '#333' : '#fff'
+                }}>
+                  {booking.isStudentBooking
+                    ? (booking.tutor_name || booking.tutor_first_name || 'Tutor')
+                    : (booking.student_name || booking.student_first_name || 'Student')}
                 </div>
-                <div style={{ fontSize: '0.6rem', opacity: 0.95, marginBottom: '2px' }}>
+                <div style={{
+                  fontSize: '0.6rem',
+                  opacity: booking.isStudentBooking ? 0.8 : 0.95,
+                  marginBottom: '2px',
+                  color: booking.isStudentBooking ? '#555' : '#fff'
+                }}>
                   {formatHourRange(booking.start_time, booking.end_time, hour)}
                 </div>
               </button>
@@ -1105,7 +1265,7 @@ const HomePage = () => {
         );
       }
     });
-    
+
     return cells;
   };
 
@@ -1118,389 +1278,415 @@ const HomePage = () => {
   // Function to save availability for a specific date
   // Replace the saveAvailability function in HomePage.js with this corrected version
 
-// Replace the saveAvailability function in HomePage.js with this corrected version
+  // Replace the saveAvailability function in HomePage.js with this corrected version
 
-const saveAvailability = async (date, isRecurring = false) => {
-  if (!user?.isTutor || !editingDate) return;
-  
-  setIsSaving(true);
-  setSaveStatus({ success: false, message: '' });
-  
-  try {
-    const apiBaseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8000' 
-      : '/api';
-    
-    const weekday = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
-    const formattedDate = format(date, 'yyyy-MM-dd');
-    const dayBefore = format(addDays(date, -1), 'yyyy-MM-dd');
-    const dayAfter = format(addDays(date, 1), 'yyyy-MM-dd');
-    
-    console.log('========================================');
-    console.log('SAVE AVAILABILITY STARTED');
-    console.log('Date:', formattedDate, 'Weekday:', weekday);
-    console.log('IsRecurring:', isRecurring);
-    console.log('Edit Slots:', editSlots);
-    console.log('========================================');
-    
-    // STEP 1: Fetch all existing slots for this tutor
-    console.log('STEP 1: Fetching all existing slots...');
-    const allSlotsResponse = await fetch(
-      `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
-      {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+  const saveAvailability = async (date, isRecurring = false) => {
+    if (!user?.isTutor || !editingDate) return;
+
+    setIsSaving(true);
+    setSaveStatus({ success: false, message: '' });
+
+    try {
+      const apiBaseUrl = window.location.hostname === 'localhost'
+        ? 'http://localhost:8000'
+        : '/api';
+
+      const weekday = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+      const formattedDate = format(date, 'yyyy-MM-dd');
+
+      // Calculate day boundaries (not week boundaries!)
+      const dayBefore = format(addDays(date, -1), 'yyyy-MM-dd');
+      const dayAfter = format(addDays(date, 1), 'yyyy-MM-dd');
+
+      console.log('========================================');
+      console.log('SAVE AVAILABILITY STARTED');
+      console.log('Date:', formattedDate, 'Weekday:', weekday);
+      console.log('Day Before:', dayBefore);
+      console.log('Day After:', dayAfter);
+      console.log('IsRecurring:', isRecurring);
+      console.log('Edit Slots:', editSlots);
+      console.log('========================================');
+
+      // STEP 1: Fetch all existing slots for this tutor
+      console.log('STEP 1: Fetching all existing slots...');
+      const allSlotsResponse = await fetch(
+        `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          }
         }
+      );
+
+      if (!allSlotsResponse.ok) {
+        const errorText = await allSlotsResponse.text();
+        console.error('Failed to fetch slots:', allSlotsResponse.status, errorText);
+        throw new Error(`Failed to fetch existing slots: ${allSlotsResponse.status}`);
       }
-    );
-    
-    if (!allSlotsResponse.ok) {
-      const errorText = await allSlotsResponse.text();
-      console.error('Failed to fetch slots:', allSlotsResponse.status, errorText);
-      throw new Error(`Failed to fetch existing slots: ${allSlotsResponse.status}`);
-    }
-    
-    const allSlots = await allSlotsResponse.json();
-    console.log('All existing slots received:', JSON.stringify(allSlots, null, 2));
-    
-    // Ensure allSlots is an array
-    const slotsArray = Array.isArray(allSlots) ? allSlots : [];
-    
-    // STEP 2: Filter slots that match this weekday
-    console.log('STEP 2: Filtering slots for weekday:', weekday);
-    
-    const slotsToDelete = [];
-    const slotsToModify = [];
-    
-    for (const slot of slotsArray) {
-      const slotWeekday = slot.weekday;
-      
-      console.log('Checking slot:', {
-        slot_id: slot.slot_id,
-        weekday: slotWeekday,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        valid_from: slot.valid_from,
-        valid_until: slot.valid_until
-      });
-      
-      // First check: does the weekday match?
-      if (slotWeekday !== weekday) {
-        console.log('Weekday mismatch - Skip');
-        continue;
-      }
-      
-      const slotValidFrom = slot.valid_from ? new Date(slot.valid_from) : null;
-      const slotValidUntil = slot.valid_until ? new Date(slot.valid_until) : null;
-      const targetDate = new Date(formattedDate);
-      
-      // If recurring mode (apply to all future occurrences):
-      // Delete slots that are still active on or after the target date
-      if (isRecurring) {
-        // Keep slots that ended before the target date (don't delete past slots)
-        if (slotValidUntil && slotValidUntil < targetDate) {
-          console.log('Past slot (ended before target) - Skip');
+
+      const allSlots = await allSlotsResponse.json();
+      console.log('All existing slots received:', JSON.stringify(allSlots, null, 2));
+
+      // Ensure allSlots is an array
+      const slotsArray = Array.isArray(allSlots) ? allSlots : [];
+
+      // STEP 2: Filter slots that match this weekday
+      console.log('STEP 2: Filtering slots for weekday:', weekday);
+
+      const slotsToDelete = [];
+      const slotsToModify = [];
+
+      for (const slot of slotsArray) {
+        const slotWeekday = slot.weekday;
+
+        console.log('Checking slot:', {
+          slot_id: slot.slot_id,
+          weekday: slotWeekday,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          valid_from: slot.valid_from,
+          valid_until: slot.valid_until
+        });
+
+        // First check: does the weekday match?
+        if (slotWeekday !== weekday) {
+          console.log('Weekday mismatch - Skip');
           continue;
         }
-        // Delete all other slots for this weekday (active now or in the future)
-        console.log('Recurring mode - slot active on/after target date - MATCH (will delete)');
-        slotsToDelete.push(slot);
-        continue;
-      }
-      
-      // For single day mode:
-      // Check if this slot covers the target date
-      const isValidFrom = !slotValidFrom || slotValidFrom <= targetDate;
-      const isValidUntil = !slotValidUntil || slotValidUntil >= targetDate;
-      const coversTargetDate = isValidFrom && isValidUntil;
-      
-      if (!coversTargetDate) {
-        console.log('Slot does not cover target date - Skip');
-        continue;
-      }
-      
-      console.log('Slot covers target date - need to split');
-      
-      // This slot needs to be split:
-      // 1. If slot starts before target date, keep the "before" part
-      // 2. Delete the slot (it will be replaced)
-      // 3. If slot continues after target date, create an "after" part
-      
-      const startsBeforeTarget = !slotValidFrom || slotValidFrom < targetDate;
-      const continuesAfterTarget = !slotValidUntil || slotValidUntil > targetDate;
-      
-      if (startsBeforeTarget || continuesAfterTarget) {
-        // We need to split this recurring slot
-        slotsToModify.push({
-          original: slot,
-          startsBeforeTarget,
-          continuesAfterTarget
+
+        const slotValidFrom = slot.valid_from ? new Date(slot.valid_from) : null;
+        const slotValidUntil = slot.valid_until ? new Date(slot.valid_until) : null;
+        const targetDate = new Date(formattedDate);
+
+        // If recurring mode (apply to all future occurrences):
+        // Delete slots that are still active on or after the target date
+        if (isRecurring) {
+          // Keep slots that ended before the target date (don't delete past slots)
+          if (slotValidUntil && slotValidUntil < targetDate) {
+            console.log('Past slot (ended before target) - Skip');
+            continue;
+          }
+          // Delete all other slots for this weekday (active now or in the future)
+          console.log('Recurring mode - slot active on/after target date - MATCH (will delete)');
+          slotsToDelete.push(slot);
+          continue;
+        }
+
+        // For single day mode:
+        // Check if this slot covers the target date
+        const isValidFrom = !slotValidFrom || slotValidFrom <= targetDate;
+        const isValidUntil = !slotValidUntil || slotValidUntil >= targetDate;
+        const coversTargetDate = isValidFrom && isValidUntil;
+
+        if (!coversTargetDate) {
+          console.log('Slot does not cover target date - Skip');
+          continue;
+        }
+
+        console.log('Slot covers target date - need to split by day');
+
+        // This slot needs to be split by DAY:
+        // 1. If slot starts before target date, keep the "before" part (up to day before target)
+        // 2. Delete the slot (it will be replaced)
+        // 3. If slot continues after target date, create an "after" part (from day after target)
+
+        // Convert Date objects to strings for proper comparison
+        const slotValidFromStr = slotValidFrom ? format(new Date(slotValidFrom), 'yyyy-MM-dd') : null;
+        const slotValidUntilStr = slotValidUntil ? format(new Date(slotValidUntil), 'yyyy-MM-dd') : null;
+
+        const startsBeforeTargetDay = !slotValidFromStr || slotValidFromStr < formattedDate;
+        const continuesAfterTargetDay = !slotValidUntilStr || slotValidUntilStr > formattedDate;
+
+        console.log('Date comparison details:', {
+          slotValidFrom: slotValidFrom,
+          slotValidFromStr: slotValidFromStr,
+          slotValidUntil: slotValidUntil,
+          slotValidUntilStr: slotValidUntilStr,
+          formattedDate: formattedDate,
+          startsBeforeTargetDay: startsBeforeTargetDay,
+          continuesAfterTargetDay: continuesAfterTargetDay,
+          comparison1_less: slotValidFromStr < formattedDate,
+          comparison2_greater: slotValidUntilStr > formattedDate
         });
-      }
-      
-      // Always delete the original slot when applying to single day
-      slotsToDelete.push(slot);
-    }
-    
-    console.log(`Found ${slotsToDelete.length} slots to delete:`, 
-      slotsToDelete.map(s => ({ id: s.slot_id, weekday: s.weekday, time: `${s.start_time}-${s.end_time}` }))
-    );
-    
-    // STEP 3: Handle slot modifications for single-day mode
-    if (!isRecurring && slotsToModify.length > 0) {
-      console.log('STEP 3: Creating split slots for recurring availability...');
-      
-      for (const modification of slotsToModify) {
-        const { original, startsBeforeTarget, continuesAfterTarget } = modification;
-        
-        // Create "before" part if needed
-        if (startsBeforeTarget) {
-          const beforeSlot = {
-            weekday: original.weekday,
-            start_time: original.start_time,
-            end_time: original.end_time,
-            location_mode: original.location_mode || 'online',
-            location_note: `Recurring slot (before ${formattedDate})`,
-            valid_from: original.valid_from,
-            valid_until: dayBefore, // End the day before target
-            duration: 'custom'
-          };
-          
-          console.log('Creating before slot:', JSON.stringify(beforeSlot, null, 2));
-          
-          const beforeResponse = await fetch(
-            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
-              body: JSON.stringify(beforeSlot)
-            }
-          );
-          
-          if (!beforeResponse.ok) {
-            const errorData = await beforeResponse.json().catch(() => ({}));
-            console.error('Failed to create before slot:', errorData);
-          } else {
-            console.log('Successfully created before slot');
-          }
+
+        if (startsBeforeTargetDay || continuesAfterTargetDay) {
+          // We need to split this recurring slot
+          slotsToModify.push({
+            original: slot,
+            startsBeforeTargetDay,
+            continuesAfterTargetDay
+          });
         }
-        
-        // Create "after" part if needed
-        if (continuesAfterTarget) {
-          const afterSlot = {
-            weekday: original.weekday,
-            start_time: original.start_time,
-            end_time: original.end_time,
-            location_mode: original.location_mode || 'online',
-            location_note: `Recurring slot (after ${formattedDate})`,
-            valid_from: dayAfter, // Start the day after target
-            valid_until: original.valid_until,
-            duration: 'custom'
-          };
-          
-          console.log('Creating after slot:', JSON.stringify(afterSlot, null, 2));
-          
-          const afterResponse = await fetch(
-            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-              },
-              body: JSON.stringify(afterSlot)
-            }
-          );
-          
-          if (!afterResponse.ok) {
-            const errorData = await afterResponse.json().catch(() => ({}));
-            console.error('Failed to create after slot:', errorData);
-          } else {
-            console.log('Successfully created after slot');
-          }
-        }
+
+        // Always delete the original slot when applying to single day
+        slotsToDelete.push(slot);
       }
-    }
-    
-    // STEP 4: Delete all matching slots
-    if (slotsToDelete.length > 0) {
-      console.log('STEP 4: Deleting slots...');
-      
-      for (const slot of slotsToDelete) {
-        const slotId = slot.slot_id;
-        console.log(`Deleting slot ID: ${slotId}`);
-        
-        try {
-          const deleteResponse = await fetch(
-            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots/${slotId}`,
-            {
-              method: 'DELETE',
-              headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'application/json'
+
+      console.log(`Found ${slotsToDelete.length} slots to delete:`,
+        slotsToDelete.map(s => ({ id: s.slot_id, weekday: s.weekday, time: `${s.start_time}-${s.end_time}` }))
+      );
+
+      // STEP 3: Delete all matching slots FIRST (before creating split slots)
+      if (slotsToDelete.length > 0) {
+        console.log('STEP 3: Deleting slots...');
+
+        for (const slot of slotsToDelete) {
+          const slotId = slot.slot_id;
+          console.log(`Deleting slot ID: ${slotId}`);
+
+          try {
+            const deleteResponse = await fetch(
+              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots/${slotId}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                  'Content-Type': 'application/json'
+                }
               }
+            );
+
+            if (!deleteResponse.ok) {
+              const errorData = await deleteResponse.json().catch(() => ({}));
+              const errorMsg = errorData.detail || deleteResponse.statusText;
+              console.error(`Failed to delete slot ${slotId}:`, errorMsg);
+              throw new Error(`Failed to delete slot ${slotId}: ${errorMsg}`);
+            }
+
+            const deleteResult = await deleteResponse.json();
+            console.log(`Successfully deleted slot ${slotId}:`, deleteResult);
+          } catch (error) {
+            console.error(`Error deleting slot ${slotId}:`, error);
+            throw error;
+          }
+        }
+
+        console.log(`Successfully deleted all ${slotsToDelete.length} slots`);
+      } else {
+        console.log('No slots to delete');
+      }
+
+      // STEP 4: Handle slot modifications for single-day mode (AFTER deletion)
+      if (!isRecurring && slotsToModify.length > 0) {
+        console.log('STEP 4: Creating split slots for recurring availability (split by day)...');
+        console.log('Modifications to process:', slotsToModify.length);
+
+        for (const modification of slotsToModify) {
+          const { original, startsBeforeTargetDay, continuesAfterTargetDay } = modification;
+
+          console.log('Processing modification:', {
+            slot_id: original.slot_id,
+            startsBeforeTargetDay,
+            continuesAfterTargetDay
+          });
+
+          // Create "before" part if needed (ends at the day before target)
+          if (startsBeforeTargetDay) {
+            console.log('Creating BEFORE slot...');
+            const beforeSlot = {
+              weekday: original.weekday,
+              start_time: original.start_time,
+              end_time: original.end_time,
+              location_mode: original.location_mode || 'online',
+              location_note: `Recurring slot (before ${formattedDate})`,
+              valid_from: original.valid_from,
+              valid_until: dayBefore // End at the day before target
+            };
+
+            console.log('Creating before slot:', JSON.stringify(beforeSlot, null, 2));
+
+            const beforeResponse = await fetch(
+              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(beforeSlot)
+              }
+            );
+
+            if (!beforeResponse.ok) {
+              const errorData = await beforeResponse.json().catch(() => ({}));
+              console.error('Failed to create before slot:', errorData);
+            } else {
+              console.log('Successfully created before slot');
+            }
+          }
+
+          // Create "after" part if needed (starts at the day after target)
+          if (continuesAfterTargetDay) {
+            const afterSlot = {
+              weekday: original.weekday,
+              start_time: original.start_time,
+              end_time: original.end_time,
+              location_mode: original.location_mode || 'online',
+              location_note: `Recurring slot (after ${formattedDate})`,
+              valid_from: dayAfter, // Start at the day after target
+              valid_until: original.valid_until
+            };
+
+            console.log('Creating after slot:', JSON.stringify(afterSlot, null, 2));
+
+            const afterResponse = await fetch(
+              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify(afterSlot)
+              }
+            );
+
+            if (!afterResponse.ok) {
+              const errorData = await afterResponse.json().catch(() => ({}));
+              console.error('Failed to create after slot:', errorData);
+            } else {
+              console.log('Successfully created after slot');
+            }
+          }
+        }
+      }
+
+      // STEP 5: If editSlots is empty, we're done (just deleted everything)
+      if (!editSlots || editSlots.length === 0) {
+        console.log('STEP 5: No new slots to create - availability cleared');
+        setSaveStatus({
+          success: true,
+          message: isRecurring
+            ? `Cleared availability for all future ${format(editingDate, 'EEEE')}s`
+            : 'Cleared availability for this day'
+        });
+        await fetchTutorAvailability();
+        console.log('========================================');
+        console.log('SAVE AVAILABILITY COMPLETED (CLEARED)');
+        console.log('========================================');
+        return;
+      }
+
+      // STEP 6: Create new slots
+      console.log('STEP 6: Creating new slots...');
+
+      for (const slot of editSlots) {
+        if (!slot.startTime || !slot.endTime) {
+          throw new Error('Please set both start and end times');
+        }
+
+        // Format times in HH:MM:SS
+        const startTime = slot.startTime.includes(':')
+          ? (slot.startTime.length === 5 ? `${slot.startTime}:00` : slot.startTime)
+          : `${slot.startTime}:00:00`;
+        const endTime = slot.endTime.includes(':')
+          ? (slot.endTime.length === 5 ? `${slot.endTime}:00` : slot.endTime)
+          : `${slot.endTime}:00:00`;
+
+        // Prepare request body
+        const requestBody = {
+          weekday: weekday,
+          start_time: startTime,
+          end_time: endTime,
+          location_mode: 'online',
+          location_note: isRecurring
+            ? `Recurring weekly slot starting ${formattedDate}`
+            : `One-time availability for ${formattedDate}`,
+          valid_from: formattedDate,
+          valid_until: isRecurring ? null : formattedDate,
+          ...(isRecurring && { duration: 'forever' })
+        };
+
+        console.log('Creating slot with data:', JSON.stringify(requestBody, null, 2));
+
+        try {
+          const createResponse = await fetch(
+            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify(requestBody)
             }
           );
-          
-          if (!deleteResponse.ok) {
-            const errorData = await deleteResponse.json().catch(() => ({}));
-            const errorMsg = errorData.detail || deleteResponse.statusText;
-            console.error(`Failed to delete slot ${slotId}:`, errorMsg);
-            throw new Error(`Failed to delete slot ${slotId}: ${errorMsg}`);
+
+          if (!createResponse.ok) {
+            const errorData = await createResponse.json().catch(() => ({}));
+            const errorMsg = errorData.detail || createResponse.statusText;
+            console.error('Failed to create slot:', errorMsg);
+            throw new Error(errorMsg);
           }
-          
-          const deleteResult = await deleteResponse.json();
-          console.log(`Successfully deleted slot ${slotId}:`, deleteResult);
+
+          const createResult = await createResponse.json();
+          console.log('Successfully created slot:', createResult);
         } catch (error) {
-          console.error(`Error deleting slot ${slotId}:`, error);
+          console.error('Error creating slot:', error);
           throw error;
         }
       }
-      
-      console.log(`Successfully deleted all ${slotsToDelete.length} slots`);
-    } else {
-      console.log('No slots to delete');
-    }
-    
-    // STEP 5: If editSlots is empty, we're done (just deleted everything)
-    if (!editSlots || editSlots.length === 0) {
-      console.log('STEP 5: No new slots to create - availability cleared');
-      setSaveStatus({ 
-        success: true, 
-        message: isRecurring 
-          ? `Cleared availability for all future ${format(editingDate, 'EEEE')}s`
-          : 'Cleared availability for this day'
+
+      console.log('Successfully created all slots');
+
+      // STEP 7: Success!
+      setSaveStatus({
+        success: true,
+        message: isRecurring
+          ? `Availability updated for all future ${format(editingDate, 'EEEE')}s!`
+          : 'Availability updated for this day!'
       });
+
+      // Refresh availability data
+      console.log('Refreshing availability data...');
       await fetchTutorAvailability();
+
       console.log('========================================');
-      console.log('SAVE AVAILABILITY COMPLETED (CLEARED)');
+      console.log('SAVE AVAILABILITY COMPLETED (SUCCESS)');
       console.log('========================================');
-      return;
-    }
-    
-    // STEP 6: Create new slots
-    console.log('STEP 6: Creating new slots...');
-    
-    for (const slot of editSlots) {
-      if (!slot.startTime || !slot.endTime) {
-        throw new Error('Please set both start and end times');
-      }
-      
-      // Format times in HH:MM:SS
-      const startTime = slot.startTime.includes(':') 
-        ? (slot.startTime.length === 5 ? `${slot.startTime}:00` : slot.startTime)
-        : `${slot.startTime}:00:00`;
-      const endTime = slot.endTime.includes(':') 
-        ? (slot.endTime.length === 5 ? `${slot.endTime}:00` : slot.endTime)
-        : `${slot.endTime}:00:00`;
-      
-      // Prepare request body
-      const requestBody = {
-        weekday: weekday,
-        start_time: startTime,
-        end_time: endTime,
-        location_mode: 'online',
-        location_note: isRecurring 
-          ? `Recurring weekly slot starting ${formattedDate}` 
-          : `One-time availability for ${formattedDate}`,
-        valid_from: formattedDate,
-        valid_until: isRecurring ? null : formattedDate,
-        ...(isRecurring && { duration: 'forever' })
-      };
-      
-      console.log('Creating slot with data:', JSON.stringify(requestBody, null, 2));
-      
-      try {
-        const createResponse = await fetch(
-          `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(requestBody)
-          }
-        );
-        
-        if (!createResponse.ok) {
-          const errorData = await createResponse.json().catch(() => ({}));
-          const errorMsg = errorData.detail || createResponse.statusText;
-          console.error('Failed to create slot:', errorMsg);
-          throw new Error(errorMsg);
-        }
-        
-        const createResult = await createResponse.json();
-        console.log('Successfully created slot:', createResult);
-      } catch (error) {
-        console.error('Error creating slot:', error);
-        throw error;
-      }
-    }
-    
-    console.log('Successfully created all slots');
-    
-    // STEP 7: Success!
-    setSaveStatus({ 
-      success: true, 
-      message: isRecurring 
-        ? `Availability updated for all future ${format(editingDate, 'EEEE')}s!`
-        : 'Availability updated for this day!'
-    });
-    
-    // Refresh availability data
-    console.log('Refreshing availability data...');
-    await fetchTutorAvailability();
-    
-    console.log('========================================');
-    console.log('SAVE AVAILABILITY COMPLETED (SUCCESS)');
-    console.log('========================================');
-    
-  } catch (error) {
-    console.error('========================================');
-    console.error('SAVE AVAILABILITY ERROR:', error);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('========================================');
-    
-    setSaveStatus({ 
-      success: false, 
-      message: error.message || 'Error saving availability. Please try again.'
-    });
-  } finally {
-    setIsSaving(false);
-    
-    // Clear status message after 5 seconds with fade out
-    const timer = setTimeout(() => {
-      const statusElement = document.querySelector('[data-status-message]');
-      if (statusElement) {
-        statusElement.style.opacity = '0';
-        statusElement.style.transform = 'translate(-50%, -20px)';
-        statusElement.style.pointerEvents = 'none';
-        
-        // Remove from DOM after animation completes
-        setTimeout(() => {
+
+    } catch (error) {
+      console.error('========================================');
+      console.error('SAVE AVAILABILITY ERROR:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('========================================');
+
+      setSaveStatus({
+        success: false,
+        message: error.message || 'Error saving availability. Please try again.'
+      });
+    } finally {
+      setIsSaving(false);
+
+      // Clear status message after 5 seconds with fade out
+      const timer = setTimeout(() => {
+        const statusElement = document.querySelector('[data-status-message]');
+        if (statusElement) {
+          statusElement.style.opacity = '0';
+          statusElement.style.transform = 'translate(-50%, -20px)';
+          statusElement.style.pointerEvents = 'none';
+
+          // Remove from DOM after animation completes
+          setTimeout(() => {
+            setSaveStatus({ success: false, message: '' });
+          }, 300);
+        } else {
           setSaveStatus({ success: false, message: '' });
-        }, 300);
-      } else {
-        setSaveStatus({ success: false, message: '' });
-      }
-    }, 5000);
-    
-    return () => clearTimeout(timer);
-  }
-};
-  
+        }
+      }, 5000);
+
+      return () => clearTimeout(timer);
+    }
+  };
+
   // Handle apply to this day
   const handleApplyToThisDay = () => {
     if (!editingDate) return;
     saveAvailability(editingDate, false);
   };
-  
+
   // Handle apply to all future days of week
   const handleApplyToAllFutureDays = () => {
     if (!editingDate) return;
@@ -1511,34 +1697,31 @@ const saveAvailability = async (date, isRecurring = false) => {
   const [editButtonPosition, setEditButtonPosition] = useState({ x: 0, y: 0 });
   const [glowBookingId, setGlowBookingId] = useState(null);
 
-  // Helper function to format hour range for booking display with timezone handling
-  const formatHourRange = (startTime, endTime, hour) => {
-    // Parse the times using our helper function
+  // Helper function to format hour range for display
+  const formatHourRange = (startTime, endTime, currentHour) => {
+    if (!startTime || !endTime) return '';
+
+    // Parse times to local using the same function as booking placement
     const start = parseTimeToLocal(startTime);
     const end = parseTimeToLocal(endTime);
-    
+
     if (!start || !end) return '';
-    
-    // Create slot times based on the current date and hour
-    const slotDate = new Date(start);
-    slotDate.setHours(0, 0, 0, 0);
-    
-    const slotStart = new Date(slotDate);
-    slotStart.setHours(hour, 0, 0, 0);
-    
-    const slotEnd = new Date(slotDate);
-    slotEnd.setHours(hour + 1, 0, 0, 0);
-    
-    // Calculate the display times, ensuring they're within the current hour slot
-    const displayStart = start < slotStart ? slotStart : start;
-    const displayEnd = end > slotEnd ? slotEnd : end;
-    
-    // Format the time range using the user's locale
-    const formatTime = (date) => {
-      return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
-    };
-    
-    return `${formatTime(displayStart)} - ${formatTime(displayEnd)}`;
+
+    // Get local hours and minutes
+    const startHours = start.getHours();
+    const startMinutes = start.getMinutes().toString().padStart(2, '0');
+    const endHours = end.getHours();
+    const endMinutes = end.getMinutes().toString().padStart(2, '0');
+
+    // Determine if we should show minutes (if it's the current hour or if minutes are not :00)
+    const shouldShowMinutes = start.getHours() === currentHour || start.getMinutes() !== 0 || end.getMinutes() !== 0;
+
+    if (shouldShowMinutes) {
+      return `${startHours}:${startMinutes} - ${endHours}:${endMinutes}`;
+    }
+
+    // Otherwise just show the hour range
+    return `${startHours}:00 - ${endHours}:00`;
   };
 
   // Handle tutor booking clicks (navigates to appointment requests)
@@ -1550,13 +1733,13 @@ const saveAvailability = async (date, isRecurring = false) => {
   // Handle student booking clicks (navigates to sessions page with correct tab)
   const handleStudentBookingClick = (booking) => {
     if (!booking) return;
-    
+
     // Store the booking ID for highlighting
     const bookingId = booking.booking_id || booking.id;
-    
+
     // Set glow effect immediately for visual feedback
     setGlowBookingId(bookingId);
-    
+
     // Determine which tab to select based on booking status
     let tab = 'upcoming';
     if (booking.status === 'pending') {
@@ -1564,13 +1747,13 @@ const saveAvailability = async (date, isRecurring = false) => {
     } else if (booking.status === 'completed' || (booking.end_time && new Date(booking.end_time) <= new Date())) {
       tab = 'past';
     }
-    
+
     // Store in session storage as a fallback
     sessionStorage.setItem('highlightBooking', bookingId);
-    
+
     // Navigate to sessions page with the correct tab and highlight
-    navigate(`/sessions?tab=${tab}`, { 
-      state: { 
+    navigate(`/sessions?tab=${tab}`, {
+      state: {
         highlightBooking: bookingId,
         fromCalendar: true
       },
@@ -1628,51 +1811,62 @@ const saveAvailability = async (date, isRecurring = false) => {
       position: 'relative',
       transition: 'transform 0.3s ease-in-out, opacity 0.3s ease-in-out',
       width: '100%',
-      minHeight: '400px' // Ensure minimum height for the calendar
+      minHeight: '400px',
+      willChange: 'transform, opacity',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d'
     },
     'slide-in-left': {
       animation: 'slideInLeft 0.3s ease-out forwards',
       position: 'absolute',
-      top: '40px', // Leave space for the header
+      top: 0,
       left: 0,
       right: 0,
-      bottom: 0,
       width: '100%',
-      backgroundColor: '#fff', // Ensure background covers the area
-      zIndex: 2
+      backgroundColor: darkMode ? '#2d3748' : '#fff',
+      zIndex: 2,
+      willChange: 'transform, opacity',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d'
     },
     'slide-out-left': {
       animation: 'slideOutLeft 0.3s ease-out forwards',
       position: 'absolute',
-      top: '40px',
+      top: 0,
       left: 0,
       right: 0,
-      bottom: 0,
       width: '100%',
-      backgroundColor: '#fff',
-      zIndex: 2
+      backgroundColor: darkMode ? '#2d3748' : '#fff',
+      zIndex: 1,
+      willChange: 'transform, opacity',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d'
     },
     'slide-in-right': {
       animation: 'slideInRight 0.3s ease-out forwards',
       position: 'absolute',
-      top: '40px',
+      top: 0,
       left: 0,
       right: 0,
-      bottom: 0,
       width: '100%',
-      backgroundColor: '#fff',
-      zIndex: 2
+      backgroundColor: darkMode ? '#2d3748' : '#fff',
+      zIndex: 2,
+      willChange: 'transform, opacity',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d'
     },
     'slide-out-right': {
       animation: 'slideOutRight 0.3s ease-out forwards',
       position: 'absolute',
-      top: '40px',
+      top: 0,
       left: 0,
       right: 0,
-      bottom: 0,
       width: '100%',
-      backgroundColor: '#fff',
-      zIndex: 2
+      backgroundColor: darkMode ? '#2d3748' : '#fff',
+      zIndex: 1,
+      willChange: 'transform, opacity',
+      backfaceVisibility: 'hidden',
+      transformStyle: 'preserve-3d'
     }
   };
 
@@ -1680,9 +1874,9 @@ const saveAvailability = async (date, isRecurring = false) => {
     <div style={styles.container}>
       <Header />
       <h1 style={styles.heading}>Dashboard</h1>
-      
+
       <div style={styles.content}>
-        <div style={{ 
+        <div style={{
           display: isAuthenticated ? 'grid' : 'flex',
           gridTemplateColumns: isSidebarCollapsed ? '80px 1fr' : '280px 1fr',
           width: '100%',
@@ -1695,317 +1889,518 @@ const saveAvailability = async (date, isRecurring = false) => {
         }}>
           {/* Left Column - User Profile */}
           {isAuthenticated ? (
-          <>
-          <div style={{ 
-            backgroundColor: '#fff',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            padding: isSidebarCollapsed ? '24px 10px' : '24px',
-            height: 'fit-content',
-            border: '1px solid #f0f0f0',
-            width: isSidebarCollapsed ? '80px' : '280px',
-            boxSizing: 'border-box',
-            transition: 'all 0.3s ease',
-            overflow: 'hidden',
-            minHeight: '300px',
-            position: 'relative'
-          }}>
-            {/* Collapse/Expand Button */}
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              margin: isSidebarCollapsed ? '20px 0px' : '0px',
-              height: isSidebarCollapsed ? '90%' : 'auto',
-              width: '90%',
-              display: 'flex',
-              alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
-              justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
-              pointerEvents: 'none',
-              zIndex: 10,
-              paddingTop: isSidebarCollapsed ? 0 : '10px',
-            }}>
-              <button 
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                style={{
-                  position: 'relative',
-                  backgroundColor: 'rgba(231, 230, 230, 0.49)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#6c757d',
-                  padding: isSidebarCollapsed ? '15px 8px' : '5px',
-                  margin: isSidebarCollapsed ? '0px' : '0 10px',
-                  borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
-                  boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.3s ease',
-                  pointerEvents: 'auto',
-                  height: isSidebarCollapsed ? '100%' : 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
-                  e.currentTarget.style.color = '#35006D';
-                  if (isSidebarCollapsed) {
-                    e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
-                  e.currentTarget.style.color = '#6c757d';
-                  if (isSidebarCollapsed) {
-                    e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
-                  } else {
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <span style={{ 
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '20px',
-                  height: '20px'
-                }}>
-                  {isSidebarCollapsed ? (
-                    <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
-                  ) : (
-                    <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
-                  )}
-                </span>
-              </button>
-            </div>
-            {/* Profile Header */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center',
-              paddingBottom: '20px',
-              marginBottom: '20px',
-              borderBottom: user ? '1px solid #f0f0f0' : 'none',
-              opacity: isSidebarCollapsed ? 0 : 1,
-              transition: 'opacity 0.2s ease',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              width: '100%'
-            }}>
+            <>
               <div style={{
-                width: '90px',
-                height: '90px',
-                borderRadius: '50%',
-                backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
+                backgroundColor: darkMode ? "rgb(60, 60, 60)" : '#fff',
+                borderRadius: '12px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                padding: isSidebarCollapsed ? '24px 10px' : '24px',
+                height: 'fit-content',
+                border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #f0f0f0',
+                width: isSidebarCollapsed ? '80px' : '280px',
+                boxSizing: 'border-box',
+                transition: 'all 0.3s ease',
                 overflow: 'hidden',
-                border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+                minHeight: '300px',
+                position: 'relative'
               }}>
-                {user?.firstName && user?.lastName ? (
-                  <div style={{
-                    fontSize: '36px',
-                    fontWeight: '600',
-                    color: '#9A2250',
-                    textTransform: 'uppercase'
-                  }}>
-                    {user.firstName[0]}{user.lastName[0]}
-                  </div>
-                ) : (
-                  <i className="fas fa-user" style={{ 
-                    fontSize: '36px', 
-                    color: '#9A2250',
-                    opacity: 0.7 
-                  }}></i>
-                )}
-              </div>
-              
-              <h3 style={{ 
-                margin: '8px 0 6px',
-                color: user ? '#2c3e50' : '#6c757d',
-                fontSize: '1.2rem',
-                textAlign: 'center',
-                fontWeight: user ? '600' : '500'
-              }}>
-                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
-              </h3>
-              
-              {user && (
+                {/* Collapse/Expand Button */}
                 <div style={{
-                  backgroundColor: user?.isTutor ? '#e6f7e6' : '#e6f0ff',
-                  color: user?.isTutor ? '#1e7b1e' : '#1967d2',
-                  padding: '3px 12px',
-                  borderRadius: '12px',
-                  fontSize: '0.75rem',
-                  fontWeight: '600',
-                  marginTop: '4px',
-                  letterSpacing: '0.3px'
-                }}>
-                  {user?.isTutor ? 'Tutor' : 'Student'}
-                </div>
-              )}
-            </div>
-            
-            {/* Enrolled Courses Section */}
-            <div style={{
-              opacity: isSidebarCollapsed ? 0 : 1,
-              transition: 'opacity 0.2s ease',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              width: '100%'
-            }}>
-              <h4 style={{
-                color: '#495057',
-                fontSize: '0.95rem',
-                margin: '0 0 16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontWeight: '600',
-                letterSpacing: '0.3px'
-              }}>
-                <i className="fas fa-book" style={{ 
-                  color: '#9A2250',
-                  width: '20px',
-                  textAlign: 'center'
-                }}></i>
-                {user ? 'My Courses' : 'Featured Courses'}
-              </h4>
-              
-              {(user ? [
-                { code: 'CSC 415', name: 'Operating Systems' },
-                { code: 'CSC 600', name: 'Advanced Programming' },
-                { code: 'MATH 300', name: 'Discrete Mathematics' }
-              ] : [
-                { code: 'CSC 648', name: 'Software Engineering' },
-                { code: 'CSC 413', name: 'Programming Languages' },
-                { code: 'MATH 324', name: 'Probability & Statistics' }
-              ]).map((course, index) => (
-                <div key={index} style={{
+                  position: 'absolute',
+                  top: 0,
+                  right: 0,
+                  margin: isSidebarCollapsed ? '20px 0px' : '0px',
+                  height: isSidebarCollapsed ? '90%' : 'auto',
+                  width: '90%',
                   display: 'flex',
+                  alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
+                  justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
+                  pointerEvents: 'none',
+                  zIndex: 10,
+                  paddingTop: isSidebarCollapsed ? 0 : '10px',
+                }}>
+                  <button
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    style={{
+                      position: 'relative',
+                      backgroundColor: 'rgba(231, 230, 230, 0.49)',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: darkMode ? 'rgba(0, 0, 0, 0.61)' : '#6c757d',
+                      padding: isSidebarCollapsed ? '15px 8px' : '5px',
+                      margin: isSidebarCollapsed ? '0px' : '0 10px',
+                      borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
+                      boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.3s ease',
+                      pointerEvents: 'auto',
+                      height: isSidebarCollapsed ? '100%' : 'auto',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
+                      e.currentTarget.style.color = '#35006D';
+                      if (isSidebarCollapsed) {
+                        e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
+                      }
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
+                      e.currentTarget.style.color = '#6c757d';
+                      if (isSidebarCollapsed) {
+                        e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
+                      } else {
+                        e.currentTarget.style.boxShadow = 'none';
+                      }
+                    }}
+                  >
+                    <span style={{
+                      fontSize: '16px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '20px',
+                      height: '20px'
+                    }}>
+                      {isSidebarCollapsed ? (
+                        <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
+                      ) : (
+                        <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
+                      )}
+                    </span>
+                  </button>
+                </div>
+                {/* Profile Header */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
                   alignItems: 'center',
-                  padding: '10px 12px',
-                  marginBottom: '8px',
-                  backgroundColor: '#f8f9fa',
-                  borderRadius: '8px',
-                  transition: 'all 0.2s ease',
-                  border: '1px solid #f0f0f0',
+                  paddingBottom: '20px',
+                  marginBottom: '20px',
+                  borderBottom: user ? '1px solid #f0f0f0' : 'none',
+                  opacity: isSidebarCollapsed ? 0 : 1,
+                  transition: 'opacity 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%'
                 }}>
                   <div style={{
-                    width: '34px',
-                    height: '34px',
-                    backgroundColor: user ? '#e6f0ff' : '#f0f0f0',
-                    borderRadius: '6px',
+                    width: '90px',
+                    height: '90px',
+                    borderRadius: '50%',
+                    backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginRight: '12px',
-                    flexShrink: 0,
-                    color: user ? '#1967d2' : '#6c757d',
-                    fontWeight: '600',
-                    fontSize: '0.75rem',
-                    border: `1px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+                    marginBottom: '16px',
+                    overflow: 'hidden',
+                    border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
                   }}>
-                    {course.code.split(' ')[0]}
+                    {user?.firstName && user?.lastName ? (
+                      <div style={{
+                        fontSize: '36px',
+                        fontWeight: '600',
+                        color: '#9A2250',
+                        textTransform: 'uppercase'
+                      }}>
+                        {user.firstName[0]}{user.lastName[0]}
+                      </div>
+                    ) : (
+                      <i className="fas fa-user" style={{
+                        fontSize: '36px',
+                        color: '#9A2250',
+                        opacity: 0.7
+                      }}></i>
+                    )}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
+
+                  <h3 style={{
+                    margin: '8px 0 6px',
+                    color: darkMode ? "rgb(255, 255, 255)" : user ? '#2c3e50' : '#6c757d',
+                    fontSize: '1.2rem',
+                    textAlign: 'center',
+                    fontWeight: user ? '600' : '500',
+                    width: '100%',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
+                    {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
+                  </h3>
+
+                  {user && (
                     <div style={{
-                      fontSize: '0.85rem',
+                      backgroundColor: user?.isTutor ? '#e6f7e6' : '#e6f0ff',
+                      color: user?.isTutor ? '#1e7b1e' : '#1967d2',
+                      padding: '3px 12px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
                       fontWeight: '600',
-                      color: '#343a40',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
+                      marginTop: '4px',
+                      letterSpacing: '0.3px'
                     }}>
-                      {course.code}
+                      {user?.isTutor ? 'Tutor' : 'Student'}
                     </div>
-                    <div style={{
-                      fontSize: '0.8rem',
-                      color: '#6c757d',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {course.name}
-                    </div>
-                  </div>
+                  )}
                 </div>
-              ))}
-              
-            {!user ? (
-              <button 
-                onClick={() => navigate('/login')}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  marginTop: '12px',
-                  backgroundColor: '#9A2250',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  fontWeight: '500',
-                  fontSize: '0.9rem'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#7d1a42';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = '#9A2250';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Sign In to Enroll
-              </button>
-            ) : (
-              <button 
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  marginTop: '12px',
-                  backgroundColor: 'transparent',
-                  border: '1px dashed #ced4da',
-                  borderRadius: '8px',
-                  color: '#6c757d',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s',
-                  fontSize: '0.85rem'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = '#f8f9fa';
-                  e.currentTarget.style.borderColor = '#9A2250';
-                  e.currentTarget.style.color = '#9A2250';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = '#ced4da';
-                  e.currentTarget.style.color = '#6c757d';
-                }}
-              >
-                <i className="fas fa-plus"></i>
-                Add Course
-              </button>
-            )}
-            </div>
-          </div>
-          </>
-          ):null}
-          
+
+                {/* Appointment Requests Button */}
+                {user?.isTutor && (
+                  <div style={{
+                    opacity: isSidebarCollapsed ? 0 : 1,
+                    transition: 'opacity 0.2s ease',
+                    width: '100%',
+                    marginBottom: '20px',
+                    paddingBottom: '20px',
+                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                  }}>
+                    <button
+                      onClick={() => navigate('/appointment-requests')}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        backgroundColor: darkMode ? 'rgba(255, 220, 112, 0.35)' : 'rgba(255, 193, 7, 0.33)',
+                        color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.7)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '10px',
+                        transition: 'all 0.2s',
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        position: 'relative',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255, 219, 112, 0.42)' : 'rgba(255, 193, 7, 0.5)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255, 220, 112, 0.35)' : 'rgba(255, 193, 7, 0.33)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                      }}
+                    >
+                      <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
+                      Appointment Requests
+                      {pendingRequestsCount > 0 && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '-8px',
+                          right: '-8px',
+                          backgroundColor: '#dc3545',
+                          color: 'white',
+                          borderRadius: '50%',
+                          minWidth: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                          border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
+                          padding: '0 6px'
+                        }}>
+                          {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+                        </div>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Courses I Tutor Section - Only for tutors */}
+                {user?.isTutor && (
+                  <div style={{
+                    opacity: isSidebarCollapsed ? 0 : 1,
+                    transition: 'opacity 0.2s ease',
+                    width: '100%',
+                    marginBottom: '20px',
+                    paddingBottom: '20px',
+                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                  }}>
+                    <h4 style={{
+                      color: darkMode ? "#fff" : '#495057',
+                      fontSize: '0.95rem',
+                      margin: '0 0 12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontWeight: '600',
+                      letterSpacing: '0.3px'
+                    }}>
+                      <i className="fas fa-book" style={{
+                        color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
+                        width: '20px',
+                        textAlign: 'center'
+                      }}></i>
+                      Courses I Tutor
+                    </h4>
+
+                    {isLoadingCourses ? (
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        padding: '10px 0'
+                      }}>
+                        <div className="spinner-border spinner-border-sm" role="status">
+                          <span className="visually-hidden">Loading...</span>
+                        </div>
+                      </div>
+                    ) : tutorCourses.length > 0 ? (
+                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                        {tutorCourses.map((course, index) => (
+                          <div key={index} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '8px 12px',
+                            marginBottom: '6px',
+                            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                            borderRadius: '6px',
+                            transition: 'all 0.2s ease',
+                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #f0f0f0',
+                          }}>
+                            <div style={{
+                              width: '34px',
+                              height: '34px',
+                              backgroundColor: darkMode
+                                ? 'rgba(255, 220, 100, 0.1)'
+                                : '#fff3cd',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              marginRight: '12px',
+                              flexShrink: 0,
+                              color: darkMode
+                                ? 'rgba(255, 220, 100, 0.9)'
+                                : '#856404',
+                              fontWeight: '600',
+                              fontSize: '0.7rem',
+                              border: darkMode
+                                ? '1px solid rgba(255, 220, 100, 0.2)'
+                                : '1px solid #ffeeba'
+                            }}>
+                              {course.department_code}
+                            </div>
+                            <div style={{
+                              flex: 1,
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}>
+                              <div style={{
+                                fontWeight: '600',
+                                fontSize: '0.85rem',
+                                color: darkMode ? '#fff' : '#2c3e50',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {course.department_code} {course.course_number}
+                              </div>
+                              <div style={{
+                                fontSize: '0.75rem',
+                                color: darkMode ? 'rgba(255, 255, 255, 0.7)' : '#6c757d',
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis'
+                              }}>
+                                {course.title}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{
+                        fontSize: '0.8rem',
+                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
+                        fontStyle: 'italic',
+                        textAlign: 'center',
+                        padding: '8px 0'
+                      }}>
+                        No courses added yet
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Enrolled Courses Section */}
+                <div style={{
+                  opacity: isSidebarCollapsed ? 0 : 1,
+                  transition: 'opacity 0.2s ease',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  width: '100%'
+                }}>
+                  <h4 style={{
+                    color: darkMode ? "rgb(255, 255, 255)" : '#495057',
+                    fontSize: '0.95rem',
+                    margin: '0 0 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontWeight: '600',
+                    letterSpacing: '0.3px'
+                  }}>
+                    <i className="fas fa-book" style={{
+                      color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
+                      width: '20px',
+                      textAlign: 'center'
+                    }}></i>
+                    {user ? 'My Courses' : 'Featured Courses'}
+                  </h4>
+
+                  {(user ? [
+                    { code: 'CSC 415', name: 'Operating Systems' },
+                    { code: 'CSC 600', name: 'Advanced Programming' },
+                    { code: 'MATH 300', name: 'Discrete Mathematics' }
+                  ] : [
+                    { code: 'CSC 648', name: 'Software Engineering' },
+                    { code: 'CSC 413', name: 'Programming Languages' },
+                    { code: 'MATH 324', name: 'Probability & Statistics' }
+                  ]).map((course, index) => (
+                    <div key={index} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      padding: '10px 12px',
+                      marginBottom: '8px',
+                      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s ease',
+                      border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #f0f0f0',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: darkMode
+                          ? '0 4px 6px rgba(0, 0, 0, 0.1)'
+                          : '0 2px 4px rgba(0, 0, 0, 0.05)'
+                      }
+                    }}>
+                      <div style={{
+                        width: '34px',
+                        height: '34px',
+                        backgroundColor: darkMode
+                          ? user ? 'rgba(25, 103, 210, 0.2)' : 'rgba(255, 255, 255, 0.1)'
+                          : user ? '#e6f0ff' : '#f0f0f0',
+                        borderRadius: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginRight: '12px',
+                        flexShrink: 0,
+                        color: darkMode
+                          ? user ? 'rgba(25, 103, 210, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+                          : user ? '#1967d2' : '#6c757d',
+                        fontWeight: '600',
+                        fontSize: '0.75rem',
+                        border: darkMode
+                          ? `1px solid ${user ? 'rgba(25, 103, 210, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`
+                          : `1px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+                      }}>
+                        {course.code.split(' ')[0]}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{
+                          fontSize: '0.85rem',
+                          fontWeight: '600',
+                          color: darkMode ? '#fff' : '#343a40',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {course.code}
+                        </div>
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : '#6c757d',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis'
+                        }}>
+                          {course.name}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {!user ? (
+                    <button
+                      onClick={() => navigate('/login')}
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        marginTop: '12px',
+                        backgroundColor: '#9A2250',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s',
+                        fontWeight: '500',
+                        fontSize: '0.9rem'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#7d1a42';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#9A2250';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      Sign In to Enroll
+                    </button>
+                  ) : (
+                    <button
+                      style={{
+                        width: '100%',
+                        padding: '10px',
+                        marginTop: '12px',
+                        backgroundColor: 'transparent',
+                        border: '1px dashed #ced4da',
+                        borderRadius: '8px',
+                        color: '#6c757d',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        transition: 'all 0.2s',
+                        fontSize: '0.85rem'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f8f9fa';
+                        e.currentTarget.style.borderColor = '#9A2250';
+                        e.currentTarget.style.color = '#9A2250';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.borderColor = '#ced4da';
+                        e.currentTarget.style.color = '#6c757d';
+                      }}
+                    >
+                      <i className="fas fa-plus"></i>
+                      Add Course
+                    </button>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : null}
+
           {/* Right Column - Search and Calendar */}
-          <div style={{ 
+          <div style={{
             width: '100%',
             display: 'flex',
             flexDirection: 'column',
@@ -2016,10 +2411,10 @@ const saveAvailability = async (date, isRecurring = false) => {
               width: '100%',
               margin: 0
             }}>
-              <h3 style={{ margin: "0 0 5px 0", color: '#2c3e50' }}>Find Tutors & Courses</h3>
+              <h3 style={{ margin: "0 0 5px 0", color: darkMode ? '#fff' : '#2c3e50' }}>Find Tutors & Courses</h3>
               <div style={styles.searchInputContainer}>
                 <div style={styles.categoryDropdown}>
-                  <button 
+                  <button
                     style={styles.categoryButton}
                     onClick={toggleCategory}
                   >
@@ -2027,19 +2422,19 @@ const saveAvailability = async (date, isRecurring = false) => {
                   </button>
                   {isCategoryOpen && (
                     <ul style={styles.categoryList}>
-                      <li 
+                      <li
                         onClick={() => selectCategory('default')}
                         style={{ cursor: 'pointer', padding: '8px 16px' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >All</li>
-                      <li 
+                      <li
                         onClick={() => selectCategory('tutor')}
                         style={{ cursor: 'pointer', padding: '8px 16px' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                       >Tutors</li>
-                      <li 
+                      <li
                         onClick={() => selectCategory('course')}
                         style={{ cursor: 'pointer', padding: '8px 16px' }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
@@ -2056,7 +2451,7 @@ const saveAvailability = async (date, isRecurring = false) => {
                   placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
                   style={styles.searchInput}
                 />
-                <button 
+                <button
                   style={{
                     backgroundColor: '#35006D',
                     color: 'white',
@@ -2092,25 +2487,25 @@ const saveAvailability = async (date, isRecurring = false) => {
                 </button>
               </div>
             </div>
-            
+
             {/* Edit Availability Section */}
             {user?.isTutor && editingDate && (
-              <div 
+              <div
                 data-edit-panel
                 style={{
                   ...styles.searchContainer,
                   width: '100%',
-                margin: 0,
-                animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
-                transformOrigin: 'center top'
-              }}>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                  margin: 0,
+                  animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
+                  transformOrigin: 'center top'
+                }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   marginBottom: '16px'
                 }}>
-                  <h3 style={{ margin: 0, color: '#2c3e50' }}>
+                  <h3 style={{ margin: 0, color: darkMode ? '#fff' : '#2c3e50' }}>
                     Edit Availability - {format(editingDate, 'EEEE, MMMM d, yyyy')}
                   </h3>
                   <button
@@ -2144,11 +2539,11 @@ const saveAvailability = async (date, isRecurring = false) => {
                       padding: '12px',
                       backgroundColor: 'rgba(255, 220, 100, 0.3)',
                       borderRadius: '8px',
-                      border: '1px solid #e9ecef',
+                      border: darkMode ? '1px solid #444' : '1px solid #e9ecef',
                       animation: isEditPanelAnimating ? `editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.1 + index * 0.1}s backwards` : 'none'
                     }}>
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: '#495057', minWidth: '40px' }}>
+                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '40px' }}>
                           From:
                         </label>
                         <input
@@ -2164,9 +2559,9 @@ const saveAvailability = async (date, isRecurring = false) => {
                           }}
                         />
                       </div>
-                      
+
                       <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: '#495057', minWidth: '30px' }}>
+                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '30px' }}>
                           To:
                         </label>
                         <input
@@ -2211,7 +2606,7 @@ const saveAvailability = async (date, isRecurring = false) => {
                       width: '100%',
                       padding: '10px',
                       backgroundColor: 'transparent',
-                      border: '2px dashed rgb(206, 212, 218)',
+                      border: darkMode ? '2px dashed rgb(114, 117, 120)' : '2px dashed rgb(206, 212, 218)',
                       borderRadius: '8px',
                       color: '#6c757d',
                       cursor: 'pointer',
@@ -2226,10 +2621,10 @@ const saveAvailability = async (date, isRecurring = false) => {
                     onMouseOver={(e) => {
                       e.currentTarget.style.borderColor = 'rgb(196, 180, 7)';
                       e.currentTarget.style.color = '#35006D';
-                      e.currentTarget.style.backgroundColor = '#f8f9fa';
+                      e.currentTarget.style.backgroundColor = darkMode ? 'rgb(114, 117, 120)' : 'rgb(206, 212, 218)';
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.borderColor = 'rgb(206, 212, 218)';
+                      e.currentTarget.style.borderColor = darkMode ? 'rgb(114, 117, 120)' : 'rgb(206, 212, 218)';
                       e.currentTarget.style.color = '#6c757d';
                       e.currentTarget.style.backgroundColor = 'transparent';
                     }}
@@ -2245,50 +2640,92 @@ const saveAvailability = async (date, isRecurring = false) => {
                   paddingTop: '16px',
                   borderTop: '1px solid #e9ecef'
                 }}>
-                  <button
-                    onClick={handleApplyToThisDay}
-                    disabled={isSaving}
-                    style={{
-                      flex: 1,
-                      padding: '10px 20px',
-                      backgroundColor: isSaving ? '#6c757d' : '#35006D',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: isSaving ? 'not-allowed' : 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '500',
-                      transition: 'background-color 0.2s',
-                      opacity: isSaving ? 0.7 : 1
-                    }}
-                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#4b1a80')}
-                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#35006D')}
-                  >
-                    {isSaving ? 'Saving...' : 'Apply to This Day'}
-                  </button>
-                  
-                  <button
-                    onClick={handleApplyToAllFutureDays}
-                    disabled={isSaving}
-                    style={{
-                      flex: 1,
-                      padding: '10px 20px',
-                      backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '6px',
-                      cursor: isSaving ? 'not-allowed' : 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '500',
-                      transition: 'background-color 0.2s',
-                      opacity: isSaving ? 0.7 : 1
-                    }}
-                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
-                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
-                  >
-                    {isSaving ? 'Saving...' : `Apply to All Future ${format(editingDate, 'EEEE')}s`}
-                  </button>
-                  
+                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px', width: '100%' }}>
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <button
+                        onClick={handleApplyToThisDay}
+                        disabled={isSaving}
+                        style={{
+                          width: '100%',
+                          padding: '10px 20px',
+                          backgroundColor: isSaving ? '#6c757d' : '#35006D',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: isSaving ? 'not-allowed' : 'pointer',
+                          fontSize: '0.9rem',
+                          fontWeight: '500',
+                          transition: 'background-color 0.2s',
+                          opacity: isSaving ? 0.7 : 1,
+                          textAlign: 'center',
+                          boxSizing: 'border-box',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                        onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#4b1a80')}
+                        onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#35006D')}
+                      >
+                        {isSaving ? 'Saving...' : 'Apply to This Day'}
+                      </button>
+                    </div>
+
+                    <div style={{ flex: 1, position: 'relative' }}>
+                      <button
+                        onClick={handleApplyToAllFutureDays}
+                        disabled={isSaving}
+                        style={{
+                          width: '100%',
+                          padding: '10px 35px 10px 20px',
+                          backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: isSaving ? 'not-allowed' : 'pointer',
+                          fontSize: '0.9rem',
+                          fontWeight: '500',
+                          transition: 'background-color 0.2s',
+                          opacity: isSaving ? 0.7 : 1,
+                          textAlign: 'center',
+                          position: 'relative',
+                          boxSizing: 'border-box',
+                          height: '40px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          paddingRight: '35px'
+                        }}
+                        onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
+                        onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
+                      >
+                        {isSaving ? 'Saving...' : `Apply to All Future ${format(editingDate, 'EEEE')}s`}
+                        <div
+                          style={{
+                            position: 'absolute',
+                            right: '8px',
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                            borderRadius: '50%',
+                            width: '18px',
+                            height: '18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'help',
+                            pointerEvents: 'auto'
+                          }}
+                          title={`Change all the future ${format(editingDate, 'EEEE')}s availability to current selection. \n\nIf these days have other recurring or one time slots they will be DELETED and replaced by current selection.`}
+                        >
+                          ?
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
                   {saveStatus.message && (
                     <div style={{
                       position: 'fixed',
@@ -2310,8 +2747,8 @@ const saveAvailability = async (date, isRecurring = false) => {
                       border: `1px solid ${saveStatus.success ? '#c3e6cb' : '#f5c6cb'}`,
                       animation: 'slideDown 0.3s ease-out'
                     }}>
-                      <div style={{ 
-                        display: 'flex', 
+                      <div style={{
+                        display: 'flex',
                         alignItems: 'center',
                         gap: '8px'
                       }}>
@@ -2323,259 +2760,298 @@ const saveAvailability = async (date, isRecurring = false) => {
                 </div>
               </div>
             )}
-            
+
             {/* Conditional Calendar Rendering */}
             {isAuthenticated ? (
               <>
-            <div style={{
-              ...styles.calendarContainer,
-              width: '100%',
-              margin: 0,
-              position: 'relative',
-              overflow: 'hidden',
-              minHeight: '600px'
-            }}>
-              <div style={styles.calendarHeader}>
-                <button 
-                  onClick={prevWeek}
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <i className="fas fa-chevron-left"></i> Previous Week
-                </button>
-                <div style={styles.weekDisplay}>
-                  {format(currentWeekStart, 'MMM d, yyyy')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
-                </div>
-                <button 
-                  onClick={nextWeek}
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '6px 12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  Next Week <i className="fas fa-chevron-right" style={{ marginLeft: '8px' }}></i>
-                </button>
-              </div>
-              
-              <style>{keyframes}</style>
-              
-              {/* Student Calendar */}
-              {!user?.isTutor && (
                 <div style={{
-                  ...styles.calendarGrid,
+                  ...styles.calendarContainer,
+                  width: '100%',
+                  margin: 0,
                   position: 'relative',
                   overflow: 'hidden',
-                  ...calendarAnimation[slideDirection]
+                  minHeight: '600px'
                 }}>
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, 1fr)',
-                    gap: '1px',
-                    backgroundColor: '#e9ecef',
-                    border: '1px solid #dee2e6',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                  }}>
-                    {weekDays.map((day, index) => {
-                      const currentDate = addDays(currentWeekStart, index);
-                      const isToday = isSameDay(currentDate, today);
-                      return (
-                        <div key={day} style={{
-                          ...styles.dayHeader,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          padding: '8px 4px',
-                          position: 'relative'
-                        }}>
-                          <div style={{ 
-                            fontSize: '0.85rem',
-                            marginBottom: '4px',
-                            fontWeight: isToday ? 'bold' : 'normal'
-                          }}>
-                            {day}
-                          </div>
-                          <div style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            backgroundColor: isToday ? 'rgba(53, 0, 109, 0.1)' : 'transparent',
-                            color: 'inherit',
-                            fontWeight: isToday ? 'bold' : 'normal',
-                            position: 'relative'
-                          }}>
-                            {format(currentDate, 'd')}
-                            {isToday && (
-                              <div style={{
-                                position: 'absolute',
-                                top: '-42px',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                fontSize: '10px',
-                                fontWeight: 'bold',
-                                color: '#35006D',
-                                whiteSpace: 'nowrap',
-                                backgroundColor: 'white',
-                                borderRadius: '6px',
-                                padding: '0px 4px',
-                                zIndex: 1,
-                                boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                              }}>
-                                Today
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {renderStudentDays()}
-                  </div>
-                </div>
-              )}
-              
-              {/* Tutor Calendar */}
-              {user?.isTutor && (
-                <div style={{
-                  position: 'relative',
-                  width: '100%',
-                  minHeight: '500px' // Ensure enough height for the calendar
-                }}>
-                  {isLoadingAvailability ? (
-                    <div style={{ 
-                      textAlign: 'center', 
-                      padding: '40px', 
-                      color: '#666',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0
-                    }}>
-                      <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
-                      <div>Loading availability...</div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{
-                        position: 'sticky',
-                        top: '0',
-                        zIndex: 1,
-                        marginBottom: '10px',
-                        padding: '8px 12px',
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                  <div style={styles.calendarHeader}>
+                    <button
+                      onClick={prevWeek}
+                      style={{
+                        backgroundColor: '#35006D',
+                        color: 'white',
+                        border: 'none',
                         borderRadius: '6px',
-                        border: '1px solid rgba(0, 0, 0, 0.1)',
-                        fontSize: '0.85rem',
-                        color: '#666',
+                        padding: '6px 12px',
+                        cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
-                        flexWrap: 'wrap',
-                        gap: '16px',
-                        boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{
-                            width: '16px',
-                            height: '16px',
-                            backgroundColor: 'rgba(255, 220, 100, 0.4)',
-                            borderRadius: '3px'
-                          }}></div>
-                          <span>Available hours</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{
-                            width: '16px',
-                            height: '16px',
-                            backgroundColor: 'rgba(255, 193, 7, 0.9)',
-                            borderRadius: '3px',
-                            border: '1px solid rgba(0, 0, 0, 0.1)'
-                          }}></div>
-                          <span>Pending requests</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <div style={{
-                            width: '16px',
-                            height: '16px',
-                            backgroundColor: 'rgba(53, 0, 109, 0.5)',
-                            borderRadius: '3px',
-                            border: '1px solid rgba(0, 0, 0, 0.1)'
-                          }}></div>
-                          <span>Confirmed appointments</span>
-                        </div>
-                      </div>
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#4b1a80';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#35006D';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateY(1px)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      <i className="fas fa-chevron-left"></i> Previous Week
+                    </button>
+                    <div style={styles.weekDisplay}>
+                      {format(currentWeekStart, 'MMM d, yyyy')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
+                    </div>
+                    <button
+                      onClick={nextWeek}
+                      style={{
+                        backgroundColor: '#35006D',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '6px 12px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontWeight: '500',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = '#4b1a80';
+                        e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = '#35006D';
+                        e.currentTarget.style.boxShadow = 'none';
+                      }}
+                      onMouseDown={(e) => {
+                        e.currentTarget.style.transform = 'translateY(1px)';
+                      }}
+                      onMouseUp={(e) => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                      }}
+                    >
+                      Next Week <i className="fas fa-chevron-right" style={{ marginLeft: '8px' }}></i>
+                    </button>
+                  </div>
+
+                  <style>{keyframes}</style>
+
+                  {/* Student Calendar */}
+                  {!user?.isTutor && (
+                    <div style={{
+                      position: 'relative',
+                      minHeight: '400px'
+                    }}>
                       <div style={{
-                        ...styles.tutorCalendarGrid,
-                        position: 'relative',
-                        ...calendarAnimation[slideDirection],
-                        willChange: 'transform, opacity'
+                        ...styles.calendarGrid,
+                        ...calendarAnimation[slideDirection]
                       }}>
-                        {renderTutorCalendar()}
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(7, 1fr)',
+                          gap: '1px',
+                          backgroundColor: '#e9ecef',
+                          border: '1px solid #dee2e6',
+                          borderRadius: '8px',
+                          overflow: 'hidden',
+                        }}>
+                          {weekDays.map((day, index) => {
+                            const currentDate = addDays(currentWeekStart, index);
+                            const isToday = isSameDay(currentDate, today);
+                            return (
+                              <div key={day} style={{
+                                ...styles.dayHeader,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '8px 4px',
+                                position: 'relative'
+                              }}>
+                                <div style={{
+                                  fontSize: '0.85rem',
+                                  marginBottom: '4px',
+                                  fontWeight: isToday ? 'bold' : 'normal'
+                                }}>
+                                  {day}
+                                </div>
+                                <div style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '50%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  backgroundColor: isToday ? 'rgba(53, 0, 109, 0.1)' : 'transparent',
+                                  color: 'inherit',
+                                  fontWeight: isToday ? 'bold' : 'normal',
+                                  position: 'relative'
+                                }}>
+                                  {format(currentDate, 'd')}
+                                  {isToday && (
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: '-42px',
+                                      left: '50%',
+                                      transform: 'translateX(-50%)',
+                                      fontSize: '10px',
+                                      fontWeight: 'bold',
+                                      color: '#35006D',
+                                      whiteSpace: 'nowrap',
+                                      backgroundColor: 'white',
+                                      borderRadius: '6px',
+                                      padding: '0px 4px',
+                                      zIndex: 1,
+                                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                    }}>
+                                      Today
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                          {renderStudentDays()}
+                        </div>
                       </div>
-                    </>
+                    </div>
+                  )}
+
+                  {/* Tutor Calendar */}
+                  {user?.isTutor && (
+                    <div style={{
+                      position: 'relative',
+                      width: '100%',
+                      minHeight: '500px'
+                    }}>
+                      {isLoadingAvailability ? (
+                        <div style={{
+                          textAlign: 'center',
+                          padding: '40px',
+                          color: '#666',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0
+                        }}>
+                          <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
+                          <div>Loading availability...</div>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{
+                            position: 'sticky',
+                            top: '0',
+                            zIndex: 1,
+                            marginBottom: '10px',
+                            padding: '8px 12px',
+                            backgroundColor: darkMode ? 'rgba(110, 110, 110, 0.32)' : 'rgba(255, 255, 255, 0.9)',
+                            borderRadius: '6px',
+                            border: '1px solid rgba(0, 0, 0, 0.1)',
+                            fontSize: '0.85rem',
+                            color: darkMode ? '#b2b2b2ff' : '#666',
+                            display: 'flex',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '16px',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: darkMode ? 'rgba(255, 219, 100, 0.6)' : 'rgba(255, 220, 100, 0.4)',
+                                borderRadius: '0px',
+                              }}></div>
+                              <span>Available hours</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                width: '16px',
+                                height: '16px',
+                                background: 'linear-gradient(to right, rgba(255, 193, 7, 0.9) 0%, rgba(255, 193, 7, 0.9) 18%, rgba(255, 193, 7, 0.3) 66%, rgba(255, 193, 7, 0.3) 100%)',
+                                borderRadius: '3px',
+                                border: '1px solid rgba(0, 0, 0, 0.1)'
+                              }}></div>
+                              <span>Pending requests</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                width: '16px',
+                                height: '16px',
+                                background: 'linear-gradient(to right, rgba(53, 0, 109, 0.5) 0%, rgba(53, 0, 109, 0.5) 33%, rgba(53, 0, 109, 0.2) 66%, rgba(53, 0, 109, 0.2) 100%)',
+                                borderRadius: '0px',
+                                border: '1px solid rgba(0, 0, 0, 0.1)'
+                              }}></div>
+                              <span>Confirmed appointments</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                display: 'flex',
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '0px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(0, 0, 0, 0.1)'
+                              }}>
+                                <div style={{ width: '10%', height: '100%', backgroundColor: 'rgba(255, 193, 7, 1)' }}></div>
+                                <div style={{ width: '20%', height: '100%', background: 'linear-gradient(90deg, rgba(255, 193, 7, 1), rgba(255, 255, 255, 0.55))' }}></div>
+                                <div style={{ width: '70%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.73)' }}></div>
+                              </div>
+                              <span>Sent request</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <div style={{
+                                display: 'flex',
+                                width: '16px',
+                                height: '16px',
+                                borderRadius: '0px',
+                                overflow: 'hidden',
+                                border: '1px solid rgba(0, 0, 0, 0.1)'
+                              }}>
+                                <div style={{ width: '10%', height: '100%', backgroundColor: 'rgba(58, 0, 120, 1)' }}></div>
+                                <div style={{ width: '20%', height: '100%', background: 'linear-gradient(90deg, rgba(53, 0, 109, 1), rgba(255, 255, 255, 0.55))' }}></div>
+                                <div style={{ width: '70%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.73)' }}></div>
+                              </div>
+                              <span>Your session</span>
+                            </div>
+                          </div>
+                          <div style={{
+                            position: 'relative',
+                            minHeight: '500px'
+                          }}>
+                            <div style={{
+                              ...styles.tutorCalendarGrid,
+                              ...calendarAnimation[slideDirection],
+                              willChange: 'transform, opacity',
+                              backfaceVisibility: 'hidden',
+                              transformStyle: 'preserve-3d'
+                            }}>
+                              {renderTutorCalendar()}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-            </>
-            ):null}
+              </>
+            ) : null}
           </div>
         </div>
       </div>

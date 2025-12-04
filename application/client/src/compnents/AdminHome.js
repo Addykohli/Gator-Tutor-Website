@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
-import format from 'date-fns/format';
-import addWeeks from 'date-fns/addWeeks';
-import subWeeks from 'date-fns/subWeeks';
-import startOfWeek from 'date-fns/startOfWeek';
-import addDays from 'date-fns/addDays';
-import isSameDay from 'date-fns/isSameDay';
 import Header from './Header';
 
 const AdminHome = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date()));
+  const { user, darkMode } = useAuth();
+  const [isDarkMode, setIsDarkMode] = useState(darkMode);
+
+  useEffect(() => {
+    setIsDarkMode(darkMode);
+  }, [darkMode]);
   
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
@@ -28,68 +26,23 @@ const AdminHome = () => {
   
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   
-  // Mock data for calendar events
-  const mockEvents = [
-    {
-      id: 1,
-      title: 'CS 415 Review',
-      date: addDays(new Date(), 1), // Tomorrow
-      time: '10:00 AM - 11:30 AM',
-      type: 'class',
-      location: 'Library Room 203',
-      color: '#4e73df'
-    },
-    {
-      id: 2,
-      title: 'Tutoring Session',
-      date: addDays(new Date(), 1), // Tomorrow
-      time: '2:00 PM - 3:30 PM',
-      type: 'tutoring',
-      tutor: 'Dr. Smith',
-      color: '#1cc88a'
-    },
-    {
-      id: 3,
-      title: 'Group Study',
-      date: addDays(new Date(), 3), // 3 days from now
-      time: '4:00 PM - 6:00 PM',
-      type: 'study',
-      group: 'CS Study Group',
-      location: 'Student Center',
-      color: '#f6c23e'
-    },
-    {
-      id: 4,
-      title: 'Office Hours',
-      date: addDays(new Date(), 4), // 4 days from now
-      time: '1:00 PM - 3:00 PM',
-      type: 'office_hours',
-      professor: 'Prof. Johnson',
-      location: 'SCI 217',
-      color: '#e74a3b'
-    },
-    {
-      id: 5,
-      title: 'CS 600 Lecture',
-      date: addDays(new Date(), 5), // 5 days from now
-      time: '9:30 AM - 11:00 AM',
-      type: 'class',
-      course: 'CS 600',
-      location: 'TH 101',
-      color: '#4e73df'
-    }
-  ];
-  
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    localStorage.setItem('searchQuery', value);
   };
   
   const handleSearch = async (e) => {
     e.preventDefault();
     const searchText = searchQuery.trim();
-    localStorage.setItem('searchQuery', searchText);
+    // Only update localStorage when there's an actual search query
+    if (searchText) {
+      localStorage.setItem('searchQuery', searchText);
+      localStorage.setItem('searchCategory', searchCategory);
+    } else {
+      // Clear the search from localStorage if the search is empty
+      localStorage.removeItem('searchQuery');
+      localStorage.removeItem('searchCategory');
+    }
 
     const apiBaseUrl = window.location.hostname === 'localhost' 
       ? 'http://localhost:8000' 
@@ -157,15 +110,24 @@ const AdminHome = () => {
   };
   
   const styles = {
-    container: { 
-      display: "flex", 
-      flexDirection: "column", 
-      minHeight: "100vh", 
-      width: "100%", 
-      overflowX: "hidden",
-      backgroundColor: "rgb(250, 245, 255)",
+    container: {
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: isDarkMode ? 'rgb(30, 30, 30)' : '#f8f9fa',
+      color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+      transition: 'all 0.3s ease'
     },
-    // Common button style for search and navigation buttons
+    content: {
+      flex: 1,
+      padding: '5px 20px',
+      maxWidth: '1200px',
+      margin: '0 auto',
+      width: '100%',
+      boxSizing: 'border-box',
+      transition: 'all 0.3s ease',
+      backgroundColor: isDarkMode ? 'rgb(30, 30, 30)' : '#f8f9fa',
+    },
     primaryButton: {
       backgroundColor: '#35006D',
       color: 'white',
@@ -188,7 +150,7 @@ const AdminHome = () => {
       }
     },
     heading: {
-      color: "#333",
+      color: isDarkMode ? '#e6e6e6' : '#2c3e50',
       textAlign: "center",
       padding: "0px",
       borderBottom: "4px solid rgb(255, 220, 112)",
@@ -198,21 +160,6 @@ const AdminHome = () => {
       fontWeight: "600",
       lineHeight: "1.2",
       position: "relative"
-    },
-    content: { 
-      width: "100%", 
-      maxWidth: "100%",
-      margin: "0 auto", 
-      padding: "20px 10px 20px 5px", 
-      flex: 1, 
-      boxSizing: "border-box",
-      marginBottom: '80px'
-    },
-    calendarHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '20px',
     },
     navButton: {
       backgroundColor: 'rgb(53, 0, 109)',
@@ -228,67 +175,8 @@ const AdminHome = () => {
         backgroundColor: '#7a1a3d'
       }
     },
-    weekDisplay: {
-      fontSize: '1.2rem',
-      fontWeight: '600',
-      color: '#2c3e50'
-    },
-    calendarGrid: {
-      width: '100%',
-      position: 'relative',
-      overflow: 'hidden',
-      minHeight: '200px',
-      backgroundColor: '#e0e0e0',
-      border: '1px solid #e0e0e0',
-      borderRadius: '8px',
-      boxSizing: 'border-box'
-    },
-    dayHeader: {
-      backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
-      padding: '12px',
-      textAlign: 'center',
-      fontWeight: '600',
-      fontSize: '1rem'
-    },
-    dayCell: {
-      backgroundColor: 'white',
-      minHeight: '120px',
-      padding: '8px',
-      position: 'relative',
-      overflow: 'hidden',
-      boxSizing: 'border-box',
-      '&.today': {
-        backgroundColor: '#fff9e6'
-      }
-    },
-    dateNumber: {
-      fontWeight: 'bold',
-      marginBottom: '8px',
-      color: '#2c3e50'
-    },
-    todayMarker: {
-      position: 'absolute',
-      top: '4px',
-      right: '4px',
-      backgroundColor: 'rgb(53, 0, 109)',
-      color: 'white',
-      borderRadius: '50%',
-      width: '44px',
-      height: '24px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '0.8rem'
-    },
-    noSessions: {
-      color: '#666',
-      fontStyle: 'italic',
-      fontSize: '0.9rem',
-      marginTop: '8px'
-    },
     searchContainer: {
-      backgroundColor: "#ffffff",
+      backgroundColor: isDarkMode ? 'rgb(80, 80, 80)' : '#fff',
       borderRadius: "12px",
       padding: "20px",
       boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
@@ -376,186 +264,9 @@ const AdminHome = () => {
         }
       }
     },
-    calendarContainer: {
-      backgroundColor: "#ffffff",
-      borderRadius: "12px",
-      padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
-      boxSizing: 'border-box',
-      width: '100%',
-      margin: '0 0 20px 0',
-      position: 'relative'
-    },
-    eventsContainer: {
-      marginTop: '8px',
-      maxHeight: '200px',
-      overflowY: 'auto',
-      paddingRight: '4px'
-    },
-    eventItem: {
-      padding: '8px',
-      marginBottom: '8px',
-      borderRadius: '4px',
-      fontSize: '0.8rem',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
-    },
-    eventTime: {
-      fontWeight: '600',
-      fontSize: '0.75rem',
-      color: '#555',
-      marginBottom: '4px'
-    },
-    eventTitle: {
-      fontWeight: '600',
-      marginBottom: '4px',
-      color: '#2c3e50'
-    },
-    eventDetail: {
-      display: 'flex',
-      alignItems: 'center',
-      fontSize: '0.7rem',
-      color: '#6c757d',
-      marginTop: '2px'
-    }
-  };
-
-  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const today = new Date();
-  
-  const nextWeek = () => {
-    if (isAnimating) return;
-    setSlideDirection('slide-out-left');
-    setIsAnimating(true);
     
-    setTimeout(() => {
-      setCurrentWeekStart(addWeeks(currentWeekStart, 1));
-      setSlideDirection('slide-in-right');
-      
-      setTimeout(() => {
-        setSlideDirection('none');
-        setIsAnimating(false);
-      }, 300);
-    }, 300);
-  };
-  
-  const prevWeek = () => {
-    if (isAnimating) return;
-    setSlideDirection('slide-out-right');
-    setIsAnimating(true);
-    
-    setTimeout(() => {
-      setCurrentWeekStart(subWeeks(currentWeekStart, 1));
-      setSlideDirection('slide-in-left');
-      
-      setTimeout(() => {
-        setSlideDirection('none');
-        setIsAnimating(false);
-      }, 300);
-    }, 300);
   };
 
-  const renderDays = () => {
-    const days = [];
-    let startDate = currentWeekStart;
-    
-    for (let i = 0; i < 7; i++) {
-      const currentDate = addDays(startDate, i);
-      const isToday = isSameDay(currentDate, today);
-      
-      // Filter events for this specific day
-      const dayEvents = mockEvents.filter(event => 
-        isSameDay(event.date, currentDate)
-      );
-      
-      days.push(
-        <div key={i} style={styles.dayCell} className={isToday ? 'today' : ''}>
-          <div style={styles.dateNumber}>
-            {format(currentDate, 'd')}
-            {isToday && <span style={styles.todayMarker}>Today</span>}
-          </div>
-          
-          {dayEvents.length > 0 ? (
-            <div style={styles.eventsContainer}>
-              {dayEvents.map(event => (
-                <div 
-                  key={event.id} 
-                  style={{
-                    ...styles.eventItem,
-                    borderLeft: `3px solid ${event.color}`,
-                    backgroundColor: `${event.color}15`
-                  }}
-                >
-                  <div style={styles.eventTime}>{event.time}</div>
-                  <div style={styles.eventTitle}>{event.title}</div>
-                  {event.location && (
-                    <div style={styles.eventDetail}>
-                      <i className="fas fa-map-marker-alt" style={{ marginRight: '4px' }}></i>
-                      {event.location}
-                    </div>
-                  )}
-                  {event.tutor && (
-                    <div style={styles.eventDetail}>
-                      <i className="fas fa-chalkboard-teacher" style={{ marginRight: '4px' }}></i>
-                      {event.tutor}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div style={styles.noSessions}>No scheduled sessions</div>
-          )}
-        </div>
-      );
-    }
-    
-    return days;
-  };
-
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [slideDirection, setSlideDirection] = useState('none');
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  // Add keyframes for animations
-  const keyframes = `
-    @keyframes slideInLeft {
-      from { transform: translateX(-100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOutLeft {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(-100%); opacity: 0; }
-    }
-    @keyframes slideInRight {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    @keyframes slideOutRight {
-      from { transform: translateX(0); opacity: 1; }
-      to { transform: translateX(100%); opacity: 0; }
-    }
-  `;
-
-  // Animation styles
-  const calendarAnimation = {
-    'none': {
-      transform: 'translateX(0)',
-      opacity: 1,
-      transition: 'none'
-    },
-    'slide-in-left': {
-      animation: 'slideInLeft 0.3s ease-out forwards'
-    },
-    'slide-out-left': {
-      animation: 'slideOutLeft 0.3s ease-out forwards'
-    },
-    'slide-in-right': {
-      animation: 'slideInRight 0.3s ease-out forwards'
-    },
-    'slide-out-right': {
-      animation: 'slideOutRight 0.3s ease-out forwards'
-    }
-  };
 
   return (
     <div style={styles.container}>
@@ -563,490 +274,305 @@ const AdminHome = () => {
       <h1 style={styles.heading}>Admin Dashboard</h1>
       
       <div style={styles.content}>
-        <div style={{ 
-          display: 'grid',
-          gridTemplateColumns: isSidebarCollapsed ? '80px 1fr' : '280px 1fr',
+        {/* User Profile Section */}
+        <div style={{
+          backgroundColor: isDarkMode ? 'rgb(80, 80, 80)' : '#fff',
+          borderRadius: '12px',
+          boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.05)',
+          padding: '24px',
+          marginBottom: '20px',
+          border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0',
           width: '100%',
-          gap: '20px',
-          padding: '0 20px',
+          maxWidth: '1000px',
+          marginLeft: 'auto',
+          marginRight: 'auto',
           boxSizing: 'border-box',
-          maxWidth: '1400px',
-          margin: '0 auto',
-          transition: 'grid-template-columns 0.3s ease'
+          transition: 'all 0.3s ease'
         }}>
-          {/* Left Column - User Profile */}
           <div style={{ 
-              backgroundColor: '#fff',
-              borderRadius: '12px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-              padding: isSidebarCollapsed ? '24px 10px' : '24px',
-              height: 'fit-content',
-              minHeight: '500px',
-              border: '1px solid #f0f0f0',
-              width: isSidebarCollapsed ? '80px' : '280px',
-              boxSizing: 'border-box',
-              transition: 'all 0.3s ease',
-              overflow: 'hidden',
-              position: 'relative'
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center',
+            paddingBottom: '20px',
+            marginBottom: '20px',
+            borderBottom: '1px solid #f0f0f0',
+            width: '100%'
           }}>
-            {/* Collapse/Expand Button */}
             <div style={{
-              position: 'absolute',
-              top: 0,
-              right: 0,
-              margin: isSidebarCollapsed ? '20px 0px' : '0px',
-              height: isSidebarCollapsed ? '90%' : 'auto',
-              width: '90%',
+              width: '90px',
+              height: '90px',
+              borderRadius: '50%',
+              backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
               display: 'flex',
-              alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
-              justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
-              pointerEvents: 'none',
-              zIndex: 10,
-              paddingTop: isSidebarCollapsed ? 0 : '10px',
-            }}>
-              <button 
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                style={{
-                  position: 'relative',
-                  backgroundColor: 'rgba(231, 230, 230, 0.49)',
-                  border: 'none',
-                  cursor: 'pointer',
-                  color: '#6c757d',
-                  padding: isSidebarCollapsed ? '15px 8px' : '5px',
-                  margin: isSidebarCollapsed ? '0px' : '0 10px',
-                  borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
-                  boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                  transition: 'all 0.3s ease',
-                  pointerEvents: 'auto',
-                  height: isSidebarCollapsed ? '100%' : 'auto',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  ':hover': {
-                    background: isSidebarCollapsed ? 'rgba(255, 255, 255, 1)' : '#f8f9fa',
-                    color: '#35006D',
-                    boxShadow: isSidebarCollapsed ? '-2px 0 12px rgba(0,0,0,0.15)' : 'none'
-                  }
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
-                  e.currentTarget.style.color = '#35006D';
-                  if (isSidebarCollapsed) {
-                    e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
-                  e.currentTarget.style.color = '#6c757d';
-                  if (isSidebarCollapsed) {
-                    e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
-                  } else {
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <span style={{ 
-                  fontSize: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '20px',
-                  height: '20px'
-                }}>
-                  {isSidebarCollapsed ? (
-                    <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
-                  ) : (
-                    <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
-                  )}
-                </span>
-              </button>
-            </div>
-            {/* Profile Header */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
               alignItems: 'center',
-              paddingBottom: '20px',
-              marginBottom: '20px',
-              borderBottom: user ? '1px solid #f0f0f0' : 'none',
-              opacity: isSidebarCollapsed ? 0 : 1,
-              transition: 'opacity 0.2s ease',
-              whiteSpace: 'nowrap',
+              justifyContent: 'center',
+              marginBottom: '16px',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              width: '100%'
+              border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
             }}>
-              <div style={{
-                width: '90px',
-                height: '90px',
-                borderRadius: '50%',
-                backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-                overflow: 'hidden',
-                border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
-              }}>
-                {user?.firstName && user?.lastName ? (
-                  <div style={{
-                    fontSize: '36px',
-                    fontWeight: '600',
-                    color: '#9A2250',
-                    textTransform: 'uppercase'
-                  }}>
-                    {user.firstName[0]}{user.lastName[0]}
-                  </div>
-                ) : (
-                  <i className="fas fa-user" style={{ 
-                    fontSize: '36px', 
-                    color: '#9A2250',
-                    opacity: 0.7 
-                  }}></i>
-                )}
-              </div>
-              
-              <h3 style={{ 
-                margin: '8px 0 6px',
-                color: user ? '#2c3e50' : '#6c757d',
-                fontSize: '1.2rem',
-                textAlign: 'center',
-                fontWeight: user ? '600' : '500'
-              }}>
-                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
-              </h3>
-              
-              <div style={{
-                backgroundColor: '#9A2250',
-                color: 'white',
-                padding: '4px 14px',
-                borderRadius: '12px',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                marginTop: '6px',
-                letterSpacing: '0.3px',
-                display: 'inline-block',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                Admin
-              </div>
+              {user?.firstName && user?.lastName ? (
+                <div style={{
+                  fontSize: '36px',
+                  fontWeight: '600',
+                  color: '#9A2250',
+                  textTransform: 'uppercase'
+                }}>
+                  {user.firstName[0]}{user.lastName[0]}
+                </div>
+              ) : (
+                <i className="fas fa-user" style={{ 
+                  fontSize: '36px', 
+                  color: '#9A2250',
+                  opacity: 0.7 
+                }}></i>
+              )}
             </div>
             
-            {/* Enrolled Courses Section */}
-            <div style={{
-              opacity: isSidebarCollapsed ? 0 : 1,
-              transition: 'all 0.3s ease',
-              width: '100%',
-              padding: isSidebarCollapsed ? '0' : '24px 16px',
-              height: isSidebarCollapsed ? '0' : 'auto',
-              visibility: isSidebarCollapsed ? 'hidden' : 'visible',
-              position: isSidebarCollapsed ? 'absolute' : 'relative',
-              borderRadius: '16px',
-              backgroundColor: 'white',
-              marginBottom: isSidebarCollapsed ? '0' : '20px',
-              boxShadow: isSidebarCollapsed ? 'none' : '0 4px 12px rgba(0, 0, 0, 0.05)'
+            <h3 style={{ 
+              margin: '8px 0 6px',
+              color: isDarkMode ? '#e6e6e6' : (user ? '#2c3e50' : '#6c757d'),
+              fontSize: '1.5rem',
+              textAlign: 'center',
+              fontWeight: user ? '600' : '500',
+              transition: 'all 0.3s ease'
             }}>
-              <h2 style={{
-                color: '#2c3e50',
-                margin: '0 0 12px 0',
-                paddingBottom: '8px',
-                borderBottom: '1px solid #f0f0f0',
-                fontSize: '1.1rem',
-                fontWeight: '600',
-                display: isSidebarCollapsed ? 'none' : 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <i className="fas fa-shield-alt" style={{ color: '#9A2250' }}></i>
-                Admin Tools
-              </h2>
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '8px',
-                maxHeight: 'calc(100vh - 320px)',
-                overflowY: 'auto',
-                paddingRight: '4px',
-                transition: 'max-height 0.3s ease, opacity 0.3s ease',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#9A2250 #f1f1f1'
-              }}>
-                {[
-                  { 
-                    title: 'Registered Tutors', 
-                    icon: 'chalkboard-teacher',
-                    path: '/admin/registered-tutors',
-                    color: '#4e73df'
-                  },
-                  { 
-                    title: 'Registered Students', 
-                    icon: 'user-graduate',
-                    path: '/admin/registered-students',
-                    color: '#1cc88a'
-                  },
-                  { 
-                    title: 'Tutor Applications', 
-                    icon: 'file-signature',
-                    path: '/admin/tutor-applications',
-                    color: '#f6c23e'
-                  },
-                  { 
-                    title: 'Reports', 
-                    icon: 'chart-bar',
-                    path: '/admin/reports',
-                    color: '#e74a3b'
-                  },
-                  { 
-                    title: 'Tutor Course Addition Applications', 
-                    icon: 'plus-circle',
-                    path: '/admin/tutor-course-applications',
-                    color: '#36b9cc'
-                  },
-                  { 
-                    title: 'Course Coverage Requests', 
-                    icon: 'book-reader',
-                    path: '/admin/course-coverage-requests',
-                    color: '#6f42c1'
-                  },
-                  { 
-                    title: 'Messages', 
-                    icon: 'envelope',
-                    path: '/messages',
-                    color: '#fd7e14'
-                  }
-                ].map((item, index) => (
-                  <a 
-                    key={index}
-                    href={item.path}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '8px 12px',
-                      backgroundColor: 'white',
-                      borderRadius: '10px',
-                      textDecoration: 'none',
-                      color: '#2c3e50',
-                      transition: 'all 0.2s ease',
-                      border: '1px solid #e9ecef',
-                      ':hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                        borderColor: item.color,
-                        backgroundColor: `${item.color}08`
-                      }
-                    }}
-                  >
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '6px',
-                      backgroundColor: `${item.color}15`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: '10px',
-                      flexShrink: 0,
-                      color: item.color,
-                      fontSize: '0.9rem'
-                    }}>
-                      <i className={`fas fa-${item.icon}`}></i>
-                    </div>
-                    <span style={{
-                      fontSize: '0.85rem',
-                      fontWeight: '500',
-                      whiteSpace: 'normal',
-                      wordBreak: 'break-word',
-                      lineHeight: '1.3',
-                      textAlign: 'left'
-                    }}>
-                      {item.title}
-                    </span>
-                  </a>
-                ))}
-              </div>
+              {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
+            </h3>
+            
+            <div style={{
+              backgroundColor: '#9A2250',
+              color: 'white',
+              padding: '6px 18px',
+              borderRadius: '12px',
+              fontSize: '0.9rem',
+              fontWeight: '600',
+              marginTop: '8px',
+              letterSpacing: '0.3px',
+              display: 'inline-block',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+            }}>
+              Administrator
             </div>
           </div>
           
-          {/* Right Column - Search and Calendar */}
-          <div style={{ 
+          {/* Admin Tools Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+            gap: '15px',
             width: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px'
+            marginTop: '20px'
           }}>
-            <div style={{
-              ...styles.searchContainer,
-              width: '100%',
-              margin: 0
-            }}>
-              <h3 style={{ margin: "0 0 5px 0", color: '#2c3e50' }}>Find Tutors & Courses</h3>
-              <div style={styles.searchInputContainer}>
-                <div style={styles.categoryDropdown}>
-                  <button 
-                    style={styles.categoryButton}
-                    onClick={toggleCategory}
-                  >
-                    {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
-                  </button>
-                  {isCategoryOpen && (
-                    <ul style={styles.categoryList}>
-                      <li 
-                        onClick={() => selectCategory('default')}
-                        style={{ cursor: 'pointer' }}
-                      >All</li>
-                      <li 
-                        onClick={() => selectCategory('tutor')}
-                        style={{ cursor: 'pointer' }}
-                      >Tutors</li>
-                      <li 
-                        onClick={() => selectCategory('course')}
-                        style={{ cursor: 'pointer' }}
-                      >Courses</li>
-                    </ul>
-                  )}
-                </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchQueryChange}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                  placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
-                  style={styles.searchInput}
-                />
-                <button 
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                  onClick={handleSearch}
-                >
-                  <i className="fas fa-search"></i>
-                  Search
-                </button>
-              </div>
-            </div>
-            
-            <div style={{
-              ...styles.calendarContainer,
-              width: '100%',
-              margin: 0
-            }}>
-              <div style={styles.calendarHeader}>
-                <button 
-                  onClick={prevWeek}
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  <i className="fas fa-chevron-left"></i> Previous Week
-                </button>
-                <div style={styles.weekDisplay}>
-                  {format(currentWeekStart, 'MMM d, yyyy')} - {format(addDays(currentWeekStart, 6), 'MMM d, yyyy')}
-                </div>
-                <button 
-                  onClick={nextWeek}
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                >
-                  Next Week <i className="fas fa-chevron-right"></i>
-                </button>
-              </div>
-              
-              <div style={styles.calendarGrid}>
-                <style>{keyframes}</style>
+            {[
+              { 
+                title: 'Registered Tutors', 
+                icon: 'chalkboard-teacher',
+                path: '/admin/registered-tutors',
+                color: '#4e73df'
+              },
+              { 
+                title: 'Registered Students', 
+                icon: 'user-graduate',
+                path: '/admin/registered-students',
+                color: '#1cc88a'
+              },
+              { 
+                title: 'Tutor Applications', 
+                icon: 'file-signature',
+                path: '/admin/tutor-applications',
+                color: '#f6c23e'
+              },
+              { 
+                title: 'Reports', 
+                icon: 'chart-bar',
+                path: '/admin/reports',
+                color: '#e74a3b'
+              },
+              { 
+                title: 'Tutor Course Addition Applications', 
+                icon: 'plus-circle',
+                path: '/admin/tutor-course-applications',
+                color: '#36b9cc'
+              },
+              { 
+                title: 'Course Coverage Requests', 
+                icon: 'book-reader',
+                path: '/admin/course-coverage-requests',
+                color: '#6f42c1'
+              },
+              { 
+                title: 'Messages', 
+                icon: 'envelope',
+                path: '/messages',
+                color: '#fd7e14'
+              }
+            ].map((item, index) => (
+              <a 
+                key={index}
+                href={item.path}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '16px',
+                  backgroundColor: isDarkMode ? '#1f4068' : 'white',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+                  transition: 'all 0.3s ease',
+                  border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
+                  e.currentTarget.style.borderColor = item.color;
+                  e.currentTarget.style.backgroundColor = `${item.color}08`;
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.transform = '';
+                  e.currentTarget.style.boxShadow = '';
+                  e.currentTarget.style.borderColor = isDarkMode ? '#2a2a4a' : '#f0f0f0';
+                  e.currentTarget.style.backgroundColor = isDarkMode ? '#1f4068' : 'white';
+                }}
+              >
                 <div style={{
-                  position: 'relative',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(7, 1fr)',
-                  gap: '1px',
-                  width: '100%',
-                  minHeight: '200px',
-                  boxSizing: 'border-box',
-                  ...calendarAnimation[slideDirection]
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '8px',
+                  backgroundColor: `${item.color}15`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: '12px',
+                  flexShrink: 0,
+                  color: item.color,
+                  fontSize: '1.1rem'
                 }}>
-                  {weekDays.map(day => (
-                    <div key={day} style={styles.dayHeader}>
-                      {day}
-                    </div>
-                  ))}
-                  {renderDays()}
+                  <i className={`fas fa-${item.icon}`}></i>
                 </div>
+                <span style={{
+                  fontSize: '0.95rem',
+                  fontWeight: '600',
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word',
+                  lineHeight: '1.4'
+                }}>
+                  {item.title}
+                </span>
+              </a>
+            ))}
+          </div>
+        </div>
+        
+        {/* Search Section - Now full width */}
+        <div style={{ 
+          width: '100%',
+          maxWidth: '1000px',
+          margin: '20px auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          transition: 'all 0.3s ease'
+        }}>
+          <div style={{
+            ...styles.searchContainer,
+            width: '100%',
+            margin: 0,
+            borderRadius: '12px',
+            padding: '24px',
+            boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.05)',
+            border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0',
+            transition: 'all 0.3s ease'
+          }}>
+            <h3 style={{ 
+              margin: "0 0 15px 0", 
+              color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+              transition: 'all 0.3s ease'
+            }}>Find Tutors & Courses</h3>
+            <div style={styles.searchInputContainer}>
+              <div style={styles.categoryDropdown}>
+                <button 
+                  style={{
+                    ...styles.categoryButton,
+                    backgroundColor: isDarkMode ? '#1f4068' : '#f8f9fa',
+                    borderColor: isDarkMode ? '#2a2a4a' : '#ddd',
+                    color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onClick={toggleCategory}
+                >
+                  {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                </button>
+                {isCategoryOpen && (
+                  <ul style={{
+                    ...styles.categoryList,
+                    backgroundColor: isDarkMode ? '#1f4068' : 'white',
+                    border: isDarkMode ? '1px solid #2a2a4a' : '1px solid rgba(0,0,0,.15)',
+                    boxShadow: isDarkMode ? '0 6px 12px rgba(0,0,0,0.3)' : '0 6px 12px rgba(0,0,0,.175)',
+                    transition: 'all 0.3s ease'
+                  }}>
+                    <li 
+                      onClick={() => selectCategory('default')}
+                      style={{ cursor: 'pointer' }}
+                    >All</li>
+                    <li 
+                      onClick={() => selectCategory('tutor')}
+                      style={{ cursor: 'pointer' }}
+                    >Tutors</li>
+                    <li 
+                      onClick={() => selectCategory('course')}
+                      style={{ cursor: 'pointer' }}
+                    >Courses</li>
+                  </ul>
+                )}
               </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={handleSearchQueryChange}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
+                style={{
+                  ...styles.searchInput,
+                  backgroundColor: isDarkMode ? '#1a1a2e' : '#fff',
+                  borderColor: isDarkMode ? '#2a2a4a' : '#ddd',
+                  color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+                  transition: 'all 0.3s ease'
+                }}
+              />
+              <button 
+                style={{
+                  backgroundColor: '#35006D',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  fontWeight: '500',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = '#4b1a80';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = '#35006D';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+                onMouseDown={(e) => {
+                  e.currentTarget.style.transform = 'translateY(1px)';
+                }}
+                onMouseUp={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }}
+                onClick={handleSearch}
+              >
+                <i className="fas fa-search"></i>
+                Search
+              </button>
             </div>
           </div>
         </div>

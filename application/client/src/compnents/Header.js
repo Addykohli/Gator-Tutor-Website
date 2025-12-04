@@ -8,8 +8,8 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef(null);
-  const { isAuthenticated, user, logout } = useAuth();
-  
+  const { isAuthenticated, user, logout, darkMode, toggleDarkMode } = useAuth();
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
 
   const menuItems = [
@@ -19,9 +19,9 @@ const Header = () => {
     { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
     { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
     // Tutor-only menu items
-    { 
-      icon: 'fas fa-calendar-check', 
-      label: 'Appointment Requests', 
+    {
+      icon: 'fas fa-calendar-check',
+      label: 'Appointment Requests',
       path: '/appointment-requests',
       tutorOnly: true
     }
@@ -30,7 +30,7 @@ const Header = () => {
   const isExpanded = isMenuOpen || isLocked;
 
   const buttonWidth = 100;
-  const expandedWidth = buttonWidth + 55; 
+  const expandedWidth = buttonWidth + 55;
   const leftShift = 20;
 
   useEffect(() => {
@@ -69,11 +69,44 @@ const Header = () => {
     whiteSpace: 'nowrap',
     margin: '0 4px'
   };
-  
+
   const dividerStyle = {
     color: 'rgba(255, 220, 112)',
     margin: '0 8px',
     userSelect: 'none'
+  };
+
+  const toggleContainerStyle = {
+    position: 'relative',
+    width: '50px',
+    height: '24px',
+    backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgba(255, 220, 112, 0.3)',
+    borderRadius: '12px',
+    cursor: 'pointer',
+    transition: 'background-color 0.3s ease',
+    border: '1px solid rgb(255, 220, 112)',
+    margin: '0 8px'
+  };
+
+  const toggleCircleStyle = {
+    position: 'absolute',
+    top: '2px',
+    left: darkMode ? '26px' : '2px',
+    width: '18px',
+    height: '18px',
+    backgroundColor: 'rgb(255, 220, 112)',
+    borderRadius: '50%',
+    transition: 'left 0.3s ease',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  };
+
+  const toggleIconStyle = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    fontSize: '10px',
+    color: 'rgb(35, 17, 97)',
+    transition: 'opacity 0.3s ease'
   };
 
   const classTitle = {
@@ -97,6 +130,7 @@ const Header = () => {
     boxSizing: 'border-box',
     position: 'relative',
     zIndex: 100,
+    boxShadow: 'rgba(0, 0, 0, 0.4) 0px 0px 8px',
   };
 
   const menuWrapperStyle = {
@@ -208,7 +242,7 @@ const Header = () => {
     const collapsedTop = 12 + (index * 6);
     const expandedTop = 48 + (index * 54);
     const itemWidth = expandedWidth - 16; // 124px with 8px padding each side
-    
+
     return {
       position: 'absolute',
       left: isExpanded ? `-${leftShift - 8}px` : '12px',
@@ -304,7 +338,7 @@ const Header = () => {
       {/* Menu Container */}
       <div ref={menuRef} style={menuWrapperStyle}>
         {/* Invisible hover area */}
-        <div 
+        <div
           style={hoverAreaStyle}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -317,7 +351,7 @@ const Header = () => {
         <div style={headerDividerStyle} />
 
         {/* Menu Button */}
-        <button 
+        <button
           style={menuButtonStyle}
           onClick={handleButtonClick}
           onMouseEnter={handleMouseEnter}
@@ -362,7 +396,7 @@ const Header = () => {
                 </div>
                 <span style={getLabelStyle(visualIndex)}>{item.label}</span>
               </button>
-              
+
               {/* Only show divider if not the last item */}
               {index < filteredMenuItems.length - 1 && (
                 <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
@@ -373,19 +407,19 @@ const Header = () => {
       </div>
 
       {/* Logo */}
-      <div style={{ 
-        flex: 1, 
-        display: 'flex', 
-        justifyContent: 'center', 
-        position: 'absolute', 
-        left: '16.5%', 
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        position: 'absolute',
+        left: '210px',
         transform: 'translateX(-50%)',
         zIndex: 99,
       }}>
         <button onClick={() => navigate('/')} style={classTitle}>
-          <img 
-            src={require('../assets/gator icon logo.png')} 
-            alt="Gator Tutor Logo" 
+          <img
+            src={require('../assets/gator icon logo.png')}
+            alt="Gator Tutor Logo"
             style={{ height: '40px', width: 'auto' }}
             onError={(e) => {
               e.target.onerror = null;
@@ -396,16 +430,33 @@ const Header = () => {
       </div>
 
       {/* Auth buttons */}
-      <div style={{ 
-        display: 'flex', 
+      <div style={{
+        display: 'flex',
         alignItems: 'center',
         marginLeft: 'auto',
         paddingRight: '10px',
         zIndex: 99,
       }}>
+        {/* Dark Mode Toggle */}
+        <div
+          style={toggleContainerStyle}
+          onClick={toggleDarkMode}
+          title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <div style={toggleCircleStyle}>
+            <i
+              className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+              style={{
+                ...toggleIconStyle,
+                left: darkMode ? '4px' : '4px'
+              }}
+            />
+          </div>
+        </div>
+
         {!isAuthenticated ? (
           <>
-            <button 
+            <button
               style={navButtonStyle}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
@@ -426,7 +477,7 @@ const Header = () => {
               Login
             </button>
             <span style={dividerStyle}>|</span>
-            <button 
+            <button
               style={navButtonStyle}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
@@ -448,7 +499,7 @@ const Header = () => {
             </button>
           </>
         ) : (
-          <button 
+          <button
             style={navButtonStyle}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
@@ -462,20 +513,15 @@ const Header = () => {
             }}
             onClick={async (e) => {
               e.preventDefault();
-              
+
               // Show confirmation dialog
               const confirmLogout = window.confirm('Are you sure you want to log out?');
-              
+
               if (confirmLogout) {
                 try {
-                  // Call the logout function from context
                   logout();
-                  // Redirect to home page after logout
-                  if (location.pathname === '/') {
-                    window.location.reload(); // Force a full page reload if already on home page
-                  } else {
-                    navigate('/');
-                  }
+                  // Redirect to login page after logout
+                  navigate('/login');
                 } catch (error) {
                   console.error('Logout failed:', error);
                 }

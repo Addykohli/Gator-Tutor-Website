@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useAuth } from '../Context/Context';
 import Header from './Header';
 import Footer from './Footer';
 
 const CourseCoverageRequestPage = () => {
+  const { darkMode } = useAuth();
   const [formData, setFormData] = useState({
     courseNumber: '',
     topics: '',
@@ -16,10 +18,11 @@ const CourseCoverageRequestPage = () => {
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
-      backgroundColor: '#ffffff',
+      backgroundColor: darkMode ? 'rgb(30, 30, 30)' : '#ffffff',
+      transition: 'background-color 0.3s ease',
     },
     heading: {
-      color: "#333",
+      color: darkMode ? '#fff' : '#333',
       textAlign: "center",
       padding: "0px",
       borderBottom: "4px solid rgb(255, 220, 112)",
@@ -28,13 +31,16 @@ const CourseCoverageRequestPage = () => {
       fontSize: "45px",
       fontWeight: "600",
       lineHeight: "1.2",
-      position: "relative"
+      position: "relative",
+      transition: 'color 0.3s ease',
     },
     content: {
       maxWidth: '1200px',
       margin: '0 auto',
       padding: '40px 20px',
       width: '100%',
+      color: darkMode ? '#f0f0f0' : '#333',
+      transition: 'color 0.3s ease',
     },
     twoColumn: {
       display: 'grid',
@@ -43,19 +49,21 @@ const CourseCoverageRequestPage = () => {
       marginTop: '32px',
     },
     formCard: {
-      backgroundColor: '#fafafa',
-      border: '1px solid #e8e8e8',
+      backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#fafafa',
+      border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
       borderRadius: '8px',
       padding: '32px',
+      transition: 'background-color 0.3s ease, border-color 0.3s ease',
     },
     formGroup: {
       marginBottom: '24px',
     },
     formLabel: {
       display: 'block',
-      color: '#35006D',
+      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
       fontWeight: '500',
       marginBottom: '8px',
+      transition: 'color 0.3s ease',
     },
     required: {
       color: '#ef4444',
@@ -63,15 +71,22 @@ const CourseCoverageRequestPage = () => {
     formInput: {
       width: '100%',
       padding: '12px',
-      border: '2px solid #e0e0e0',
+      border: darkMode ? '2px solid #555' : '2px solid #e0e0e0',
       borderRadius: '6px',
       fontSize: '16px',
       fontFamily: 'inherit',
       boxSizing: 'border-box',
+      backgroundColor: darkMode ? 'rgb(50, 50, 50)' : '#fff',
+      color: darkMode ? '#f0f0f0' : '#333',
+      transition: 'all 0.3s ease',
     },
     textarea: {
       resize: 'vertical',
       minHeight: '100px',
+      backgroundColor: darkMode ? 'rgb(50, 50, 50)' : '#fff',
+      color: darkMode ? '#f0f0f0' : '#333',
+      border: darkMode ? '2px solid #555' : '2px solid #e0e0e0',
+      transition: 'all 0.3s ease',
     },
     formActions: {
       display: 'flex',
@@ -89,52 +104,60 @@ const CourseCoverageRequestPage = () => {
       transition: 'all 0.2s',
     },
     btnPrimary: {
-      backgroundColor: '#FFCF01',
-      color: '#35006D',
+      backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#FFCF01',
+      color: darkMode ? '#2c3e50' : '#35006D',
+      transition: 'all 0.3s ease',
     },
     btnSecondary: {
-      backgroundColor: 'white',
-      color: '#35006D',
-      border: '2px solid #35006D',
+      backgroundColor: darkMode ? 'transparent' : 'white',
+      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
+      border: darkMode ? '2px solid rgb(255, 220, 100)' : '2px solid #35006D',
+      transition: 'all 0.3s ease',
     },
     infoCard: {
-      backgroundColor: '#fafafa',
-      border: '1px solid #e8e8e8',
+      backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#fafafa',
+      border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
       borderRadius: '8px',
       padding: '24px',
       marginBottom: '24px',
+      transition: 'background-color 0.3s ease, border-color 0.3s ease',
     },
     infoCardTitle: {
       fontSize: '18px',
       marginBottom: '16px',
-      color: '#35006D',
+      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
       fontWeight: '600',
+      transition: 'color 0.3s ease',
     },
     infoCardText: {
-      color: '#666',
+      color: darkMode ? '#bbb' : '#666',
       lineHeight: '1.6',
       marginBottom: '12px',
       fontSize: '14px',
+      transition: 'color 0.3s ease',
     },
     contactEmail: {
-      color: '#35006D',
+      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
       fontWeight: '600',
       marginTop: '8px',
+      transition: 'color 0.3s ease',
     },
     tip: {
       fontSize: '12px',
-      color: '#666',
+      color: darkMode ? '#999' : '#666',
       marginTop: '16px',
       paddingTop: '16px',
-      borderTop: '1px solid #e8e8e8',
+      borderTop: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
+      transition: 'all 0.3s ease',
     },
     successMessage: {
-      backgroundColor: '#10b981',
+      backgroundColor: darkMode ? '#0d9f6e' : '#10b981',
       color: 'white',
       padding: '16px',
       borderRadius: '6px',
       marginBottom: '16px',
       display: showSuccess ? 'block' : 'none',
+      transition: 'background-color 0.3s ease',
     },
     '@media (max-width: 768px)': {
       twoColumn: {

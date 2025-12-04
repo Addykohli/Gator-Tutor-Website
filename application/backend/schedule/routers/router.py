@@ -19,7 +19,8 @@ from schedule.services.availability_service import (
     get_availability_slots,
     create_availability_slot,
     update_availability_slot,
-    delete_availability_slot
+    delete_availability_slot,
+    get_tutor_availability_range
 )
 from schedule.schemas.booking_schemas import (
     BookingCreate,
@@ -28,6 +29,7 @@ from schedule.schemas.booking_schemas import (
 )
 from schedule.schemas.availability_schemas import (
     AvailabilityResponse,
+    AvailabilityRangeResponse,
     TimeSlot,
     AvailabilitySlotCreate,
     AvailabilitySlotUpdate,
@@ -63,6 +65,29 @@ def get_availability_endpoint(
         )
     except Exception as e:
         print(f"Availability error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/tutors/{tutor_id}/availability-range", response_model=AvailabilityRangeResponse)
+def get_availability_range_endpoint(
+    tutor_id: int,
+    start_date: date = Query(..., description="Start date of range (YYYY-MM-DD)"),
+    end_date: date = Query(..., description="End date of range (YYYY-MM-DD)"),
+    db: Session = Depends(get_db)
+):
+    """
+    Get dates with availability within a range.
+    """
+    try:
+        available_dates = get_tutor_availability_range(db, tutor_id, start_date, end_date)
+        return AvailabilityRangeResponse(
+            tutor_id=tutor_id,
+            start_date=start_date,
+            end_date=end_date,
+            available_dates=available_dates
+        )
+    except Exception as e:
+        print(f"Availability range error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

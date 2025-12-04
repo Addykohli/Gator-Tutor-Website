@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./Header";
 import Footer from './Footer';
+import { useAuth } from '../Context/Context';
 
 function useQuery() {
   const { search } = useLocation();
@@ -10,15 +11,16 @@ function useQuery() {
 
 export default function SearchPage() {
   const navigate = useNavigate();
+  const { darkMode } = useAuth();
   const styles = {
     container: {
       display: "flex",
       flexDirection: "column",
       minHeight: "100vh",
-      backgroundColor: "rgb(250, 245, 255)",
+      backgroundColor: darkMode ? "rgb(30, 30, 30)" : "rgb(250, 245, 255)",
     },
     heading: {
-      color: "#333",
+      color: darkMode ? "#fff" : "#333",
       textAlign: "center",
       paddingBottom: "3px",
       borderBottom: "8px solid rgb(255, 220, 112)",
@@ -59,19 +61,22 @@ export default function SearchPage() {
       '@media (max-width: 1200px)': {
         gridTemplateColumns: 'repeat(2, 1fr)',
       },
-      '@media (max-width: 768px)': {
+      '@media (maxWidth: 768px)': {
         gridTemplateColumns: '1fr',
       }
     },
     courseCard: {
-      backgroundColor: '#fafafa',
-      border: '1px solid #e8e8e8',
+      backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fafafa',
+      border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
       borderRadius: '8px',
       padding: '24px',
-      transition: 'box-shadow 0.2s',
+      transition: 'box-shadow 0.2s, background-color 0.3s, border-color 0.3s',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
+      '&:hover': {
+        boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
+      }
     },
     courseHeader: {
       display: 'flex',
@@ -82,12 +87,14 @@ export default function SearchPage() {
     courseCode: {
       fontSize: '20px',
       fontWeight: 'bold',
-      color: '#35006D',
+      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
       marginBottom: '4px',
+      transition: 'color 0.3s',
     },
     courseName: {
       fontSize: '14px',
-      color: '#666',
+      color: darkMode ? '#bbb' : '#666',
+      transition: 'color 0.3s',
     },
     statusBadge: {
       padding: '4px 12px',
@@ -109,11 +116,13 @@ export default function SearchPage() {
       gap: '8px',
       marginBottom: '8px',
       fontSize: '14px',
-      color: '#666',
+      color: darkMode ? '#bbb' : '#666',
+      transition: 'color 0.3s',
     },
     detailLabel: {
       fontWeight: '500',
-      color: '#333',
+      color: darkMode ? '#eee' : '#333',
+      transition: 'color 0.3s',
     },
     viewButton: {
       width: '100%',
@@ -124,19 +133,29 @@ export default function SearchPage() {
       cursor: 'pointer',
       transition: 'all 0.2s',
       marginTop: 'auto',
+      backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
+      color: darkMode ? '#333' : 'white',
       '&:hover': {
         opacity: 0.9,
+        transform: 'translateY(-1px)',
+        boxShadow: darkMode ? '0 4px 8px rgba(255, 220, 100, 0.2)' : '0 4px 8px rgba(53, 0, 109, 0.2)'
       },
+      '&:active': {
+        transform: 'translateY(0)'
+      }
     },
     tutorCard: {
-      backgroundColor: "#fafafa",
-      border: "1px solid #e8e8e8",
+      backgroundColor: darkMode ? 'rgb(60, 60, 60)' : "#fafafa",
+      border: darkMode ? '1px solid #444' : "1px solid #e8e8e8",
       borderRadius: "8px",
       padding: "24px",
-      transition: "box-shadow 0.2s",
+      transition: "box-shadow 0.2s, background-color 0.3s, border-color 0.3s",
       display: "flex",
       flexDirection: "column",
       height: "100%",
+      '&:hover': {
+        boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
+      }
     },
     tutorCardContent: {
       flex: 1,
@@ -168,10 +187,26 @@ export default function SearchPage() {
       fontWeight: "bold",
     },
     tutorName: {
-      fontSize: "20px",
-      fontWeight: "600",
-      marginBottom: "4px",
-      color: "#2c3e50",
+      fontSize: '20px',
+      fontWeight: '600',
+      color: darkMode ? '#fff' : '#2c3e50',
+      margin: 0,
+      transition: 'color 0.3s',
+    },
+    tutorTitle: {
+      fontSize: '14px',
+      color: darkMode ? '#bbb' : '#666',
+      margin: '4px 0 0 0',
+      transition: 'color 0.3s',
+    },
+    sectionHeading: {
+      fontSize: '24px',
+      fontWeight: '600',
+      color: darkMode ? '#fff' : '#2c3e50',
+      margin: '0 0 20px 0',
+      paddingBottom: '8px',
+      borderBottom: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
+      transition: 'color 0.3s, border-color 0.3s'
     },
     tutorRating: {
       color: "#FFCF01",
@@ -233,7 +268,7 @@ export default function SearchPage() {
     noResults: {
       textAlign: "center",
       padding: "48px",
-      backgroundColor: "#fafafa",
+      backgroundColor: darkMode ? "rgb(30, 30, 30)" : "#fafafa",
       borderRadius: "8px",
       maxWidth: "600px",
     },
@@ -385,7 +420,7 @@ export default function SearchPage() {
               </div>
               <div>
                 <div style={styles.tutorName}>{fullName}</div>
-                <div style={{ fontWeight: '600', color: '#2c3e50', margin: '4px 0' }}>
+                <div style={{ fontWeight: '600', color: darkMode ? '#e2e8f0' : '#2c3e50', margin: '4px 0' }}>
                   {hourlyRate}
                 </div>
                 {item.avg_rating != null && (
@@ -505,47 +540,65 @@ export default function SearchPage() {
   // Add styles for the search bar
   const searchBarStyles = {
     searchContainer: {
-      backgroundColor: "#ffffff",
+      backgroundColor: darkMode ? "rgb(60, 60, 60)" : "#ffffff",
       borderRadius: "12px",
       padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.1)",
+      boxShadow: darkMode ? "0 2px 8px rgba(0, 0, 0, 0.3)" : "0 2px 8px rgba(0, 0, 0, 0.1)",
       boxSizing: 'border-box',
       width: '100%',
       margin: '0 0 30px 0',
-      position: 'relative'
+      position: 'relative',
+      transition: 'background-color 0.3s, box-shadow 0.3s'
     },
     searchInputContainer: {
       display: 'flex',
       alignItems: 'center',
-      gap: '8px',
-      marginTop: '10px'
+      gap: '12px',
+      marginTop: '12px',
+      width: '100%'
     },
     searchInput: {
       flex: 1,
       padding: '12px 16px',
-      border: '1px solid #ced4da',
-      borderRadius: '6px',
+      border: darkMode ? '1px solid #444' : '1px solid #ced4da',
+      borderRadius: '8px',
       fontSize: '16px',
+      backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#fff',
+      color: darkMode ? '#fff' : '#2c3e50',
       outline: 'none',
-      transition: 'border-color 0.2s',
+      transition: 'all 0.2s',
       '&:focus': {
-        borderColor: '#35006D',
+        borderColor: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
+        boxShadow: darkMode 
+          ? '0 0 0 2px rgba(255, 220, 100, 0.2)' 
+          : '0 0 0 2px rgba(53, 0, 109, 0.2)',
+      },
+      '&::placeholder': {
+        color: darkMode ? '#aaa' : '#6c757d',
       }
     },
     searchButton: {
       backgroundColor: '#35006D',
       color: 'white',
       border: 'none',
-      borderRadius: '6px',
-      padding: '12px 20px',
+      borderRadius: '8px',
+      padding: '12px 24px',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: '8px',
-      fontWeight: '500',
-      transition: 'background-color 0.2s',
+      fontWeight: '600',
+      fontSize: '16px',
+      transition: 'all 0.2s',
       '&:hover': {
         backgroundColor: '#4b1a80',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+        transform: 'translateY(-1px)'
+      },
+      '&:active': {
+        transform: 'translateY(0)',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
       }
     },
     categoryDropdown: {
@@ -556,8 +609,9 @@ export default function SearchPage() {
     },
     categoryButton: {
       padding: '12px 16px',
-      backgroundColor: '#f8f9fa',
-      border: '1px solid #ced4da',
+      backgroundColor: darkMode ? 'rgb(80, 80, 80)' : '#f8f9fa',
+      color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
+      border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
       cursor: 'pointer',
       width: '100%',
@@ -565,8 +619,13 @@ export default function SearchPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
+      transition: 'background-color 0.2s, border-color 0.2s, color 0.2s',
       '&:hover': {
-        backgroundColor: '#e9ecef'
+        backgroundColor: darkMode ? 'rgb(100, 100, 100)' : '#e9ecef',
+        borderColor: darkMode ? 'rgb(50, 50, 50)' : '#adb5bd'
+      },
+      '&:active': {
+        transform: 'translateY(1px)'
       }
     },
     categoryList: {
@@ -575,23 +634,25 @@ export default function SearchPage() {
       left: 0,
       zIndex: 1000,
       width: '100%',
-      padding: '8px 8px',
+      padding: '8px 0',
       margin: '4px 0 0',
-      backgroundColor: 'white',
-      border: '1px solid rgba(0,0,0,.15)',
+      backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#ffffff',
+      border: darkMode ? '1px solid rgb(50, 50, 50)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
       listStyle: 'none',
       '& li': {
-        padding: '8px 16px',
+        padding: '10px 16px',
         cursor: 'pointer',
-        textAlign: 'center',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        msUserSelect: 'none',
-        ':hover': {
-          backgroundColor: '#f8f9fa',
-          cursor: 'pointer !important'
+        textAlign: 'left',
+        color: darkMode ? '#fff' : '#212529',
+        transition: 'background-color 0.2s',
+        '&:hover': {
+          backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+          color: darkMode ? '#fff' : '#212529'
+        },
+        '&:active': {
+          backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'
         }
       }
     }
@@ -621,6 +682,35 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState(q.get('q') || '');
   const [searchCategory, setSearchCategory] = useState(q.get('type') || 'default');
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [tutorSortOrder, setTutorSortOrder] = useState(null); // null, 'asc', 'desc'
+
+  // Sort tutors by price
+  const getSortedTutors = (tutors) => {
+    if (!tutorSortOrder) return tutors;
+    
+    return [...tutors].sort((a, b) => {
+      const priceA = a.hourly_rate_cents || 0;
+      const priceB = b.hourly_rate_cents || 0;
+      
+      if (tutorSortOrder === 'asc') {
+        return priceA - priceB;
+      } else if (tutorSortOrder === 'desc') {
+        return priceB - priceA;
+      }
+      return 0;
+    });
+  };
+
+  // Toggle sort order
+  const toggleSortOrder = () => {
+    if (tutorSortOrder === null) {
+      setTutorSortOrder('asc');
+    } else if (tutorSortOrder === 'asc') {
+      setTutorSortOrder('desc');
+    } else {
+      setTutorSortOrder(null);
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -630,7 +720,15 @@ export default function SearchPage() {
       <div style={styles.content}>
         {/* Search Bar */}
         <div style={searchBarStyles.searchContainer}>
-          <h3 style={{ margin: "0 0 5px 0", color: '#2c3e50' }}>Find Tutors & Courses</h3>
+          <h3 style={{ 
+            margin: '0 0 8px 0', 
+            color: darkMode ? '#fff' : '#2c3e50',
+            fontSize: '1.3rem',
+            fontWeight: '600',
+            transition: 'color 0.3s'
+          }}>
+            Find Tutors & Courses
+          </h3>
           <div style={searchBarStyles.searchInputContainer}>
             <div style={searchBarStyles.categoryDropdown}>
               <button
@@ -644,15 +742,36 @@ export default function SearchPage() {
                 <ul style={searchBarStyles.categoryList}>
                   <li
                     onClick={() => selectCategory('default')}
-                    style={{ cursor: 'pointer' }}
+                    style={{
+                      padding: '10px 16px',
+                      color: darkMode ? '#fff' : '#212529',
+                      transition: 'background-color 0.2s',
+                      '&:hover': {
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                      }
+                    }}
                   >All</li>
                   <li
                     onClick={() => selectCategory('tutor')}
-                    style={{ cursor: 'pointer' }}
+                    style={{
+                      padding: '10px 16px',
+                      color: darkMode ? '#fff' : '#212529',
+                      transition: 'background-color 0.2s',
+                      '&:hover': {
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                      }
+                    }}
                   >Tutors</li>
                   <li
                     onClick={() => selectCategory('course')}
-                    style={{ cursor: 'pointer' }}
+                    style={{
+                      padding: '10px 16px',
+                      color: darkMode ? '#fff' : '#212529',
+                      transition: 'background-color 0.2s',
+                      '&:hover': {
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                      }
+                    }}
                   >Courses</li>
                 </ul>
               )}
@@ -750,11 +869,48 @@ export default function SearchPage() {
                 {/* Only show Tutors section if search category is 'all', 'default', or 'tutor' */}
                 {(searchCategory === 'default' || searchCategory === 'all' || searchCategory === 'tutor') && (
                   <div style={{ marginBottom: '40px' }}>
-                    <h2 style={styles.sectionHeading}>Tutors</h2>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <h2 style={{ ...styles.sectionHeading, margin: 0 }}>Tutors</h2>
+                      <button
+                        onClick={toggleSortOrder}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: '8px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          color: darkMode ? '#fff' : '#2c3e50',
+                          fontSize: '14px',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                        title={tutorSortOrder === null ? 'Sort by price' : tutorSortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low'}
+                      >
+                        <i className="fas fa-sort-amount-down" style={{
+                          fontSize: '18px',
+                          transform: tutorSortOrder === 'desc' ? 'scaleY(-1)' : 'scaleY(1)',
+                          transition: 'transform 0.3s',
+                          opacity: tutorSortOrder === null ? 0.5 : 1
+                        }}></i>
+                        <span style={{ fontSize: '12px' }}>Price</span>
+                      </button>
+                    </div>
                     {results.some(item => item._kind === "tutor") ? (
                       <div style={styles.tutorsGrid}>
-                        {results
-                          .filter(item => item._kind === "tutor")
+                        {getSortedTutors(results.filter(item => item._kind === "tutor"))
                           .map((item, idx) => (
                             <ResultCard key={`tutor-${item.id || idx}`} item={item} />
                           ))}

@@ -95,6 +95,109 @@ def get_tutor_availability(db: Session, tutor_id: int, query_date: date) -> List
     return available_slots
 
 
+def get_tutor_availability_range(db: Session, tutor_id: int, start_date: date, end_date: date) -> List[date]:
+    """
+    Get a list of dates with availability within a range.
+    
+    Args:
+        db: Database session
+        tutor_id: ID of the tutor
+        start_date: Start of range
+        end_date: End of range
+        
+    Returns:
+        List of dates that have at least one available slot
+    """
+    available_dates = []
+    current_date = start_date
+    
+    # Pre-fetch all availability slots for the tutor to avoid DB hits in loop
+    # We need all slots that are valid during the range
+    # This is a bit complex due to weekdays, so we might just fetch all active slots
+    all_slots = db.query(AvailabilitySlot).filter(
+        AvailabilitySlot.tutor_id == tutor_id
+    ).all()
+    
+    # Pre-fetch all bookings in the range
+    bookings_in_range = db.query(Booking).filter(
+        Booking.tutor_id == tutor_id,
+        Booking.status != 'cancelled',
+        Booking.start_time >= datetime.combine(start_date, time.min),
+        Booking.end_time <= datetime.combine(end_date, time.max)
+    ).all()
+    
+    while current_date <= end_date:
+        # Check availability for this date
+        # Logic similar to get_tutor_availability but optimized for boolean check
+        
+        python_weekday = current_date.weekday()
+        db_weekday = (python_weekday + 1) % 7
+        
+        # Find relevant slots for this day
+        day_slots = []
+        for slot in all_slots:
+            if slot.weekday != db_weekday:
+                continue
+            if slot.valid_from and slot.valid_from > current_date:
+                continue
+            if slot.valid_until and slot.valid_until < current_date:
+                continue
+            day_slots.append(slot)
+            
+        if not day_slots:
+            current_date += timedelta(days=1)
+            continue
+            
+        # If there are slots, check if they are fully booked
+        # For efficiency, if any slot has free time, the day is available
+        is_day_available = False
+        
+        day_start = datetime.combine(current_date, time.min)
+        day_end = datetime.combine(current_date, time.max)
+        
+        # Filter bookings for this day
+        day_bookings = [
+            b for b in bookings_in_range 
+            if b.start_time < day_end and b.end_time > day_start
+        ]
+        
+        for slot in day_slots:
+            if not slot.start_time or not slot.end_time:
+                continue
+                
+            slot_start_dt = datetime.combine(current_date, slot.start_time)
+            slot_end_dt = datetime.combine(current_date, slot.end_time)
+            
+            # Check 1-hour chunks
+            curr = slot_start_dt
+            while curr + timedelta(hours=1) <= slot_end_dt:
+                chunk_start = curr
+                chunk_end = curr + timedelta(hours=1)
+                
+                # Check overlap
+                is_chunk_booked = False
+                for b in day_bookings:
+                    if chunk_start < b.end_time and chunk_end > b.start_time:
+                        is_chunk_booked = True
+                        break
+                
+                if not is_chunk_booked:
+                    is_day_available = True
+                    break
+                
+                curr += timedelta(hours=1)
+            
+            if is_day_available:
+                break
+        
+        if is_day_available:
+            available_dates.append(current_date)
+            
+        current_date += timedelta(days=1)
+        
+    return available_dates
+
+
 # ============================================================================
 # Availability Slot Management Functions
 # ============================================================================

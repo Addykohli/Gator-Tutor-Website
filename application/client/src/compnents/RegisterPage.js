@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState} from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import { useAuth } from '../Context/Context';
 
 const RegisterPage = () => {
   const [firstName, setFirstName] = useState('');
@@ -10,27 +11,44 @@ const RegisterPage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const { darkMode } = useAuth();
 
   const styles = {
+    nameContainer: {
+      display: 'flex',
+      width: '100%',
+      borderBottom: darkMode ? '1px solid #444' : '1px solid #e9ecef',
+    },
+    nameField: {
+      flex: 1,
+    },
+    verticalDivider: {
+      width: '1px',
+      backgroundColor: darkMode ? '#444' : '#e9ecef',
+      margin: '10px 0',
+    },
     container: {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      minHeight: '100vh',
+      minHeight: 'calc(100vh - 120px)',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
       boxSizing: 'border-box',
+      backgroundColor: darkMode ? '#121212' : '#fff',
+      color: darkMode ? '#f5f5f5' : '#333',
+      transition: 'background-color 0.3s, color 0.3s',
     },
     title: {
-        color: "#333",
-        textAlign: "center",
-        paddingBottom: "3px",
-        borderBottom: "8px solid rgb(255, 220, 112)",
-        display: "block",
-        margin: "20px auto",
-        fontSize: "45px",
-        fontWeight: "600",
-        width: "fit-content"
+      color: darkMode ? '#f5f5f5' : "#333",
+      textAlign: "center",
+      paddingBottom: "3px",
+      borderBottom: "8px solid rgb(255, 220, 112)",
+      display: "block",
+      margin: "20px auto",
+      fontSize: "45px",
+      fontWeight: "600",
+      width: "fit-content"
     },
     inputField: {
       width: '100%',
@@ -39,6 +57,12 @@ const RegisterPage = () => {
       outline: 'none',
       fontSize: '1rem',
       boxSizing: 'border-box',
+      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      color: darkMode ? '#f5f5f5' : '#333',
+      transition: 'background-color 0.3s, color 0.3s',
+      '&::placeholder': {
+        color: darkMode ? '#aaa' : '#666',
+      },
     },
     firstField: {
       borderTopLeftRadius: '15px',
@@ -62,14 +86,16 @@ const RegisterPage = () => {
       transition: 'background-color 0.3s',
     },
     inputContainer: {
-      border: '1px solid rgba(114, 113, 113, 0.39)',
+      border: darkMode ? '1px solid #444' : '1px solid rgba(114, 113, 113, 0.39)',
       borderRadius: '25px',
       margin: '60px 0px 40px 0px',
       overflow: 'hidden',
+      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      transition: 'border-color 0.3s, background-color 0.3s',
     },
     errorMessage: {
-      backgroundColor: '#fee',
-      color: '#c00',
+      backgroundColor: darkMode ? '#3a1a1a' : '#fee',
+      color: darkMode ? '#ff6b6b' : '#c00',
       padding: '12px',
       borderRadius: '8px',
       marginBottom: '16px',
@@ -77,10 +103,11 @@ const RegisterPage = () => {
       maxWidth: '400px',
       width: '100%',
       textAlign: 'center',
+      border: darkMode ? '1px solid #5c2a2a' : 'none',
     },
     successMessage: {
-      backgroundColor: '#efe',
-      color: '#0a0',
+      backgroundColor: darkMode ? '#1a3a1a' : '#efe',
+      color: darkMode ? '#6bff6b' : '#0a0',
       padding: '12px',
       borderRadius: '8px',
       marginBottom: '16px',
@@ -88,11 +115,12 @@ const RegisterPage = () => {
       maxWidth: '400px',
       width: '100%',
       textAlign: 'center',
+      border: darkMode ? '1px solid #2a5c2a' : 'none',
     },
     linkText: {
       textAlign: 'center',
       marginTop: '20px',
-      color: '#666',
+      color: darkMode ? '#aaa' : '#666',
       fontSize: '14px',
     },
     link: {
@@ -108,6 +136,35 @@ const RegisterPage = () => {
     setError('');
     setSuccess('');
     setIsLoading(true);
+
+    // Validate email format
+    const emailRegex = /^[^@\s]+@sfsu\.edu$/i;
+    if (!emailRegex.test(email)) {
+      setError('Email must be a valid SFSU email address (e.g., username@sfsu.edu)');
+      setIsLoading(false);
+      return;
+    }
+
+    // Check if there's content before @
+    const emailParts = email.split('@');
+    if (emailParts[0].trim() === '') {
+      setError('Email must have a username before @sfsu.edu');
+      setIsLoading(false);
+      return;
+    }
+
+    // Validate password requirements
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
+      setIsLoading(false);
+      return;
+    }
+
+    if (!/\d/.test(password)) {
+      setError('Password must contain at least 1 number');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/register', {
@@ -141,7 +198,12 @@ const RegisterPage = () => {
   };
 
   return (
-    <div>
+    <div style={{ 
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#121212' : '#fff',
+    }}>
       <Header />
       <div style={styles.container}>
         <h1 style={styles.title}>Register</h1>
@@ -151,35 +213,32 @@ const RegisterPage = () => {
 
         <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
           <div style={styles.inputContainer}>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                  First Name
-                </label>
+            <div style={styles.nameContainer}>
+              <div style={styles.nameField}>
                 <input
                   type="text"
                   id="firstName"
+                  placeholder="First Name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{...styles.inputField, ...styles.firstField, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none'}}
                   required
                 />
               </div>
-              <div>
-                <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                  Last Name
-                </label>
+              <div style={styles.verticalDivider}></div>
+              <div style={styles.nameField}>
                 <input
                   type="text"
                   id="lastName"
+                  placeholder="Last Name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  style={{...styles.inputField, ...styles.firstField, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: 'none'}}
                   required
                 />
               </div>
             </div>
-            <div style={{ borderTop: '1px solid #e9ecef' }} />
+            <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
             <input
               type="email"
               placeholder="Email"
@@ -189,7 +248,7 @@ const RegisterPage = () => {
               required
               disabled={isLoading}
             />
-            <div style={{ borderTop: '1px solid #e9ecef' }} />
+            <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
             <input
               type="password"
               placeholder="Create Password"
@@ -225,7 +284,7 @@ const RegisterPage = () => {
           </div>
         </form>
       </div>
-      <Footer />
+      <Footer style={{ marginTop: 'auto' }} />
     </div>
   );
 };

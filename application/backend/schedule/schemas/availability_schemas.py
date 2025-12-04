@@ -20,6 +20,14 @@ class AvailabilityResponse(BaseModel):
     slots: List[TimeSlot]
 
 
+class AvailabilityRangeResponse(BaseModel):
+    """Schema for availability range response."""
+    tutor_id: int
+    start_date: date
+    end_date: date
+    available_dates: List[date]
+
+
 class AvailabilitySlotCreate(BaseModel):
     """Schema for creating a new availability slot."""
     weekday: int = Field(..., ge=0, le=6, description="Day of week: 0=Sunday, 1=Monday, ..., 6=Saturday")

@@ -3,17 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Header from './Header';
 import Footer from './Footer';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
 
 const TutorProfile = () => {
   const { tutorId } = useParams();
   const navigate = useNavigate();
-  
+
   // State for the tutor data
   const [tutor, setTutor] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { user } = useAuth();
-  
+  const { user, darkMode } = useAuth();
+
   // State for the booking form
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
@@ -25,8 +27,29 @@ const TutorProfile = () => {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
-  
-  
+  const [userBookings, setUserBookings] = useState([]);
+  const [tutorBookings, setTutorBookings] = useState([]);
+  const [availableDates, setAvailableDates] = useState([]);
+  const [isLoadingUserBookings, setIsLoadingUserBookings] = useState(false);
+  const [isLoadingTutorBookings, setIsLoadingTutorBookings] = useState(false);
+
+  // Helper function to parse time string to local time
+  const parseTimeToLocal = (timeStr) => {
+    if (!timeStr) return null;
+
+    // If it's already a Date object, return it
+    if (timeStr instanceof Date) return timeStr;
+
+    // If it's an ISO string without timezone, append 'Z' to treat as UTC
+    if (timeStr.includes('T') && !timeStr.includes('Z') && !timeStr.includes('+') && !timeStr.match(/[+-]\d{2}:\d{2}$/)) {
+      return new Date(timeStr + 'Z');
+    }
+
+    // Otherwise, let the Date constructor handle it
+    return new Date(timeStr);
+  };
+
+
   // Format time to 12-hour format with AM/PM
   const formatTime = (dateTime) => {
     const date = new Date(dateTime);
@@ -44,14 +67,14 @@ const TutorProfile = () => {
       try {
         setIsLoading(true);
         setError(null);
-        
+
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
         const response = await fetch(`${apiBaseUrl}/search/tutors/${tutorId}`);
-        
+
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         console.log('Tutor data:', data); // Log tutor data to check its structure
         console.log('Tutor courses:', data.courses); // Log courses to check if they have id/course_id
@@ -59,7 +82,7 @@ const TutorProfile = () => {
           console.log('First course structure:', data.courses[0]);
         }
         setTutor(data);
-        
+
       } catch (err) {
         console.error('Error fetching tutor data:', err);
         setError('Failed to load tutor profile. Please try again later.');
@@ -67,7 +90,7 @@ const TutorProfile = () => {
         setIsLoading(false);
       }
     };
-    
+
     if (tutorId) {
       fetchTutorData();
     } else {
@@ -76,34 +99,221 @@ const TutorProfile = () => {
     }
   }, [tutorId]);
 
+  // Fetch user's existing bookings to check for conflicts
+  useEffect(() => {
+    const fetchUserBookings = async () => {
+      if (!user || !user.id) return;
+
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+
+        // Fetch bookings where user is student AND where user is tutor
+        const [studentResponse, tutorResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}`),
+          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}`)
+        ]);
+
+        let allBookings = [];
+
+        if (studentResponse.ok) {
+          const studentData = await studentResponse.json();
+          if (Array.isArray(studentData)) {
+            allBookings = [...allBookings, ...studentData];
+          }
+        }
+
+        if (tutorResponse.ok) {
+          const tutorData = await tutorResponse.json();
+          if (Array.isArray(tutorData)) {
+            allBookings = [...allBookings, ...tutorData];
+          }
+        }
+
+        // Filter for confirmed or pending bookings only
+        const activeBookings = allBookings.filter(booking =>
+          booking.status === 'confirmed' || booking.status === 'pending'
+        );
+
+        console.log('User active bookings for conflict check:', activeBookings);
+        setUserBookings(activeBookings);
+
+      } catch (err) {
+        console.error('Error fetching user bookings:', err);
+      }
+    };
+
+    fetchUserBookings();
+  }, [user]);
+
+  // Fetch tutor's existing bookings to check for conflicts (booked/pending slots)
+  useEffect(() => {
+    const fetchTutorBookings = async () => {
+      if (!tutorId) return;
+
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+
+        // Fetch bookings where tutor is student AND where tutor is tutor
+        const [studentResponse, tutorResponse] = await Promise.all([
+          fetch(`${apiBaseUrl}/schedule/bookings?student_id=${tutorId}`),
+          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${tutorId}`)
+        ]);
+
+        let allBookings = [];
+
+        if (studentResponse.ok) {
+          const studentData = await studentResponse.json();
+          if (Array.isArray(studentData)) {
+            allBookings = [...allBookings, ...studentData];
+          }
+        }
+
+        if (tutorResponse.ok) {
+          const tutorData = await tutorResponse.json();
+          if (Array.isArray(tutorData)) {
+            allBookings = [...allBookings, ...tutorData];
+          }
+        }
+
+        // Filter for confirmed or pending bookings only
+        const activeBookings = allBookings.filter(booking =>
+          booking.status === 'confirmed' || booking.status === 'pending'
+        );
+
+        console.log('Tutor active bookings for conflict check:', activeBookings);
+        setTutorBookings(activeBookings);
+
+      } catch (err) {
+        console.error('Error fetching tutor bookings:', err);
+      }
+    };
+
+    fetchTutorBookings();
+  }, [tutorId]);
+
+  // Helper to format date to YYYY-MM-DD (local time)
+  const formatDateLocal = (date) => {
+    if (!date) return '';
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  // Fetch availability for a month
+  const fetchMonthAvailability = async (date) => {
+    if (!tutorId) return;
+
+    const year = date.getFullYear();
+    const month = date.getMonth();
+
+    // Start of month
+    const startDate = new Date(year, month, 1);
+    // End of month
+    const endDate = new Date(year, month + 1, 0);
+
+    const startStr = formatDateLocal(startDate);
+    const endStr = formatDateLocal(endDate);
+
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(
+        `${apiBaseUrl}/schedule/tutors/${tutorId}/availability-range?start_date=${startStr}&end_date=${endStr}`
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAvailableDates(prev => {
+          // Merge new dates with existing ones
+          const newDates = data.available_dates;
+          const uniqueDates = [...new Set([...prev, ...newDates])];
+          return uniqueDates;
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching month availability:', err);
+    }
+  };
+
+  // Initial fetch for current month
+  useEffect(() => {
+    if (tutorId) {
+      fetchMonthAvailability(new Date());
+    }
+  }, [tutorId]);
+
   // Fetch available time slots when date is selected
   useEffect(() => {
     const fetchAvailability = async () => {
       if (!selectedDate || !tutorId) return;
-      
+
       try {
         setIsLoadingSlots(true);
         setSelectedTime('');
-        
+
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
         const response = await fetch(
           `${apiBaseUrl}/schedule/tutors/${tutorId}/availability?date=${selectedDate}`
         );
-        
+
         if (!response.ok) {
           throw new Error('Failed to fetch availability');
         }
-        
+
         const data = await response.json();
-        
-        // Format the time slots for display
-        const formattedSlots = data.slots.map(slot => ({
-          id: `${slot.start_time}-${slot.end_time}`,
-          start: new Date(slot.start_time),
-          end: new Date(slot.end_time),
-          display: `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`
-        }));
-        
+
+        // Format the time slots for display and check for conflicts
+        const formattedSlots = data.slots.map(slot => {
+          const slotStart = new Date(slot.start_time);
+          const slotEnd = new Date(slot.end_time);
+
+          let conflictType = null;
+          let conflictLabel = '';
+
+          // 1. Check for conflicts with user's existing bookings (Priority 1)
+          const userConflict = userBookings.some(booking => {
+            if (!booking.start_time || !booking.end_time) return false;
+            const bookingStart = parseTimeToLocal(booking.start_time);
+            const bookingEnd = parseTimeToLocal(booking.end_time);
+            return (slotStart < bookingEnd) && (slotEnd > bookingStart);
+          });
+
+          if (userConflict) {
+            conflictType = 'user_conflict';
+            conflictLabel = '(Conflict)';
+          }
+
+          // 2. Check for conflicts with tutor's schedule (Priority 2)
+          if (!conflictType) {
+            const tutorConflictBooking = tutorBookings.find(booking => {
+              if (!booking.start_time || !booking.end_time) return false;
+              const bookingStart = parseTimeToLocal(booking.start_time);
+              const bookingEnd = parseTimeToLocal(booking.end_time);
+              return (slotStart < bookingEnd) && (slotEnd > bookingStart);
+            });
+
+            if (tutorConflictBooking) {
+              if (tutorConflictBooking.status === 'confirmed') {
+                conflictType = 'tutor_booked';
+                conflictLabel = '(Booked)';
+              } else if (tutorConflictBooking.status === 'pending') {
+                conflictType = 'tutor_pending';
+                conflictLabel = '(Someone else requested)';
+              }
+            }
+          }
+
+          return {
+            id: `${slot.start_time}-${slot.end_time}`,
+            start: slotStart,
+            end: slotEnd,
+            display: `${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}`,
+            disabled: !!conflictType,
+            conflictLabel: conflictLabel
+          };
+        });
+
         setAvailableTimeSlots(formattedSlots);
       } catch (err) {
         console.error('Error fetching availability:', err);
@@ -112,10 +322,10 @@ const TutorProfile = () => {
         setIsLoadingSlots(false);
       }
     };
-    
+
     fetchAvailability();
-  }, [selectedDate, tutorId]);
-  
+  }, [selectedDate, tutorId, userBookings, tutorBookings]);
+
   // Calculate max date (2 years from now)
   const getMaxDate = () => {
     const date = new Date();
@@ -130,7 +340,7 @@ const TutorProfile = () => {
       setBookingError('Please log in to book a session');
       return;
     }
-    
+
     // Reset messages
     setBookingError(null);
     setBookingSuccess(false);
@@ -141,14 +351,14 @@ const TutorProfile = () => {
       console.log('Selected time string:', selectedTime);
       const [startTimeStr] = selectedTime.split(' - ');
       console.log('Start time string:', startTimeStr);
-      
+
       // Handle both 12-hour and 24-hour formats
       let hours, minutes;
       if (startTimeStr.includes(' ')) {
         // 12-hour format (e.g., "2:30 PM")
         const [time, period] = startTimeStr.split(' ');
         [hours, minutes] = time.split(':').map(Number);
-        
+
         // Convert to 24-hour format
         if (period && period.toLowerCase() === 'pm' && hours < 12) {
           hours += 12;
@@ -159,16 +369,16 @@ const TutorProfile = () => {
         // 24-hour format (e.g., "14:30")
         [hours, minutes] = startTimeStr.split(':').map(Number);
       }
-      
+
       console.log('Parsed hours:', hours, 'minutes:', minutes);
-      
+
       const [year, month, day] = selectedDate.split('-').map(Number);
       console.log('Parsed date:', { year, month: month - 1, day });
-      
+
       // Create date objects in local time
       const startDateTime = new Date(year, month - 1, day, hours, minutes || 0);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60000); // Add 60 minutes (1 hour)
-      
+
       console.log('Start date time:', startDateTime);
       console.log('End date time:', endDateTime);
 
@@ -183,7 +393,7 @@ const TutorProfile = () => {
       }
 
       // Find the selected course
-      const selectedCourseObj = tutor.courses.find(c => 
+      const selectedCourseObj = tutor.courses.find(c =>
         `${c.department_code} ${c.course_number}` === selectedCourse
       );
 
@@ -195,20 +405,20 @@ const TutorProfile = () => {
 
       // Get course_id - check multiple possible field names
       let courseId = selectedCourseObj.id || selectedCourseObj.course_id || selectedCourseObj.courseId;
-      
+
       // If course_id is still not found, try to fetch it from the API
       if (!courseId) {
         console.warn('Course ID not found in course object, attempting to fetch from API...');
         console.log('Course object:', selectedCourseObj);
         console.log('Available courses:', tutor.courses);
-        
+
         // Try to fetch course by department_code and course_number
         try {
           const apiBaseUrl = process.env.REACT_APP_API_URL || '';
           const courseResponse = await fetch(
             `${apiBaseUrl}/search/courses?department_code=${selectedCourseObj.department_code}&course_number=${selectedCourseObj.course_number}&limit=1`
           );
-          
+
           if (courseResponse.ok) {
             const courseData = await courseResponse.json();
             if (courseData.items && courseData.items.length > 0) {
@@ -220,7 +430,7 @@ const TutorProfile = () => {
           console.error('Error fetching course ID:', fetchError);
         }
       }
-      
+
       if (!courseId) {
         console.error('Course object structure:', selectedCourseObj);
         console.error('Available courses:', tutor.courses);
@@ -247,7 +457,7 @@ const TutorProfile = () => {
         meeting_link: sessionType === 'zoom' ? 'https://sfsu.zoom.us/j/meeting-id' : 'In-person meeting',
         notes: notes || ''
       };
-      
+
       console.log('Selected course object:', selectedCourseObj);
       console.log('Course ID being sent:', courseIdNum);
       console.log('Full booking data:', JSON.stringify(bookingData, null, 2));
@@ -260,7 +470,7 @@ const TutorProfile = () => {
       const apiBaseUrl = process.env.REACT_APP_API_URL || '';
       console.log('Sending booking request to:', `${apiBaseUrl}/schedule/bookings`);
       console.log('Request payload:', bookingData);
-      
+
       const response = await fetch(`${apiBaseUrl}/schedule/bookings`, {
         method: 'POST',
         headers: {
@@ -274,10 +484,10 @@ const TutorProfile = () => {
         console.error('Failed to parse response:', error);
         return { detail: 'Invalid response from server' };
       });
-      
+
       console.log('Response status:', response.status);
       console.log('Response data:', responseData);
-      
+
       if (!response.ok) {
         console.error('Error response details:', {
           status: response.status,
@@ -285,12 +495,12 @@ const TutorProfile = () => {
           data: responseData,
           requestData: bookingData  // Log the request data that caused the error
         });
-        
+
         // Check for validation errors
         if (response.status === 422 && responseData.detail) {
           if (Array.isArray(responseData.detail)) {
             // Handle Pydantic validation errors
-            const errorMessages = responseData.detail.map(err => 
+            const errorMessages = responseData.detail.map(err =>
               `${err.loc.join('.')}: ${err.msg}`
             ).join('\n');
             throw new Error(`Validation error:\n${errorMessages}`);
@@ -299,10 +509,10 @@ const TutorProfile = () => {
             throw new Error(responseData.detail);
           }
         }
-        
+
         throw new Error(
-          responseData.detail || 
-          responseData.message || 
+          responseData.detail ||
+          responseData.message ||
           `Failed to book appointment (${response.status} ${response.statusText})`
         );
       }
@@ -311,7 +521,7 @@ const TutorProfile = () => {
 
       // Handle successful booking
       setBookingSuccess(true);
-      
+
       // Reset form
       setSelectedDate('');
       setSelectedTime('');
@@ -327,7 +537,7 @@ const TutorProfile = () => {
       setIsBooking(false);
     }
   };
-  
+
   // Show loading state
   if (isLoading) {
     return (
@@ -339,7 +549,7 @@ const TutorProfile = () => {
       </div>
     );
   }
-  
+
   // Show error state
   if (error) {
     return (
@@ -351,7 +561,7 @@ const TutorProfile = () => {
       </div>
     );
   }
-  
+
   // Show no tutor found state
   if (!tutor) {
     return (
@@ -363,19 +573,19 @@ const TutorProfile = () => {
       </div>
     );
   }
-  
+
   const styles = {
     container: {
+      maxWidth: '1200px',
       margin: '20px auto',
       padding: '20px',
-      fontFamily: 'Arial, sans-serif',
-      backgroundColor: '#fff',
-      borderRadius: '8px',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+      color: darkMode ? '#e0e0e0' : '#333',
+      minHeight: '100vh',
       boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-      maxWidth: '1000px',
     },
     bookingContainer: {
-      backgroundColor: '#f9f9f9',
+      backgroundColor: darkMode ? '#2d2d2d' : '#f9f9f9',
       borderRadius: '15px',
       padding: '25px',
       marginTop: '30px',
@@ -383,7 +593,7 @@ const TutorProfile = () => {
     },
     bookingHeader: {
       fontSize: '24px',
-      color: '#2c3e50',
+      color: darkMode ? '#fff' : '#2c3e50',
       marginBottom: '25px',
       paddingBottom: '10px',
       borderBottom: '2px solid #eee',
@@ -402,14 +612,25 @@ const TutorProfile = () => {
     },
     timeSlot: {
       padding: '10px',
-      border: '1px solid #ddd',
+      border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
       borderRadius: '5px',
       textAlign: 'center',
       cursor: 'pointer',
       transition: 'all 0.2s',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      color: darkMode ? '#e0e0e0' : '#333',
       '&:hover': {
-        backgroundColor: '#f0f0f0',
+        backgroundColor: darkMode ? '#3d3d3d' : '#f0f0f0',
       },
+    },
+    disabledTimeSlot: {
+      opacity: 0.5,
+      cursor: 'not-allowed',
+      backgroundColor: darkMode ? '#222' : '#eee',
+      color: darkMode ? '#666' : '#999',
+      '&:hover': {
+        backgroundColor: darkMode ? '#222' : '#eee',
+      }
     },
     selectedTimeSlot: {
       backgroundColor: '#9A2250',
@@ -423,22 +644,29 @@ const TutorProfile = () => {
       display: 'block',
       marginBottom: '8px',
       fontWeight: '500',
-      color: '#2c3e50',
+      color: darkMode ? '#e0e0e0' : '#2c3e50',
     },
     input: {
       width: '100%',
       padding: '10px',
       borderRadius: '5px',
-      border: '1px solid #ddd',
+      border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      color: darkMode ? '#e0e0e0' : '#333',
       fontSize: '14px',
     },
     select: {
       width: '100%',
       padding: '10px',
       borderRadius: '5px',
-      border: '1px solid #ddd',
+      border: `1px solid ${darkMode ? '#444' : '#ddd'}`,
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      color: darkMode ? '#fff' : '#000',
       fontSize: '14px',
-      backgroundColor: 'white',
+      '& option': {
+        color: '#000',
+        backgroundColor: '#fff',
+      },
     },
     textarea: {
       width: '100%',
@@ -450,11 +678,11 @@ const TutorProfile = () => {
     },
     sessionTypeContainer: {
       display: 'flex',
-      border: '1px solid #e0e0e0',
+      border: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
       borderRadius: '8px',
       overflow: 'hidden',
       margin: '20px 0',
-      backgroundColor: '#f8f9fa',
+      backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa',
     },
     sessionTypeOption: {
       flex: '1',
@@ -463,12 +691,13 @@ const TutorProfile = () => {
       cursor: 'pointer',
       transition: 'all 0.2s ease',
       position: 'relative',
-      '&:first-child': {
-        borderRight: '1px solid #e0e0e0',
-      },
+      color: darkMode ? '#e0e0e0' : '#333',
       '&:hover': {
-        backgroundColor: 'rgba(0, 0, 0, 0.02)',
+        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.02)',
       },
+    },
+    firstSessionTypeOption: {
+      borderRight: `1px solid ${darkMode ? '#444' : '#e0e0e0'}`,
     },
     selectedSessionType: {
       backgroundColor: 'rgba(154, 34, 80, 0.05)',
@@ -517,7 +746,7 @@ const TutorProfile = () => {
     name: {
       fontSize: '38px',
       margin: '0 0 8px 0',
-      color: '#2c3e50',
+      color: darkMode ? '#fff' : '#2c3e50',
       fontWeight: '600',
       lineHeight: '1.2',
       display: 'block',
@@ -530,7 +759,7 @@ const TutorProfile = () => {
       display: 'block',
     },
     email: {
-      color: '#666',
+      color: darkMode ? '#aaa' : '#666',
       margin: '0 0 15px 0',
       fontSize: '16px',
       display: 'block',
@@ -540,17 +769,17 @@ const TutorProfile = () => {
       height: '200px',
       borderRadius: '50%',
       objectFit: 'cover',
-      border: '3px solid #f0f0f0',
+      border: `3px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     section: {
       marginBottom: '25px',
     },
     sectionTitle: {
       fontSize: '20px',
-      color: '#2c3e50',
+      color: darkMode ? '#fff' : '#2c3e50',
       margin: '0 0 0px 20px',
       paddingBottom: '5px',
-      borderBottom: '2px solid #f0f0f0',
+      borderBottom: `2px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     tag: {
       display: 'inline-block',
@@ -562,7 +791,7 @@ const TutorProfile = () => {
     },
     bio: {
       lineHeight: '1.6',
-      color: '#555',
+      color: darkMode ? '#bbb' : '#555',
       margin: '0 0 0px 20px',
     },
     button: {
@@ -579,13 +808,13 @@ const TutorProfile = () => {
   };
 
   return (
-    <div>
+    <div style={{ backgroundColor: darkMode ? '#121212' : '#fff', minHeight: '100vh' }}>
       <Header />
       <div style={styles.container}>
         <div style={styles.header}>
-          <img 
-            src={tutor.image || require('../assets/default_silhouette.png')} 
-            alt={`${tutor.first_name || 'User'} profile`} 
+          <img
+            src={tutor.image || require('../assets/default_silhouette.png')}
+            alt={`${tutor.first_name || 'User'} profile`}
             style={styles.profileImage}
             onError={(e) => {
               e.target.onerror = null;
@@ -595,63 +824,86 @@ const TutorProfile = () => {
           <div style={styles.infoSection}>
             <h1 style={styles.name}>{tutor.first_name} {tutor.last_name}</h1>
             <p style={styles.price}>
-              ${tutor && tutor.hourly_rate_cents !== undefined && tutor.hourly_rate_cents !== null 
-                ? (parseFloat(tutor.hourly_rate_cents) / 100).toFixed(2) 
+              ${tutor && tutor.hourly_rate_cents !== undefined && tutor.hourly_rate_cents !== null
+                ? (parseFloat(tutor.hourly_rate_cents) / 100).toFixed(2)
                 : '0.00'}/hour
             </p>
             <p style={styles.email}>{tutor.email}</p>
-            
+
             <div style={styles.section}>
               <h2 style={styles.sectionTitle}>About Me</h2>
               <p style={styles.bio}>{tutor.bio}</p>
             </div>
           </div>
         </div>
-      
+
         <div style={styles.bookingContainer}>
           <h2 style={styles.bookingHeader}>Book a Session</h2>
-          <div style={styles.bookingGrid}>
+
+          {/* Self-booking restriction message */}
+          {user && tutor && user.id === tutor.id && (
+            <div style={{
+              padding: '15px',
+              backgroundColor: '#fff3cd',
+              color: '#856404',
+              border: '1px solid #ffeeba',
+              borderRadius: '5px',
+              marginBottom: '20px',
+              textAlign: 'center'
+            }}>
+              <strong>Note:</strong> You cannot book a session with yourself.
+            </div>
+          )}
+
+          <div style={{
+            ...styles.bookingGrid,
+            opacity: (user && tutor && user.id === tutor.id) ? 0.5 : 1,
+            pointerEvents: (user && tutor && user.id === tutor.id) ? 'none' : 'auto'
+          }}>
             {/* Left side - Time selection */}
             <div>
               <div style={styles.formGroup}>
                 <label style={styles.label}>Select a time slot</label>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Pick a day:</label>
-                  <input 
-                    type="date" 
-                    style={styles.input}
-                    value={selectedDate}
-                    onChange={(e) => {
-                      const selected = new Date(e.target.value);
-                      const maxDate = new Date();
-                      maxDate.setFullYear(maxDate.getFullYear() + 2);
-                      
-                      if (selected <= maxDate) {
-                        setSelectedDate(e.target.value);
+                  <label style={styles.label}>Pick a day: *</label>
+                  <DatePicker
+                    selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
+                    onChange={(date) => {
+                      if (date) {
+                        setSelectedDate(formatDateLocal(date));
                       } else {
-                        // If the selected date is beyond 2 years, set to max allowed date
-                        setSelectedDate(maxDate.toISOString().split('T')[0]);
+                        setSelectedDate('');
                       }
                     }}
-                    min={new Date().toISOString().split('T')[0]}
-                    max={getMaxDate()}
-                    onKeyDown={(e) => {
-                      // Prevent manual entry of invalid years
-                      if (e.key >= '0' && e.key <= '9') {
-                        const currentValue = e.target.value;
-                        const year = currentValue.split('-')[0];
-                        if (year && year.length >= 4) {
-                          e.preventDefault();
-                        }
-                      }
+                    minDate={new Date()}
+                    maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 2))}
+                    filterDate={(date) => {
+                      // Disable past dates
+                      if (date < new Date().setHours(0, 0, 0, 0)) return false;
+                      // Check if date is in availableDates
+                      const dateStr = formatDateLocal(date);
+                      return availableDates.includes(dateStr);
                     }}
+                    onMonthChange={(date) => fetchMonthAvailability(date)}
+                    placeholderText="Select a date"
+                    className="form-control"
+                    wrapperClassName="datePickerWrapper"
+                    customInput={
+                      <input
+                        style={{
+                          ...styles.input,
+                          width: '100%',
+                          cursor: 'pointer'
+                        }}
+                      />
+                    }
                   />
                 </div>
-                
+
                 {selectedDate && (
                   <div>
                     <label style={styles.label}>
-                      Available Times:
+                      Available Times: *
                       {isLoadingSlots && <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>Loading...</span>}
                       {!isLoadingSlots && availableTimeSlots.length === 0 && (
                         <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>No available time slots for this date</span>
@@ -659,15 +911,19 @@ const TutorProfile = () => {
                     </label>
                     <div style={styles.timeSlotsGrid}>
                       {availableTimeSlots.map((slot) => (
-                        <div 
+                        <div
                           key={slot.id}
                           style={{
                             ...styles.timeSlot,
-                            ...(selectedTime === slot.display ? styles.selectedTimeSlot : {})
+                            ...(selectedTime === slot.display ? styles.selectedTimeSlot : {}),
+                            ...(slot.disabled ? styles.disabledTimeSlot : {}),
                           }}
-                          onClick={() => setSelectedTime(slot.display)}
+                          onClick={() => !slot.disabled && setSelectedTime(slot.display)}
                         >
-                          {slot.display}
+                          <span style={{ textDecoration: slot.disabled ? 'line-through' : 'none' }}>
+                            {slot.display}
+                          </span>
+                          {slot.disabled && <span style={{ fontSize: '0.7em', display: 'block' }}>{slot.conflictLabel}</span>}
                         </div>
                       ))}
                     </div>
@@ -675,47 +931,52 @@ const TutorProfile = () => {
                 )}
               </div>
             </div>
-            
+
             {/* Right side - Session details */}
             <div>
               <div style={styles.formGroup}>
-                <label style={styles.label}>Course:</label>
-                <select 
+                <label style={styles.label}>Course: *</label>
+                <select
                   style={styles.select}
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
                   required
                 >
-                  <option value="">Select a course</option>
+                  <option value="" style={{ color: darkMode ? '#fff' : '#000' }}>Select a course</option>
                   {tutor.courses.map((course, index) => (
-                    <option key={index} value={`${course.department_code} ${course.course_number}`}>
+                    <option
+                      key={index}
+                      value={`${course.department_code} ${course.course_number}`}
+                      style={{ color: '#000' }}
+                    >
                       {course.department_code} {course.course_number} - {course.title}
                     </option>
                   ))}
                 </select>
               </div>
-              
+
               <div style={styles.formGroup}>
                 <label style={styles.label}>Notes (optional):</label>
-                <textarea 
+                <textarea
                   style={styles.textarea}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Any specific topics or questions you'd like to cover?"
                 />
               </div>
-              
+
               <div style={styles.sessionTypeContainer}>
-                <div 
+                <div
                   style={{
                     ...styles.sessionTypeOption,
+                    ...styles.firstSessionTypeOption,
                     ...(sessionType === 'in-person' ? styles.selectedSessionType : {})
                   }}
                   onClick={() => setSessionType('in-person')}
                 >
                   In-Person
                 </div>
-                <div 
+                <div
                   style={{
                     ...styles.sessionTypeOption,
                     ...(sessionType === 'zoom' ? styles.selectedSessionType : {})
@@ -725,13 +986,13 @@ const TutorProfile = () => {
                   Zoom
                 </div>
               </div>
-              
+
               {bookingError && (
-                <div style={{ 
-                  color: '#dc3545', 
-                  backgroundColor: '#f8d7da', 
-                  padding: '10px', 
-                  borderRadius: '4px', 
+                <div style={{
+                  color: '#dc3545',
+                  backgroundColor: '#f8d7da',
+                  padding: '10px',
+                  borderRadius: '4px',
                   marginBottom: '15px',
                   fontSize: '14px',
                   border: '1px solid #f5c6cb'
@@ -741,11 +1002,11 @@ const TutorProfile = () => {
               )}
 
               {bookingSuccess && (
-                <div style={{ 
-                  color: '#0f5132', 
-                  backgroundColor: '#d1e7dd', 
-                  padding: '10px', 
-                  borderRadius: '4px', 
+                <div style={{
+                  color: '#0f5132',
+                  backgroundColor: '#d1e7dd',
+                  padding: '10px',
+                  borderRadius: '4px',
                   marginBottom: '15px',
                   fontSize: '14px',
                   border: '1px solid #badbcc'
@@ -754,7 +1015,7 @@ const TutorProfile = () => {
                 </div>
               )}
 
-              <button 
+              <button
                 style={{
                   ...styles.bookButton,
                   opacity: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 0.7 : 1,

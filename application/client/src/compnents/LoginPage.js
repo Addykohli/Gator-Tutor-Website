@@ -5,11 +5,11 @@ import Footer from './Footer';
 import Header from './Header';
 
 const LoginPage = () => {
-    const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, darkMode } = useAuth();
   const navigate = useNavigate();
 
   const styles = {
@@ -17,12 +17,17 @@ const LoginPage = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
-      minHeight: '80vh',
+      minHeight: 'calc(100vh - 120px)',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
+      backgroundColor: darkMode ? '#121212' : '#fff',
+      color: darkMode ? '#f5f5f5' : '#333',
+      transition: 'background-color 0.3s, color 0.3s',
+      boxSizing: 'border-box',
+      width: '100%',
     },
     title: {
-      color: "#333",
+      color: darkMode ? '#f5f5f5' : "#333",
       textAlign: "center",
       padding: "0px",
       borderBottom: "4px solid rgb(255, 220, 112)",
@@ -40,18 +45,34 @@ const LoginPage = () => {
       outline: 'none',
       fontSize: '1rem',
       boxSizing: 'border-box',
+      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      color: darkMode ? '#f5f5f5' : '#333',
+      transition: 'background-color 0.3s, color 0.3s',
       '&:focus': {
-        backgroundColor: '#f8f9fa',
+        backgroundColor: darkMode ? '#2d2d2d' : '#f8f9fa',
       },
     },
     usernameField: {
-      borderBottom: '1px solid #e9ecef',
+      borderBottom: darkMode ? '1px solid #444' : '1px solid #e9ecef',
       borderTopLeftRadius: '15px',
       borderTopRightRadius: '15px',
     },
     passwordField: {
       borderBottomLeftRadius: '15px',
       borderBottomRightRadius: '15px',
+    },
+    inputContainer: {
+      border: darkMode ? '1px solid #444' : '1px solid rgba(114, 113, 113, 0.39)',
+      borderRadius: '15px',
+      margin: '60px 0px 40px 0px',
+      overflow: 'hidden',
+      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      transition: 'border-color 0.3s, background-color 0.3s',
+    },
+    divider: {
+      borderTop: darkMode ? '1px solid #444' : '1px solid #e9ecef',
+      width: '100%',
+      transition: 'border-color 0.3s'
     },
     loginButton: {
       width: '100%',
@@ -65,12 +86,6 @@ const LoginPage = () => {
       fontWeight: 'bold',
       cursor: 'pointer',
       transition: 'background-color 0.3s',
-    },
-    inputContainer: {
-      border: '1px solid rgba(114, 113, 113, 0.39)',
-      borderRadius: '25px',
-      margin: '60px 0px 40px 0px',
-      overflow: 'hidden',
     },
   };
 
@@ -151,11 +166,16 @@ const LoginPage = () => {
   };
 
   return (
-    <div>
+    <div style={{ 
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#121212' : '#fff',
+    }}>
       <Header />
-      <div style={styles.container}>
+      <main style={styles.container}>
         <h1 style={styles.title}>Login</h1>
-      <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
+        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
         <div style={styles.inputContainer}>
           <input
             type="email"
@@ -165,7 +185,7 @@ const LoginPage = () => {
             style={{ ...styles.inputField, ...styles.usernameField }}
             required
           />
-          <div style={{ borderTop: '1px solid #e9ecef' }} />
+          <div style={styles.divider} />
           <input
             type="password"
             placeholder="Password"
@@ -195,9 +215,10 @@ const LoginPage = () => {
             color: '#d32f2f',
             marginTop: '15px',
             padding: '10px',
-            backgroundColor: '#ffebee',
+            backgroundColor: darkMode ? '#3a1a1a' : '#ffebee',
             borderRadius: '4px',
             width: '100%',
+            border: darkMode ? '1px solid #5c2a2a' : 'none',
             textAlign: 'center'
           }}>
             {error}
@@ -222,8 +243,8 @@ const LoginPage = () => {
           </p>
         </div>
         </form>
-      </div>
-      <Footer />
+      </main>
+      <Footer style={{ marginTop: 'auto' }} />
     </div>
   );
 };

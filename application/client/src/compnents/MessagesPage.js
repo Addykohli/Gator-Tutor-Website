@@ -275,13 +275,13 @@ const MessagesPage = () => {
 const styles = {
   container: {
     display: 'flex',
-    minHeight: 'calc(100vh - 160px)', // Adjusted for header and footer
+    minHeight: 'calc(100vh - 160px)', 
     height: 'auto',
     backgroundColor: '#fff',
     borderRadius: '10px',
     overflow: 'hidden',
     boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    margin: '20px', // Added some margin around the container
+    margin: '20px', 
   },
   sidebar: {
     width: '350px',
