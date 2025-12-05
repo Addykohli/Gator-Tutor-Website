@@ -76,3 +76,42 @@ class SearchAllResponse(BaseModel):
     limit: int
     offset: int
 
+
+class DepartmentFilterOption(BaseModel):
+    """Department filter option with count."""
+    code: str
+    count: int
+
+
+class LanguageFilterOption(BaseModel):
+    """Language filter option with count."""
+    name: str
+    count: int
+
+
+class PriceRangeOption(BaseModel):
+    """Price range filter option."""
+    min: int
+    max: int
+
+
+class LocationModeOption(BaseModel):
+    """Location mode filter option with count."""
+    mode: str
+    count: int
+
+
+class WeekdayOption(BaseModel):
+    """Weekday filter option with count."""
+    weekday: int
+    count: int
+
+
+class FilterOptionsResponse(BaseModel):
+    """Filter options response for search UI."""
+    departments: List[DepartmentFilterOption]
+    languages: List[LanguageFilterOption]
+    price_range: PriceRangeOption
+    location_modes: List[LocationModeOption]
+    weekdays: List[WeekdayOption]
+
