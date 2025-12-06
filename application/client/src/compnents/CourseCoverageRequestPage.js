@@ -5,6 +5,14 @@ import Footer from './Footer';
 
 const CourseCoverageRequestPage = () => {
   const { darkMode } = useAuth();
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
+
+  React.useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [formData, setFormData] = useState({
     courseNumber: '',
     topics: '',
@@ -18,8 +26,10 @@ const CourseCoverageRequestPage = () => {
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
-      backgroundColor: darkMode ? 'rgb(30, 30, 30)' : '#ffffff',
-      transition: 'background-color 0.3s ease',
+      background: darkMode 
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)' 
+        : '#ffffff',
+      transition: 'background 0.3s ease',
     },
     heading: {
       color: darkMode ? '#fff' : '#333',
@@ -28,7 +38,7 @@ const CourseCoverageRequestPage = () => {
       borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
       margin: "20px auto",
-      fontSize: "45px",
+      fontSize: isMobile ? "28px" : "45px",
       fontWeight: "600",
       lineHeight: "1.2",
       position: "relative",
@@ -37,22 +47,23 @@ const CourseCoverageRequestPage = () => {
     content: {
       maxWidth: '1200px',
       margin: '0 auto',
-      padding: '40px 20px',
+      padding: isMobile ? '20px 16px' : '40px 20px',
       width: '100%',
       color: darkMode ? '#f0f0f0' : '#333',
       transition: 'color 0.3s ease',
+      boxSizing: 'border-box',
     },
     twoColumn: {
       display: 'grid',
-      gridTemplateColumns: '2fr 1fr',
+      gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr',
       gap: '32px',
-      marginTop: '32px',
+      marginTop: isMobile ? '20px' : '32px',
     },
     formCard: {
       backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#fafafa',
       border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
       borderRadius: '8px',
-      padding: '32px',
+      padding: isMobile ? '20px' : '32px',
       transition: 'background-color 0.3s ease, border-color 0.3s ease',
     },
     formGroup: {
@@ -90,6 +101,7 @@ const CourseCoverageRequestPage = () => {
     },
     formActions: {
       display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
       gap: '16px',
       marginTop: '32px',
     },
@@ -159,19 +171,15 @@ const CourseCoverageRequestPage = () => {
       display: showSuccess ? 'block' : 'none',
       transition: 'background-color 0.3s ease',
     },
-    '@media (max-width: 768px)': {
-      twoColumn: {
-        gridTemplateColumns: '1fr',
-      }
-    }
+
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Submitting coverage request:', formData);
-    
+
     setShowSuccess(true);
-    
+
     // Reset form
     setFormData({
       courseNumber: '',
@@ -179,10 +187,10 @@ const CourseCoverageRequestPage = () => {
       notes: '',
       email: ''
     });
-    
+
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Redirect after delay
     setTimeout(() => {
       window.location.href = '/';
@@ -200,7 +208,7 @@ const CourseCoverageRequestPage = () => {
     <div style={styles.container}>
       <Header />
       <h1 style={styles.heading}>Course Coverage Request</h1>
-      
+
       <div style={styles.content}>
         {showSuccess && (
           <div style={styles.successMessage}>
@@ -236,7 +244,7 @@ const CourseCoverageRequestPage = () => {
                     placeholder="List specific topics or chapters you need help with..."
                     value={formData.topics}
                     onChange={handleChange}
-                    style={{...styles.formInput, ...styles.textarea}}
+                    style={{ ...styles.formInput, ...styles.textarea }}
                     rows="4"
                   />
                 </div>
@@ -250,7 +258,7 @@ const CourseCoverageRequestPage = () => {
                     placeholder="Any additional information that might help tutors..."
                     value={formData.notes}
                     onChange={handleChange}
-                    style={{...styles.formInput, ...styles.textarea}}
+                    style={{ ...styles.formInput, ...styles.textarea }}
                     rows="6"
                   />
                 </div>
@@ -273,7 +281,7 @@ const CourseCoverageRequestPage = () => {
                 <div style={styles.formActions}>
                   <button
                     type="submit"
-                    style={{...styles.btn, ...styles.btnPrimary}}
+                    style={{ ...styles.btn, ...styles.btnPrimary }}
                     onMouseOver={(e) => e.target.style.backgroundColor = '#e6b800'}
                     onMouseOut={(e) => e.target.style.backgroundColor = '#FFCF01'}
                   >
@@ -281,41 +289,13 @@ const CourseCoverageRequestPage = () => {
                   </button>
                   <button
                     type="button"
-                    style={{...styles.btn, ...styles.btnSecondary}}
+                    style={{ ...styles.btn, ...styles.btnSecondary }}
                     onClick={() => window.location.href = '/'}
                   >
                     Cancel
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-
-          <div>
-            <div style={styles.infoCard}>
-              <h3 style={styles.infoCardTitle}>How it works</h3>
-              <p style={styles.infoCardText}>
-                1. Fill out the course information you need help with
-              </p>
-              <p style={styles.infoCardText}>
-                2. We'll notify available tutors about your request
-              </p>
-              <p style={styles.infoCardText}>
-                3. Tutors will reach out to you via email if they can help
-              </p>
-              <p style={styles.tip}>
-                Tip: Be specific about topics to help tutors understand your needs better
-              </p>
-            </div>
-
-            <div style={styles.infoCard}>
-              <h3 style={styles.infoCardTitle}>Need immediate help?</h3>
-              <p style={styles.infoCardText}>
-                Contact the tutoring center directly at:
-              </p>
-              <p style={styles.contactEmail}>
-                tutoring@sfsu.edu
-              </p>
             </div>
           </div>
         </div>

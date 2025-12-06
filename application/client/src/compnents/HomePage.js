@@ -34,6 +34,16 @@ const HomePage = () => {
   });
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Memoize the API base URL with useMemo since it doesn't depend on any props or state
   const apiBaseUrl = React.useMemo(() => {
@@ -410,23 +420,27 @@ const HomePage = () => {
       display: "flex",
       flexDirection: "column",
       minHeight: "100vh",
+      background: darkMode
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)'
+        : 'transparent',
       width: "100%",
       overflowX: "hidden",
-      backgroundColor: darkMode ? "rgb(30, 30, 30)" : "rgb(250, 245, 255)",
     },
     primaryButton: {
-      backgroundColor: '#35006D',
+      background: 'linear-gradient(135deg, #35006D 0%, #5a1e96 100%)',
       color: 'white',
       border: 'none',
-      borderRadius: '6px',
-      padding: '10px 20px',
+      borderRadius: '30px', /* More pill-like and premium */
+      padding: '12px 28px',
       cursor: 'pointer',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: '8px',
-      fontWeight: '500',
-      transition: 'all 0.2s',
+      fontWeight: '600',
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      boxShadow: '0 4px 15px rgba(53, 0, 109, 0.3)',
+      letterSpacing: '0.5px',
     },
     heading: {
       color: darkMode ? "#fff" : "#333",
@@ -434,93 +448,90 @@ const HomePage = () => {
       padding: "0px",
       borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
-      margin: "10px auto 5px",
-      fontSize: "45px",
+      margin: isMobile ? "12px auto 10px" : "10px auto 5px",
+      fontSize: isMobile ? "24px" : "45px",
       fontWeight: "600",
       lineHeight: "1.2",
       position: "relative"
     },
     content: {
       width: "100%",
-      maxWidth: "100%",
+      maxWidth: "1400px",
       margin: "0 auto",
-      padding: "20px 10px 20px 5px",
+      padding: isMobile ? "8px" : "20px 10px 20px 5px",
       flex: 1,
       boxSizing: "border-box",
-      marginBottom: '80px'
+      marginBottom: isMobile ? '60px' : '80px',
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      gap: '20px'
     },
     calendarHeader: {
       display: 'flex',
+      flexDirection: isMobile ? 'row' : 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: '12px',
+      marginBottom: isMobile ? '8px' : '12px',
+      gap: isMobile ? '6px' : '0'
     },
     weekDisplay: {
-      fontSize: '1.2rem',
+      fontSize: isMobile ? '0.7rem' : '1.2rem',
       fontWeight: '600',
-      color: darkMode ? "#fff" : "#2c3e50"
+      color: darkMode ? "#fff" : "#2c3e50",
+      textAlign: 'center'
     },
     calendarGrid: {
       width: '100%',
       position: 'relative',
       overflow: 'hidden',
-      backgroundColor: darkMode ? '#2d2d2d' : '#e0e0e0',
-      border: darkMode ? '1px solid rgb(33, 33, 33)' : '1px solid #e0e0e0',
+      backgroundColor: darkMode ? '#1a1a1a' : '#ffffff',
+      border: darkMode ? '1px solid #2d2d2d' : '1px solid #dee2e6',
       borderRadius: '8px',
       boxSizing: 'border-box',
       minHeight: '200px',
-      '--calendar-cell-bg': darkMode ? '#1e1e1e' : '#fff',
-      '--calendar-cell-border': darkMode ? '#333' : '#f0f0f0',
-      '--calendar-cell-text': darkMode ? '#fff' : '#2c3e50',
-      '--calendar-cell-hover': darkMode ? '#2a2a2a' : '#f8f9fa',
+      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)',
+      overflowX: 'visible',
+      '--calendar-cell-bg': darkMode ? '#2d2d2d' : '#fff',
+      '--calendar-cell-border': darkMode ? '#3d3d3d' : '#e9ecef',
+      '--calendar-cell-text': darkMode ? '#e0e0e0' : '#2c3e50',
+      '--calendar-cell-hover': darkMode ? '#333333' : '#f8f9fa',
       '--calendar-time-bg': darkMode ? '#2d2d2d' : '#fff',
       '--calendar-time-text': darkMode ? '#bbb' : '#666',
       '--calendar-time-border': darkMode ? '#3d3d3d' : '#e0e0e0',
-      '--calendar-striped-bg': darkMode ? '#252525' : '#f8f9fa',
-      '--calendar-today-bg': darkMode ? 'rgba(83, 0, 169, 0.1)' : 'rgba(53, 0, 109, 0.1)',
-      '--calendar-today-text': darkMode ? '#fff' : '#2c3e50',
+      '--calendar-striped-bg': darkMode ? '#252525' : '#fafbfc',
+      '--calendar-today-bg': darkMode ? 'rgba(255, 220, 100, 0.08)' : 'rgba(53, 0, 109, 0.04)',
+      '--calendar-today-text': darkMode ? '#ffdc64' : '#35006D',
     },
     // Student calendar styles
     dayHeader: {
-      backgroundColor: 'rgb(53, 0, 109)',
+      background: 'linear-gradient(to bottom, #35006D, #2d0054)',
       color: '#fff',
-      padding: '10px',
+      padding: isMobile ? '2px 1px' : '8px 4px',
       textAlign: 'center',
-      fontWeight: '500',
-      borderBottom: '1px solid #3d3d3d',
-      '&.today': {
-        backgroundColor: darkMode ? '#3a3a3a' : '#e9ecef',
-        fontWeight: 'bold',
-      },
+      fontWeight: '600',
+      fontSize: isMobile ? '0.5rem' : '0.9rem',
+      borderBottom: '1px solid #2d0054',
+      borderRight: '1px solid #2d0054',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '0px',
+      minHeight: isMobile ? '28px' : '50px',
     },
     dayCell: {
       backgroundColor: 'var(--calendar-cell-bg, white)',
-      minHeight: '120px',
+      minHeight: isMobile ? '80px' : '120px',
       height: 'auto',
-      padding: '8px',
+      padding: isMobile ? '4px' : '8px',
       position: 'relative',
       overflow: 'visible',
       boxSizing: 'border-box',
       display: 'flex',
       flexDirection: 'column',
-      borderRight: '1px solid var(--calendar-cell-border, #f0f0f0)',
-      borderBottom: '1px solid var(--calendar-cell-border, #f0f0f0)',
-      '&:hover': {
-        backgroundColor: darkMode ? '#2a2a2a' : '#f8f9fa',
-      },
-      '&.striped': {
-        backgroundColor: 'var(--calendar-striped-bg, #f8f9fa)',
-        '&:hover': {
-          backgroundColor: darkMode ? '#2a2a2a' : '#f0f0f0',
-        },
-      },
-      '&.today': {
-        backgroundColor: 'var(--calendar-today-bg, rgba(53, 0, 109, 0.1))',
-        '& .date-number': {
-          color: 'var(--calendar-today-text, #2c3e50)',
-          fontWeight: 'bold',
-        },
-      },
+      borderRight: '1px solid var(--calendar-cell-border)',
+      borderBottom: '1px solid var(--calendar-cell-border)',
+      transition: 'background-color 0.2s ease',
     },
     dateNumber: {
       fontWeight: 'bold',
@@ -588,11 +599,12 @@ const HomePage = () => {
     tutorCalendarGrid: {
       width: '100%',
       display: 'grid',
-      gridTemplateColumns: '60px repeat(7, 1fr)',
+      gridTemplateColumns: isMobile ? '30px repeat(7, 1fr)' : '60px repeat(7, 1fr)',
       backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
       border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
       borderRadius: '8px',
       overflow: 'hidden',
+      overflowX: 'visible',
       '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
       '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
       '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
@@ -602,9 +614,9 @@ const HomePage = () => {
     },
     timeLabel: {
       backgroundColor: 'var(--tutor-time-bg, #fff)',
-      padding: '0px 4px 20px',
+      padding: isMobile ? '0px 1px 4px' : '0px 4px 20px',
       textAlign: 'center',
-      fontSize: '0.75rem',
+      fontSize: isMobile ? '0.5rem' : '0.75rem',
       fontWeight: '500',
       color: 'var(--tutor-time-text, #666)',
       borderRight: '1px solid var(--tutor-time-border, #e0e0e0)',
@@ -614,12 +626,12 @@ const HomePage = () => {
       justifyContent: 'center',
     },
     tutorDayHeader: {
-      backgroundColor: 'rgb(53, 0, 109)',
+      background: 'linear-gradient(to bottom, #35006D, #2d0054)',
       color: '#fff',
-      padding: '12px 8px',
+      padding: isMobile ? '3px 1px' : '12px 8px',
       textAlign: 'center',
       fontWeight: '500',
-      fontSize: '0.9rem',
+      fontSize: isMobile ? '0.5rem' : '0.9rem',
       borderRight: darkMode ? '1px solid #3d3d3d' : '1px solid #dee2e6',
       display: 'flex',
       flexDirection: 'column',
@@ -627,8 +639,8 @@ const HomePage = () => {
       justifyContent: 'top',
     },
     tutorTimeSlot: (rowIndex) => ({
-      minHeight: '40px',
-      padding: '4px',
+      minHeight: isMobile ? '30px' : '40px',
+      padding: isMobile ? '2px' : '2px',
       position: 'relative',
       backgroundColor: rowIndex % 2 === 0
         ? 'var(--tutor-cell-bg, white)'
@@ -637,49 +649,56 @@ const HomePage = () => {
       borderBottom: '1px solid var(--tutor-cell-border, #f0f0f0)',
       boxSizing: 'border-box',
       transition: 'background-color 0.2s',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center',
       '&:hover': {
         backgroundColor: darkMode ? '#2a2a2a' : '#f0f0f0',
       },
     }),
     availableSlot: {
-      backgroundColor: 'rgba(255, 220, 100, 0.3)',
+      backgroundColor: 'rgba(255, 220, 100, 0.25)',
     },
     bookedSlot: {
       backgroundColor: 'rgba(200, 200, 200, 0.2)',
     },
     searchContainer: {
-      backgroundColor: darkMode ? "rgb(60, 60, 60)" : "#ffffff",
-      borderRadius: "12px",
-      padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+      background: darkMode
+        ? "linear-gradient(145deg, rgba(40, 40, 40, 0.6), rgba(25, 25, 25, 0.6))"
+        : "#fff",
+      borderRadius: '24px', /* Larger radius */
+      padding: isMobile ? '16px' : '32px',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
-      margin: '0 0 20px 0',
-      position: 'relative'
+      margin: isMobile ? '0 0 20px 0' : '0 0 32px 0',
+      position: 'relative',
     },
     searchInputContainer: {
       display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      marginTop: '10px'
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'stretch' : 'center',
+      gap: isMobile ? '6px' : '8px',
+      marginTop: isMobile ? '6px' : '10px'
     },
     searchInput: {
       flex: 1,
-      padding: '12px 16px',
+      padding: isMobile ? '10px 12px' : '12px 16px',
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
-      fontSize: '16px',
+      fontSize: isMobile ? '14px' : '16px',
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : "#ffffff",
     },
     categoryDropdown: {
       position: 'relative',
       display: 'inline-block',
-      minWidth: '120px',
-      width: '120px'
+      minWidth: isMobile ? '100%' : '120px',
+      width: isMobile ? '100%' : '120px'
     },
     categoryButton: {
-      padding: '12px 16px',
+      padding: isMobile ? '10px 12px' : '12px 16px',
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : '#f8f9fa',
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
@@ -690,6 +709,7 @@ const HomePage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
+      fontSize: isMobile ? '14px' : '16px',
     },
     categoryList: {
       position: 'absolute',
@@ -706,18 +726,21 @@ const HomePage = () => {
       listStyle: 'none',
     },
     calendarContainer: {
-      backgroundColor: darkMode ? "rgb(60, 60, 60)" : "#ffffff",
-      borderRadius: "12px",
-      padding: "20px",
-      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.3)",
+      background: darkMode
+        ? "linear-gradient(145deg, rgba(40, 40, 40, 0.6), rgba(25, 25, 25, 0.6))"
+        : "#fff",
+      borderRadius: '24px',
+      padding: isMobile ? '16px' : '32px',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
-      margin: '0 0 20px 0',
-      position: 'relative'
+      margin: isMobile ? '0 0 20px 0' : '0 0 32px 0',
+      position: 'relative',
     },
   };
 
-  const weekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const weekDays = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const hours = Array.from({ length: 16 }, (_, i) => i + 8); // 8am to 11pm (16 hours)
   const today = new Date();
 
@@ -792,40 +815,57 @@ const HomePage = () => {
 
       days.push(
         <div key={i} style={{
-          minHeight: '150px',
-          borderRight: i < 6 ? '1px solid #e9ecef' : 'none',
-          padding: '12px 8px',
-          backgroundColor: isToday ? 'rgba(53, 0, 109, 0.02)' : 'white',
+          backgroundColor: isToday
+            ? 'var(--calendar-today-bg)'
+            : (i % 2 === 0 ? 'var(--calendar-cell-bg)' : 'var(--calendar-striped-bg)'),
+          minHeight: isMobile ? '100px' : '150px',
+          borderRight: i < 6 ? '1px solid var(--calendar-cell-border)' : 'none',
+          borderBottom: '1px solid var(--calendar-cell-border)',
+          padding: isMobile ? '6px 4px' : '12px 8px',
           position: 'relative',
           overflowY: 'auto',
-          maxHeight: '500px'
-        }}>
+          maxHeight: isMobile ? '300px' : '500px',
+          transition: 'background-color 0.2s ease'
+        }}
+          onMouseEnter={(e) => {
+            if (!isToday) {
+              e.currentTarget.style.backgroundColor = 'var(--calendar-cell-hover)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isToday) {
+              e.currentTarget.style.backgroundColor = i % 2 === 0
+                ? 'var(--calendar-cell-bg)'
+                : 'var(--calendar-striped-bg)';
+            }
+          }}>
+
           {isLoadingStudentBookings ? (
-            <div style={styles.noSessions}>Loading...</div>
+            <div style={{ ...styles.noSessions, fontSize: isMobile ? '0.65rem' : '0.9rem' }}>Loading...</div>
           ) : bookingError ? (
-            <div style={{ ...styles.noSessions, color: '#e74a3b' }}>Error loading bookings</div>
+            <div style={{ ...styles.noSessions, fontSize: isMobile ? '0.65rem' : '0.9rem', color: '#e74a3b' }}>Error loading bookings</div>
           ) : dayBookings.length > 0 ? (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '10px',
-              padding: '4px 0'
+              gap: isMobile ? '4px' : '10px',
+              padding: isMobile ? '2px 0' : '4px 0'
             }}>
               {dayBookings.map((booking, index) => (
                 <div
                   key={`${booking.booking_id || index}`}
                   style={{
-                    backgroundColor: `${booking.color}22`,
+                    backgroundColor: `${booking.color}44`,
                     color: '#333',
-                    borderRadius: '6px',
-                    padding: '10px',
+                    borderRadius: isMobile ? '4px' : '6px',
+                    padding: isMobile ? '4px 6px' : '10px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-                    borderLeft: `3px solid ${booking.color}`,
+                    borderLeft: `${isMobile ? '2px' : '3px'} solid ${booking.color}`,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '6px',
+                    gap: isMobile ? '2px' : '6px',
                     ':hover': {
                       transform: 'translateX(2px)',
                       boxShadow: '0 2px 6px rgba(0,0,0,0.12)'
@@ -837,14 +877,14 @@ const HomePage = () => {
                   {booking.status === 'pending' && (
                     <div style={{
                       alignSelf: 'flex-start',
-                      marginBottom: '4px'
+                      marginBottom: isMobile ? '2px' : '4px'
                     }}>
                       <span style={{
-                        fontSize: '0.7rem',
+                        fontSize: isMobile ? '0.55rem' : '0.7rem',
                         backgroundColor: '#fff3cd',
                         color: '#856404',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
+                        padding: isMobile ? '1px 4px' : '2px 6px',
+                        borderRadius: isMobile ? '3px' : '4px',
                         fontWeight: '500',
                         display: 'inline-block'
                       }}>
@@ -853,29 +893,33 @@ const HomePage = () => {
                     </div>
                   )}
                   <div style={{
-                    fontSize: '0.8rem',
-                    color: '#6c757d'
+                    fontSize: isMobile ? '0.65rem' : '0.8rem',
+                    color: darkMode ? '#000000ff' : '#6c757d',
+                    fontWeight: isMobile ? '600' : '400'
                   }}>
                     {booking.formattedTime}
                   </div>
                   <div style={{
                     fontWeight: '500',
-                    color: '#212529'
+                    fontSize: isMobile ? '0.7rem' : '1rem',
+                    color: '#212529',
+                    lineHeight: isMobile ? '1.2' : '1.4'
                   }}>
                     {booking.tutor_name || 'Tutoring Session'}
                   </div>
                   {booking.course_name && (
                     <div style={{
-                      fontSize: '0.8rem',
+                      fontSize: isMobile ? '0.6rem' : '0.8rem',
                       color: '#495057',
                       display: 'flex',
                       alignItems: 'center',
-                      marginTop: '4px'
+                      marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-book" style={{
-                        marginRight: '6px',
+                        marginRight: isMobile ? '4px' : '6px',
                         color: '#6c757d',
-                        width: '14px',
+                        width: isMobile ? '10px' : '14px',
+                        fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
                       }}></i>
                       {booking.course_name}
@@ -883,16 +927,17 @@ const HomePage = () => {
                   )}
                   {booking.location && (
                     <div style={{
-                      fontSize: '0.8rem',
+                      fontSize: isMobile ? '0.6rem' : '0.8rem',
                       color: '#6c757d',
                       display: 'flex',
                       alignItems: 'center',
-                      marginTop: '4px'
+                      marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-map-marker-alt" style={{
-                        marginRight: '6px',
+                        marginRight: isMobile ? '4px' : '6px',
                         color: '#6c757d',
-                        width: '14px',
+                        width: isMobile ? '10px' : '14px',
+                        fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
                       }}></i>
                       {booking.location}
@@ -906,11 +951,11 @@ const HomePage = () => {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              height: '100px',
+              height: isMobile ? '60px' : '100px',
               color: '#6c757d',
-              fontSize: '0.9rem',
+              fontSize: isMobile ? '0.65rem' : '0.9rem',
               textAlign: 'center',
-              padding: '20px 10px',
+              padding: isMobile ? '10px 5px' : '20px 10px',
               opacity: 0.7
             }}>
               No sessions scheduled
@@ -1072,7 +1117,7 @@ const HomePage = () => {
     const cells = [];
 
     // Header row - empty cell + day headers
-    cells.push(<div key="empty-header" style={{ ...styles.timeLabel, backgroundColor: 'rgb(53, 0, 109)' }}></div>);
+    cells.push(<div key="empty-header" style={{ ...styles.timeLabel, background: 'linear-gradient(to bottom, #35006D, #2d0054)' }}></div>);
 
     // Add day headers
     for (let i = 0; i < 7; i++) {
@@ -1082,37 +1127,40 @@ const HomePage = () => {
 
       cells.push(
         <div key={`header-${i}`} style={styles.tutorDayHeader}>
-          <div>{weekDays[i]}</div>
-          <div style={{ fontSize: '0.85rem', marginTop: '4px' }}>
+          <div style={{ fontSize: isMobile ? '0.65rem' : '0.9rem', lineHeight: isMobile ? '1.1' : '1.3', fontWeight: '600', letterSpacing: '0.5px' }}>{weekDays[i]}</div>
+          <div style={{ fontSize: isMobile ? '0.55rem' : '0.85rem', marginTop: isMobile ? '1px' : '4px', lineHeight: isMobile ? '1.1' : '1.3' }}>
             {format(currentDate, 'MMM d')}
           </div>
           {isToday && (
             <div style={{
-              fontSize: '0.7rem',
-              marginTop: '8px',
+              fontSize: isMobile ? '0.5rem' : '0.7rem',
+              marginTop: isMobile ? '2px' : '8px',
               backgroundColor: 'rgba(255, 220, 100, 0.9)',
               color: '#333',
-              padding: '2px 6px',
-              borderRadius: '10px',
-              fontWeight: '600'
+              padding: isMobile ? '1px 3px 0px' : '2px 6px',
+              borderRadius: isMobile ? '6px' : '10px',
+              fontWeight: '600',
+              lineHeight: isMobile ? '1.2' : '1.4'
             }}>
-              Today
+              {isMobile ? 'Today' : 'Today'}
             </div>
           )}
           {isFutureDate && (
             <button
               onClick={(e) => handleEditAvailability(currentDate, e)}
               style={{
-                marginTop: '8px',
-                padding: '4px 12px',
-                fontSize: '0.7rem',
+                marginTop: isMobile ? '5px' : '12px',
+                padding: isMobile ? '2px 4px' : '4px 12px',
+                width: isMobile ? '100%' : 'auto',
+                fontSize: isMobile ? '0.5rem' : '0.7rem',
                 backgroundColor: 'rgba(255, 255, 255, 0.1)',
                 color: 'rgba(255, 220, 100, 0.95)',
                 border: '1px solid rgba(255, 220, 100, 0.95)',
-                borderRadius: '4px',
+                borderRadius: isMobile ? '0px' : '4px',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontWeight: '500'
+                fontWeight: '500',
+                lineHeight: isMobile ? '1.2' : '1.4'
               }}
               onMouseOver={(e) => {
                 e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.25)';
@@ -1121,7 +1169,7 @@ const HomePage = () => {
                 e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
               }}
             >
-              <i className="fas fa-edit" style={{ marginRight: '4px' }}></i>
+              <i className="fas fa-edit" style={{ marginRight: isMobile ? '2px' : '4px', fontSize: isMobile ? '0.5rem' : '0.7rem' }}></i>
               Edit
             </button>
           )}
@@ -1155,29 +1203,7 @@ const HomePage = () => {
           });
 
           if (matchingBookings.length > 0) {
-            /*console.log(`🔍 Checking slot: ${dateStr} hour ${hour}`, {
-              foundBooking: booking ? booking.booking_id : 'none',
-              matchingBookingsOnDate: matchingBookings.map(b => {
-                const startTime = new Date(b.start_time);
-                const endTime = new Date(b.end_time);
-                return {
-                  id: b.booking_id,
-                  start: b.start_time,
-                  startLocal: startTime.toString(),
-                  startHour: startTime.getHours(),
-                  startMinutes: startTime.getMinutes(),
-                  endHour: endTime.getHours(),
-                  endMinutes: endTime.getMinutes(),
-                  // Check overlap manually
-                  hourStart: hour * 60,
-                  hourEnd: (hour + 1) * 60,
-                  bookingStart: startTime.getHours() * 60 + startTime.getMinutes(),
-                  bookingEnd: endTime.getHours() * 60 + endTime.getMinutes(),
-                  shouldOverlap: (startTime.getHours() * 60 + startTime.getMinutes()) < ((hour + 1) * 60) && 
-                                 (endTime.getHours() * 60 + endTime.getMinutes()) > (hour * 60)
-                };
-              })
-            });*/
+
           }
         }
 
@@ -1208,14 +1234,14 @@ const HomePage = () => {
                   position: 'absolute',
                   top: '1px', left: '1px', right: '1px', bottom: '1px',
                   backgroundColor: booking.isStudentBooking
-                    ? 'rgba(255, 255, 255, 0.96)'
+                    ? 'rgba(255, 255, 255, 0.82)'
                     : booking.status === 'confirmed'
                       ? 'rgba(53, 0, 109, 0.55)'
                       : 'rgba(255, 193, 7, 0.55)',
                   color: booking.isStudentBooking ? '#333' : '#fff',
                   borderRadius: '0px',
-                  padding: '6px 3px',
-                  fontSize: '0.5rem',
+                  padding: isMobile ? '2px 1px' : '6px 3px',
+                  fontSize: isMobile ? '0.4rem' : '0.5rem',
                   fontWeight: '500',
                   display: 'flex',
                   flexDirection: 'column',
@@ -1227,8 +1253,8 @@ const HomePage = () => {
                   zIndex: 10,
                   border: `1px solid ${booking.isStudentBooking ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255,255,255,0.3)'}`,
                   borderLeft: booking.status === 'confirmed'
-                    ? '6px solid rgba(53, 0, 109, 0.95)'
-                    : '6px solid rgba(255, 193, 7, 0.95)',
+                    ? `${isMobile ? '3px' : '6px'} solid rgba(53, 0, 109, 0.95)`
+                    : `${isMobile ? '3px' : '6px'} solid rgba(255, 193, 7, 0.95)`,
                   cursor: 'pointer',
                   transition: 'box-shadow 0.3s, background 0.3s, transform 0.2s',
                 }}
@@ -1243,19 +1269,30 @@ const HomePage = () => {
               >
                 <div style={{
                   fontWeight: 'bold',
-                  fontSize: '0.75rem',
-                  marginBottom: '2px',
-                  color: booking.isStudentBooking ? '#333' : '#fff'
+                  fontSize: isMobile ? '0.5rem' : '0.7rem',
+                  marginBottom: isMobile ? '1px' : '4px',
+                  color: booking.isStudentBooking ? '#333' : '#fff',
+                  lineHeight: '1.2',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  width: '100%',
+                  padding: '0 2px'
                 }}>
                   {booking.isStudentBooking
                     ? (booking.tutor_name || booking.tutor_first_name || 'Tutor')
                     : (booking.student_name || booking.student_first_name || 'Student')}
                 </div>
                 <div style={{
-                  fontSize: '0.6rem',
+                  fontSize: isMobile ? '0.45rem' : '0.55rem',
                   opacity: booking.isStudentBooking ? 0.8 : 0.95,
-                  marginBottom: '2px',
-                  color: booking.isStudentBooking ? '#555' : '#fff'
+                  margin: 0,
+                  color: booking.isStudentBooking ? '#555' : '#fff',
+                  lineHeight: '1.2',
+                  padding: '0 2px',
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
                 }}>
                   {formatHourRange(booking.start_time, booking.end_time, hour)}
                 </div>
@@ -1873,134 +1910,286 @@ const HomePage = () => {
   return (
     <div style={styles.container}>
       <Header />
-      <h1 style={styles.heading}>Dashboard</h1>
+      <h1 style={styles.heading}>{isAuthenticated ? 'Dashboard' : 'Welcome to Gator Tutor'}</h1>
 
       <div style={styles.content}>
         <div style={{
-          display: isAuthenticated ? 'grid' : 'flex',
-          gridTemplateColumns: isSidebarCollapsed ? '80px 1fr' : '280px 1fr',
+          display: isMobile ? 'flex' : (isAuthenticated ? 'grid' : 'flex'),
+          flexDirection: isMobile ? 'column' : 'row',
+          gridTemplateColumns: isMobile ? 'none' : (isSidebarCollapsed ? '80px 1fr' : '280px 1fr'),
           width: '100%',
           gap: '20px',
-          padding: '0 20px',
+          padding: isMobile ? '0 10px' : '0 20px',
           boxSizing: 'border-box',
           maxWidth: '1400px',
           margin: '0 auto',
-          transition: 'grid-template-columns 0.3s ease'
+          transition: 'all 0.3s ease'
         }}>
           {/* Left Column - User Profile */}
           {isAuthenticated ? (
             <>
               <div style={{
-                backgroundColor: darkMode ? "rgb(60, 60, 60)" : '#fff',
+                backgroundColor: darkMode ? "rgba(40, 40, 40, 0.4)" : '#fff',
                 borderRadius: '12px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                padding: isSidebarCollapsed ? '24px 10px' : '24px',
+                padding: isMobile ? '12px' : (isSidebarCollapsed ? '24px 10px' : '24px'),
                 height: 'fit-content',
                 border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #f0f0f0',
-                width: isSidebarCollapsed ? '80px' : '280px',
+                width: isMobile ? '100%' : (isSidebarCollapsed ? '80px' : '280px'),
                 boxSizing: 'border-box',
                 transition: 'all 0.3s ease',
                 overflow: 'hidden',
-                minHeight: '300px',
+                minHeight: isMobile ? 'auto' : '300px',
                 position: 'relative'
               }}>
-                {/* Collapse/Expand Button */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  right: 0,
-                  margin: isSidebarCollapsed ? '20px 0px' : '0px',
-                  height: isSidebarCollapsed ? '90%' : 'auto',
-                  width: '90%',
-                  display: 'flex',
-                  alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
-                  justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
-                  pointerEvents: 'none',
-                  zIndex: 10,
-                  paddingTop: isSidebarCollapsed ? 0 : '10px',
-                }}>
-                  <button
-                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                    style={{
-                      position: 'relative',
-                      backgroundColor: 'rgba(231, 230, 230, 0.49)',
-                      border: 'none',
-                      cursor: 'pointer',
-                      color: darkMode ? 'rgba(0, 0, 0, 0.61)' : '#6c757d',
-                      padding: isSidebarCollapsed ? '15px 8px' : '5px',
-                      margin: isSidebarCollapsed ? '0px' : '0 10px',
-                      borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
-                      boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                      transition: 'all 0.3s ease',
-                      pointerEvents: 'auto',
-                      height: isSidebarCollapsed ? '100%' : 'auto',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
-                      e.currentTarget.style.color = '#35006D';
-                      if (isSidebarCollapsed) {
-                        e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
-                      }
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
-                      e.currentTarget.style.color = '#6c757d';
-                      if (isSidebarCollapsed) {
-                        e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
-                      } else {
-                        e.currentTarget.style.boxShadow = 'none';
-                      }
-                    }}
-                  >
-                    <span style={{
-                      fontSize: '16px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      width: '20px',
-                      height: '20px'
-                    }}>
-                      {isSidebarCollapsed ? (
-                        <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
-                      ) : (
-                        <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
-                      )}
-                    </span>
-                  </button>
-                </div>
+                {/* Collapse/Expand Button - Hidden on mobile */}
+                {!isMobile && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    margin: isSidebarCollapsed ? '20px 0px' : '0px',
+                    height: isSidebarCollapsed ? '90%' : 'auto',
+                    width: '90%',
+                    display: 'flex',
+                    alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
+                    justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
+                    pointerEvents: 'none',
+                    zIndex: 10,
+                    paddingTop: isSidebarCollapsed ? 0 : '10px',
+                  }}>
+                    <button
+                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                      style={{
+                        position: 'relative',
+                        backgroundColor: 'rgba(231, 230, 230, 0.49)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: darkMode ? 'rgba(0, 0, 0, 0.91)' : '#6c757d',
+                        padding: isSidebarCollapsed ? '15px 8px' : '5px',
+                        margin: isSidebarCollapsed ? '0px' : '0 10px',
+                        borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
+                        boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.3s ease',
+                        pointerEvents: 'auto',
+                        height: isSidebarCollapsed ? '100%' : 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
+                        e.currentTarget.style.color = '#35006D';
+                        if (isSidebarCollapsed) {
+                          e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
+                        e.currentTarget.style.color = 'rgba(0, 0, 0, 0.91)';
+                        if (isSidebarCollapsed) {
+                          e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
+                        } else {
+                          e.currentTarget.style.boxShadow = 'none';
+                        }
+                      }}
+                    >
+                      <span style={{
+                        fontSize: '16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: '20px',
+                        height: '20px'
+                      }}>
+                        {isSidebarCollapsed ? (
+                          <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
+                        ) : (
+                          <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                )}
                 {/* Profile Header */}
                 <div style={{
                   display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  paddingBottom: '20px',
+                  flexDirection: isMobile ? 'row' : 'column',
+                  alignItems: isMobile ? 'flex-start' : 'center',
+                  gap: isMobile ? '12px' : '0',
+                  paddingBottom: isMobile ? '20px' : '20px',
                   marginBottom: '20px',
-                  borderBottom: user ? '1px solid #f0f0f0' : 'none',
+                  borderBottom: user ? '1px solid rgb(100, 100, 100)' : 'none',
                   opacity: isSidebarCollapsed ? 0 : 1,
                   transition: 'opacity 0.2s ease',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
-                  width: '100%'
+                  width: '100%',
+                  position: 'relative'
                 }}>
+                  {/* Mobile Buttons - Appointment Requests and Messages */}
+                  {user && isMobile && (
+                    <div style={{
+                      position: 'absolute',
+                      right: '6px',
+                      top: '2px',
+                      zIndex: 2,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      alignItems: 'flex-end',
+                      width: 'auto'
+                    }}>
+                      {/* Appointment Requests Button */}
+                      {user?.isTutor && (
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={() => navigate('/appointment-requests')}
+                            style={{
+                              position: 'relative',
+                              padding: '4px 10px',
+                              background: darkMode
+                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
+                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                              color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                              border: 'none',
+                              borderRadius: '20px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              transition: 'all 0.2s',
+                              zIndex: 1,
+                              minHeight: '28px',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = darkMode
+                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
+                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = darkMode
+                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
+                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <i className="fas fa-calendar-check" style={{ fontSize: '0.85rem' }}></i>
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              lineHeight: '1.1',
+                              textAlign: 'left',
+                              fontSize: '0.6rem',
+                              fontWeight: '200',
+                              marginRight: pendingRequestsCount > 0 ? '6px' : '0'
+                            }}>
+                              <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Requests</span>
+                            </div>
+                          </button>
+                          {pendingRequestsCount > 0 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-4px',
+                              right: '-4px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              borderRadius: '50%',
+                              minWidth: '18px',
+                              height: '18px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                              border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
+                              zIndex: 2
+                            }}>
+                              {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Messages Button */}
+                      <div style={{ position: 'relative', width: '100%' }}>
+                        <button
+                          onClick={() => navigate('/messages')}
+                          style={{
+                            position: 'relative',
+                            padding: '4px 10px',
+                            width: '100%',
+                            minWidth: 'fit-content',
+                            background: darkMode
+                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
+                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                            border: 'none',
+                            borderRadius: '20px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            transition: 'all 0.2s',
+                            zIndex: 1,
+                            minHeight: '28px',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = darkMode
+                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
+                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = darkMode
+                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
+                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                          }}
+                        >
+                          <i className="fas fa-envelope" style={{ fontSize: '0.85rem' }}></i>
+                          <div style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'center',
+                            height: '100%',
+                            fontSize: '0.6rem',
+                            fontWeight: '200',
+                            whiteSpace: 'nowrap',
+                            marginRight: '0',
+                            padding: '0'
+                          }}>
+                            <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Messages</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div style={{
-                    width: '90px',
-                    height: '90px',
+                    width: isMobile ? '60px' : '90px',
+                    height: isMobile ? '60px' : '90px',
                     borderRadius: '50%',
                     backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    marginBottom: '16px',
+                    marginBottom: isMobile ? '0' : '16px',
                     overflow: 'hidden',
-                    border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+                    border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`,
+                    flexShrink: 0
                   }}>
                     {user?.firstName && user?.lastName ? (
                       <div style={{
-                        fontSize: '36px',
+                        fontSize: isMobile ? '20px' : '36px',
                         fontWeight: '600',
                         color: '#9A2250',
                         textTransform: 'uppercase'
@@ -2009,44 +2198,57 @@ const HomePage = () => {
                       </div>
                     ) : (
                       <i className="fas fa-user" style={{
-                        fontSize: '36px',
+                        fontSize: isMobile ? '20px' : '36px',
                         color: '#9A2250',
                         opacity: 0.7
                       }}></i>
                     )}
                   </div>
 
-                  <h3 style={{
-                    margin: '8px 0 6px',
-                    color: darkMode ? "rgb(255, 255, 255)" : user ? '#2c3e50' : '#6c757d',
-                    fontSize: '1.2rem',
-                    textAlign: 'center',
-                    fontWeight: user ? '600' : '500',
-                    width: '100%',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'column',
+                    alignItems: isMobile ? 'flex-start' : 'center',
+                    flex: 1,
+                    minWidth: 0,
+                    gap: isMobile ? '4px' : '0',
+                    paddingRight: isMobile ? '110px' : '0'
                   }}>
-                    {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
-                  </h3>
-
-                  {user && (
-                    <div style={{
-                      backgroundColor: user?.isTutor ? '#e6f7e6' : '#e6f0ff',
-                      color: user?.isTutor ? '#1e7b1e' : '#1967d2',
-                      padding: '3px 12px',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      marginTop: '4px',
-                      letterSpacing: '0.3px'
+                    <h3 style={{
+                      margin: isMobile ? '0' : '8px 0 6px',
+                      color: darkMode ? "rgb(255, 255, 255)" : user ? '#2c3e50' : '#6c757d',
+                      fontSize: isMobile ? '1.3rem' : '1.2rem',
+                      fontWeight: user ? '600' : '500',
+                      width: '100%',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      lineHeight: '1.2'
                     }}>
-                      {user?.isTutor ? 'Tutor' : 'Student'}
-                    </div>
-                  )}
+                      {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
+                    </h3>
+
+                    {user && (
+                      <div style={{
+                        backgroundColor: user?.isTutor ? '#e6f7e6' : '#e6f0ff',
+                        color: user?.isTutor ? '#1e7b1e' : '#1967d2',
+                        padding: '2px 10px',
+                        borderRadius: '12px',
+                        fontSize: isMobile ? '0.7rem' : '0.75rem',
+                        fontWeight: '600',
+                        marginTop: isMobile ? '0' : '4px',
+                        letterSpacing: '0.3px',
+                        alignSelf: isMobile ? 'flex-start' : 'center',
+                        whiteSpace: 'nowrap',
+                        lineHeight: '1.4'
+                      }}>
+                        {user?.isTutor ? 'Tutor' : 'Student'}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Appointment Requests Button */}
-                {user?.isTutor && (
+                {/* Buttons Section - Desktop */}
+                {user && !isMobile && (
                   <div style={{
                     opacity: isSidebarCollapsed ? 0 : 1,
                     transition: 'opacity 0.2s ease',
@@ -2055,62 +2257,105 @@ const HomePage = () => {
                     paddingBottom: '20px',
                     borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
                   }}>
-                    <button
-                      onClick={() => navigate('/appointment-requests')}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        backgroundColor: darkMode ? 'rgba(255, 220, 112, 0.35)' : 'rgba(255, 193, 7, 0.33)',
-                        color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.7)',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '10px',
-                        transition: 'all 0.2s',
-                        fontWeight: '600',
-                        fontSize: '0.95rem',
-                        position: 'relative',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255, 219, 112, 0.42)' : 'rgba(255, 193, 7, 0.5)';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = darkMode ? 'rgba(255, 220, 112, 0.35)' : 'rgba(255, 193, 7, 0.33)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
-                      }}
-                    >
-                      <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
-                      Appointment Requests
-                      {pendingRequestsCount > 0 && (
-                        <div style={{
-                          position: 'absolute',
-                          top: '-8px',
-                          right: '-8px',
-                          backgroundColor: '#dc3545',
-                          color: 'white',
-                          borderRadius: '50%',
-                          minWidth: '24px',
-                          height: '24px',
+                    {/* Appointment Requests Button */}
+                    {user?.isTutor && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <button
+                          onClick={() => navigate('/appointment-requests')}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                            border: 'none',
+                            borderRadius: '1px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            transition: 'all 0.2s',
+                            fontWeight: '600',
+                            fontSize: '0.95rem',
+                            position: 'relative',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          }}
+                        >
+                          <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
+                          Appointment Requests
+                          {pendingRequestsCount > 0 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-8px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              borderRadius: '50%',
+                              minWidth: '24px',
+                              height: '24px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                              border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
+                              padding: '0 6px'
+                            }}>
+                              {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Messages Button */}
+                    <div>
+                      <button
+                        onClick={() => navigate('/messages')}
+                        style={{
+                          width: '100%',
+                          padding: '12px 16px',
+                          background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                          border: 'none',
+                          borderRadius: '1px',
+                          cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-                          border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
-                          padding: '0 6px'
-                        }}>
-                          {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
-                        </div>
-                      )}
-                    </button>
+                          gap: '10px',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                          fontSize: '0.95rem',
+                          position: 'relative',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                        }}
+                      >
+                        <i className="fas fa-envelope" style={{ fontSize: '1rem' }}></i>
+                        Messages
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -2122,7 +2367,6 @@ const HomePage = () => {
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
-                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
                   }}>
                     <h4 style={{
                       color: darkMode ? "#fff" : '#495057',
@@ -2230,171 +2474,6 @@ const HomePage = () => {
                     )}
                   </div>
                 )}
-
-                {/* Enrolled Courses Section */}
-                <div style={{
-                  opacity: isSidebarCollapsed ? 0 : 1,
-                  transition: 'opacity 0.2s ease',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  width: '100%'
-                }}>
-                  <h4 style={{
-                    color: darkMode ? "rgb(255, 255, 255)" : '#495057',
-                    fontSize: '0.95rem',
-                    margin: '0 0 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontWeight: '600',
-                    letterSpacing: '0.3px'
-                  }}>
-                    <i className="fas fa-book" style={{
-                      color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
-                      width: '20px',
-                      textAlign: 'center'
-                    }}></i>
-                    {user ? 'My Courses' : 'Featured Courses'}
-                  </h4>
-
-                  {(user ? [
-                    { code: 'CSC 415', name: 'Operating Systems' },
-                    { code: 'CSC 600', name: 'Advanced Programming' },
-                    { code: 'MATH 300', name: 'Discrete Mathematics' }
-                  ] : [
-                    { code: 'CSC 648', name: 'Software Engineering' },
-                    { code: 'CSC 413', name: 'Programming Languages' },
-                    { code: 'MATH 324', name: 'Probability & Statistics' }
-                  ]).map((course, index) => (
-                    <div key={index} style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      marginBottom: '8px',
-                      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
-                      borderRadius: '8px',
-                      transition: 'all 0.2s ease',
-                      border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #f0f0f0',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: darkMode
-                          ? '0 4px 6px rgba(0, 0, 0, 0.1)'
-                          : '0 2px 4px rgba(0, 0, 0, 0.05)'
-                      }
-                    }}>
-                      <div style={{
-                        width: '34px',
-                        height: '34px',
-                        backgroundColor: darkMode
-                          ? user ? 'rgba(25, 103, 210, 0.2)' : 'rgba(255, 255, 255, 0.1)'
-                          : user ? '#e6f0ff' : '#f0f0f0',
-                        borderRadius: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: '12px',
-                        flexShrink: 0,
-                        color: darkMode
-                          ? user ? 'rgba(25, 103, 210, 0.8)' : 'rgba(255, 255, 255, 0.8)'
-                          : user ? '#1967d2' : '#6c757d',
-                        fontWeight: '600',
-                        fontSize: '0.75rem',
-                        border: darkMode
-                          ? `1px solid ${user ? 'rgba(25, 103, 210, 0.3)' : 'rgba(255, 255, 255, 0.1)'}`
-                          : `1px solid ${user ? '#d0e3ff' : '#e9ecef'}`
-                      }}>
-                        {course.code.split(' ')[0]}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{
-                          fontSize: '0.85rem',
-                          fontWeight: '600',
-                          color: darkMode ? '#fff' : '#343a40',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          {course.code}
-                        </div>
-                        <div style={{
-                          fontSize: '0.8rem',
-                          color: darkMode ? 'rgba(255, 255, 255, 0.7)' : '#6c757d',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}>
-                          {course.name}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-
-                  {!user ? (
-                    <button
-                      onClick={() => navigate('/login')}
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        marginTop: '12px',
-                        backgroundColor: '#9A2250',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s',
-                        fontWeight: '500',
-                        fontSize: '0.9rem'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = '#7d1a42';
-                        e.currentTarget.style.transform = 'translateY(-1px)';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = '#9A2250';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }}
-                    >
-                      Sign In to Enroll
-                    </button>
-                  ) : (
-                    <button
-                      style={{
-                        width: '100%',
-                        padding: '10px',
-                        marginTop: '12px',
-                        backgroundColor: 'transparent',
-                        border: '1px dashed #ced4da',
-                        borderRadius: '8px',
-                        color: '#6c757d',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        transition: 'all 0.2s',
-                        fontSize: '0.85rem'
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = '#f8f9fa';
-                        e.currentTarget.style.borderColor = '#9A2250';
-                        e.currentTarget.style.color = '#9A2250';
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                        e.currentTarget.style.borderColor = '#ced4da';
-                        e.currentTarget.style.color = '#6c757d';
-                      }}
-                    >
-                      <i className="fas fa-plus"></i>
-                      Add Course
-                    </button>
-                  )}
-                </div>
               </div>
             </>
           ) : null}
@@ -2406,87 +2485,90 @@ const HomePage = () => {
             flexDirection: 'column',
             gap: '20px'
           }}>
-            <div style={{
-              ...styles.searchContainer,
-              width: '100%',
-              margin: 0
-            }}>
-              <h3 style={{ margin: "0 0 5px 0", color: darkMode ? '#fff' : '#2c3e50' }}>Find Tutors & Courses</h3>
-              <div style={styles.searchInputContainer}>
-                <div style={styles.categoryDropdown}>
+            {/* Search Section - Show before calendar for students */}
+            {!user?.isTutor && (
+              <div style={{
+                ...styles.searchContainer,
+                width: '100%',
+                margin: 0
+              }}>
+                <h3 style={{ margin: "0 0 5px 0", color: darkMode ? '#fff' : '#2c3e50' }}>Find Tutors & Courses</h3>
+                <div style={styles.searchInputContainer}>
+                  <div style={styles.categoryDropdown}>
+                    <button
+                      style={styles.categoryButton}
+                      onClick={toggleCategory}
+                    >
+                      {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                    </button>
+                    {isCategoryOpen && (
+                      <ul style={styles.categoryList}>
+                        <li
+                          onClick={() => selectCategory('default')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >All</li>
+                        <li
+                          onClick={() => selectCategory('tutor')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >Tutors</li>
+                        <li
+                          onClick={() => selectCategory('course')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >Courses</li>
+                      </ul>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchQueryChange}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                    placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
+                    style={styles.searchInput}
+                  />
                   <button
-                    style={styles.categoryButton}
-                    onClick={toggleCategory}
+                    style={{
+                      backgroundColor: '#35006D',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 20px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#4b1a80';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#35006D';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'translateY(1px)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    onClick={handleSearch}
                   >
-                    {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                    <i className="fas fa-search"></i>
+                    Search
                   </button>
-                  {isCategoryOpen && (
-                    <ul style={styles.categoryList}>
-                      <li
-                        onClick={() => selectCategory('default')}
-                        style={{ cursor: 'pointer', padding: '8px 16px' }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >All</li>
-                      <li
-                        onClick={() => selectCategory('tutor')}
-                        style={{ cursor: 'pointer', padding: '8px 16px' }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >Tutors</li>
-                      <li
-                        onClick={() => selectCategory('course')}
-                        style={{ cursor: 'pointer', padding: '8px 16px' }}
-                        onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
-                        onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                      >Courses</li>
-                    </ul>
-                  )}
                 </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={handleSearchQueryChange}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                  placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
-                  style={styles.searchInput}
-                />
-                <button
-                  style={{
-                    backgroundColor: '#35006D',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px 20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    fontWeight: '500',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.backgroundColor = '#4b1a80';
-                    e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.backgroundColor = '#35006D';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onMouseDown={(e) => {
-                    e.currentTarget.style.transform = 'translateY(1px)';
-                  }}
-                  onMouseUp={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                  }}
-                  onClick={handleSearch}
-                >
-                  <i className="fas fa-search"></i>
-                  Search
-                </button>
               </div>
-            </div>
+            )}
 
             {/* Edit Availability Section */}
             {user?.isTutor && editingDate && (
@@ -2779,14 +2861,15 @@ const HomePage = () => {
                         backgroundColor: '#35006D',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
+                        borderRadius: isMobile ? '4px' : '6px',
+                        padding: isMobile ? '4px 8px' : '6px 12px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '8px',
+                        gap: isMobile ? '4px' : '8px',
                         fontWeight: '500',
+                        fontSize: isMobile ? '0.7rem' : '1rem',
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -2815,14 +2898,15 @@ const HomePage = () => {
                         backgroundColor: '#35006D',
                         color: 'white',
                         border: 'none',
-                        borderRadius: '6px',
-                        padding: '6px 12px',
+                        borderRadius: isMobile ? '4px' : '6px',
+                        padding: isMobile ? '4px 8px' : '6px 12px',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: '8px',
+                        gap: isMobile ? '4px' : '8px',
                         fontWeight: '500',
+                        fontSize: isMobile ? '0.7rem' : '1rem',
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -2865,64 +2949,55 @@ const HomePage = () => {
                           display: 'grid',
                           gridTemplateColumns: 'repeat(7, 1fr)',
                           gap: '1px',
-                          backgroundColor: '#e9ecef',
-                          border: '1px solid #dee2e6',
+                          backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
+                          border: 'none',
                           borderRadius: '8px',
                           overflow: 'hidden',
                         }}>
-                          {weekDays.map((day, index) => {
-                            const currentDate = addDays(currentWeekStart, index);
+                          {weekDays.map((day, i) => {
+                            const currentDate = addDays(currentWeekStart, i);
                             const isToday = isSameDay(currentDate, today);
                             return (
                               <div key={day} style={{
                                 ...styles.dayHeader,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '8px 4px',
-                                position: 'relative'
+                                backgroundColor: isToday
+                                  ? (darkMode ? '#4b1a80' : '#4b1a80')
+                                  : (darkMode ? '#35006D' : 'rgb(53, 0, 109)'),
+                                borderRight: i < 6 ? (darkMode ? '1px solid #4b1a80' : '1px solid #2d0054') : 'none'
                               }}>
                                 <div style={{
-                                  fontSize: '0.85rem',
-                                  marginBottom: '4px',
-                                  fontWeight: isToday ? 'bold' : 'normal'
+                                  fontSize: isMobile ? '0.5rem' : '0.75rem',
+                                  fontWeight: '500',
+                                  letterSpacing: isMobile ? '0.2px' : '0.5px',
+                                  textTransform: 'uppercase',
+                                  lineHeight: isMobile ? '1.1' : '1.3'
                                 }}>
                                   {day}
                                 </div>
                                 <div style={{
-                                  width: '28px',
-                                  height: '28px',
-                                  borderRadius: '50%',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  backgroundColor: isToday ? 'rgba(53, 0, 109, 0.1)' : 'transparent',
-                                  color: 'inherit',
-                                  fontWeight: isToday ? 'bold' : 'normal',
-                                  position: 'relative'
+                                  fontSize: isMobile ? '0.7rem' : '1.1rem',
+                                  fontWeight: '600',
+                                  lineHeight: isMobile ? '1.1' : '1.3'
                                 }}>
                                   {format(currentDate, 'd')}
-                                  {isToday && (
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '-42px',
-                                      left: '50%',
-                                      transform: 'translateX(-50%)',
-                                      fontSize: '10px',
-                                      fontWeight: 'bold',
-                                      color: '#35006D',
-                                      whiteSpace: 'nowrap',
-                                      backgroundColor: 'white',
-                                      borderRadius: '6px',
-                                      padding: '0px 4px',
-                                      zIndex: 1,
-                                      boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
-                                    }}>
-                                      Today
-                                    </div>
-                                  )}
                                 </div>
+                                {isToday && (
+                                  <div style={{
+                                    fontSize: isMobile ? '0.5rem' : '0.6rem',
+                                    marginTop: isMobile ? '2px' : '4px',
+                                    backgroundColor: 'rgba(255, 220, 100, 0.9)',
+                                    color: '#333',
+                                    padding: isMobile ? '1px 3px' : '1px 5px',
+                                    borderRadius: isMobile ? '6px' : '8px',
+                                    fontWeight: '700',
+                                    lineHeight: isMobile ? '1.2' : '1.3',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.5px',
+                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                  }}>
+                                    Today
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
@@ -2958,77 +3033,76 @@ const HomePage = () => {
                             position: 'sticky',
                             top: '0',
                             zIndex: 1,
-                            marginBottom: '10px',
-                            padding: '8px 12px',
-                            backgroundColor: darkMode ? 'rgba(110, 110, 110, 0.32)' : 'rgba(255, 255, 255, 0.9)',
-                            borderRadius: '6px',
+                            marginBottom: isMobile ? '6px' : '10px',
+                            padding: isMobile ? '4px 6px' : '8px 12px',
+                            backgroundColor: darkMode ? 'rgba(110, 110, 110, 0.32)' : 'rgba(237, 237, 237, 0.9)',
+                            borderRadius: isMobile ? '4px' : '6px',
                             border: '1px solid rgba(0, 0, 0, 0.1)',
-                            fontSize: '0.85rem',
+                            fontSize: isMobile ? '0.6rem' : '0.85rem',
                             color: darkMode ? '#b2b2b2ff' : '#666',
                             display: 'flex',
                             alignItems: 'center',
+                            justifyContent: 'space-between',
                             flexWrap: 'wrap',
-                            gap: '16px',
+                            gap: isMobile ? '6px' : '16px',
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{
-                                width: '16px',
-                                height: '16px',
-                                backgroundColor: darkMode ? 'rgba(255, 219, 100, 0.6)' : 'rgba(255, 220, 100, 0.4)',
-                                borderRadius: '0px',
-                              }}></div>
-                              <span>Available hours</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{
-                                width: '16px',
-                                height: '16px',
-                                background: 'linear-gradient(to right, rgba(255, 193, 7, 0.9) 0%, rgba(255, 193, 7, 0.9) 18%, rgba(255, 193, 7, 0.3) 66%, rgba(255, 193, 7, 0.3) 100%)',
-                                borderRadius: '3px',
-                                border: '1px solid rgba(0, 0, 0, 0.1)'
-                              }}></div>
-                              <span>Pending requests</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{
-                                width: '16px',
-                                height: '16px',
-                                background: 'linear-gradient(to right, rgba(53, 0, 109, 0.5) 0%, rgba(53, 0, 109, 0.5) 33%, rgba(53, 0, 109, 0.2) 66%, rgba(53, 0, 109, 0.2) 100%)',
-                                borderRadius: '0px',
-                                border: '1px solid rgba(0, 0, 0, 0.1)'
-                              }}></div>
-                              <span>Confirmed appointments</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{
-                                display: 'flex',
-                                width: '16px',
-                                height: '16px',
-                                borderRadius: '0px',
-                                overflow: 'hidden',
-                                border: '1px solid rgba(0, 0, 0, 0.1)'
-                              }}>
-                                <div style={{ width: '10%', height: '100%', backgroundColor: 'rgba(255, 193, 7, 1)' }}></div>
-                                <div style={{ width: '20%', height: '100%', background: 'linear-gradient(90deg, rgba(255, 193, 7, 1), rgba(255, 255, 255, 0.55))' }}></div>
-                                <div style={{ width: '70%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.73)' }}></div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
+                                <div style={{
+                                  width: isMobile ? '10px' : '16px',
+                                  height: isMobile ? '10px' : '16px',
+                                  backgroundColor: darkMode ? 'rgba(255, 219, 100, 0.6)' : 'rgba(255, 220, 100, 0.4)',
+                                  borderRadius: '0px',
+                                }}></div>
+                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Available</span>
                               </div>
-                              <span>Sent request</span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <div style={{
-                                display: 'flex',
-                                width: '16px',
-                                height: '16px',
-                                borderRadius: '0px',
-                                overflow: 'hidden',
-                                border: '1px solid rgba(0, 0, 0, 0.1)'
-                              }}>
-                                <div style={{ width: '10%', height: '100%', backgroundColor: 'rgba(58, 0, 120, 1)' }}></div>
-                                <div style={{ width: '20%', height: '100%', background: 'linear-gradient(90deg, rgba(53, 0, 109, 1), rgba(255, 255, 255, 0.55))' }}></div>
-                                <div style={{ width: '70%', height: '100%', backgroundColor: 'rgba(255, 255, 255, 0.73)' }}></div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
+                                <div style={{
+                                  minWidth: isMobile ? '16px' : '26px',
+                                  height: isMobile ? '12px' : '20px',
+                                  backgroundColor: 'rgba(255, 193, 7, 0.27)',
+                                  borderRadius: isMobile ? '2px' : '4px',
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 0.95)`,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                }}></div>
+                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Pending</span>
                               </div>
-                              <span>Your session</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
+                                <div style={{
+                                  minWidth: isMobile ? '16px' : '26px',
+                                  height: isMobile ? '12px' : '20px',
+                                  backgroundColor: 'rgba(53, 0, 109, 0.31)',
+                                  borderRadius: isMobile ? '2px' : '4px',
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 0.95)`,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                }}></div>
+                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Confirmed</span>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
+                                <div style={{
+                                  minWidth: isMobile ? '16px' : '26px',
+                                  height: isMobile ? '12px' : '20px',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                  borderRadius: isMobile ? '2px' : '4px',
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 1)`,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                }}></div>
+                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Sent</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
+                                <div style={{
+                                  minWidth: isMobile ? '16px' : '26px',
+                                  height: isMobile ? '12px' : '20px',
+                                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                  borderRadius: isMobile ? '2px' : '4px',
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 1)`,
+                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                }}></div>
+                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Your session</span>
+                              </div>
                             </div>
                           </div>
                           <div style={{
@@ -3052,6 +3126,91 @@ const HomePage = () => {
                 </div>
               </>
             ) : null}
+
+            {/* Search Section - Show after calendar for tutors */}
+            {user?.isTutor && (
+              <div style={{
+                ...styles.searchContainer,
+                width: '100%',
+                margin: 0
+              }}>
+                <h3 style={{ margin: "0 0 5px 0", color: darkMode ? '#fff' : '#2c3e50' }}>Find Tutors & Courses</h3>
+                <div style={styles.searchInputContainer}>
+                  <div style={styles.categoryDropdown}>
+                    <button
+                      style={styles.categoryButton}
+                      onClick={toggleCategory}
+                    >
+                      {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                    </button>
+                    {isCategoryOpen && (
+                      <ul style={styles.categoryList}>
+                        <li
+                          onClick={() => selectCategory('default')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >All</li>
+                        <li
+                          onClick={() => selectCategory('tutor')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >Tutors</li>
+                        <li
+                          onClick={() => selectCategory('course')}
+                          style={{ cursor: 'pointer', padding: '8px 16px' }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                        >Courses</li>
+                      </ul>
+                    )}
+                  </div>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchQueryChange}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                    placeholder={searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}s...`}
+                    style={styles.searchInput}
+                  />
+                  <button
+                    style={{
+                      backgroundColor: '#35006D',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px 20px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      fontWeight: '500',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = '#4b1a80';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = '#35006D';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    onMouseDown={(e) => {
+                      e.currentTarget.style.transform = 'translateY(1px)';
+                    }}
+                    onMouseUp={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                    onClick={handleSearch}
+                  >
+                    <i className="fas fa-search"></i>
+                    Search
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

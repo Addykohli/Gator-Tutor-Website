@@ -34,6 +34,7 @@ class BookingResponse(BookingBase):
     # Nested details for display
     tutor_name: Optional[str] = None
     student_name: Optional[str] = None
+    student_email: Optional[str] = None
     course_title: Optional[str] = None
 
     class Config:

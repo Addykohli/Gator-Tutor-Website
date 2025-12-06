@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import Header from './Header';
-import { useAuth } from '../Context/Context';
+import Header from "./Header";
+import Footer from "./Footer";
+import { useAuth } from "../Context/Context";
 import { useLocation } from 'react-router-dom';
 import { useRef } from 'react';
+import './AppointmentRequestsPage.css';
 
 const apiBaseUrl = process.env.REACT_APP_API_URL || '';
 
@@ -24,59 +26,10 @@ const AppointmentRequestsPage = () => {
   const [reportError, setReportError] = useState(null);
   const [reportSuccess, setReportSuccess] = useState(null);
 
-  // Fetch student details by ID
-  const fetchStudentDetails = async (studentId) => {
-    console.log(`Fetching details for student ID: ${studentId}`);
-    try {
-      const response = await fetch(`${apiBaseUrl}/api/users/${studentId}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('Student details response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to fetch student details:', {
-          status: response.status,
-          statusText: response.statusText,
-          error: errorText
-        });
-        return {
-          firstName: 'Student',
-          lastName: `#${studentId}`,
-          email: `student-${studentId}@sfsu.edu`
-        };
-      }
-
-      const studentData = await response.json();
-      console.log('Received student data:', studentData);
-
-      if (!studentData) {
-        console.error('No user data received for student ID:', studentId);
-        return {
-          firstName: 'Student',
-          lastName: `#${studentId}`,
-          email: `student-${studentId}@sfsu.edu`
-        };
-      }
-
-      const firstName = studentData.first_name || 'Student';
-      const lastName = studentData.last_name || `#${studentId}`;
-
-      return {
-        firstName,
-        lastName,
-        email: studentData.sfsu_email || studentData.email || `student-${studentId}@sfsu.edu`
-      };
-    } catch (err) {
-      console.error('Error fetching student details:', err);
-      return { firstName: 'Student', lastName: `#${studentId}`, email: 'No email provided' };
-    }
-  };
+  // Sorting and Pagination State
+  const [sortOrder, setSortOrder] = useState('asc'); // 'asc' or 'desc'
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Fetch tutor's bookings
   const fetchAppointmentRequests = React.useCallback(async () => {
@@ -94,35 +47,15 @@ const AppointmentRequestsPage = () => {
 
       const data = await response.json();
 
-      // Fetch student details for each booking
-      const bookingsWithStudentDetails = await Promise.all(
-        data.map(async (booking) => {
-          console.log('Processing booking:', booking);
-          if (booking.student_id) {
-            try {
-              const student = await fetchStudentDetails(booking.student_id);
-              console.log('Fetched student details:', student);
-              return {
-                ...booking,
-                student_name: `${student.firstName} ${student.lastName}`.trim(),
-                student_email: student.email,
-                student_firstName: student.firstName,
-                student_lastName: student.lastName
-              };
-            } catch (err) {
-              console.error('Error processing student details:', err);
-              return {
-                ...booking,
-                student_name: `Student #${booking.student_id}`,
-                student_email: `student-${booking.student_id}@sfsu.edu`,
-                student_firstName: 'Student',
-                student_lastName: `#${booking.student_id}`
-              };
-            }
-          }
-          return booking;
-        })
-      );
+      // Student details are now included in the API response
+      // Ensure student_name and student_email have fallback values
+      const bookingsWithStudentDetails = data.map((booking) => {
+        return {
+          ...booking,
+          student_name: booking.student_name || `Student #${booking.student_id}`,
+          student_email: booking.student_email || `student-${booking.student_id}@sfsu.edu`
+        };
+      });
 
       console.log('Bookings with student details:', bookingsWithStudentDetails);
 
@@ -376,320 +309,42 @@ const AppointmentRequestsPage = () => {
     return false;
   });
 
-  const styles = {
-    container: {
-      display: "flex",
-      flexDirection: "column",
-      minHeight: "100vh",
-      backgroundColor: darkMode ? 'rgb(30, 30, 30)' : '#ffffff',
-      color: darkMode ? '#f0f0f0' : '#333',
-      transition: 'background-color 0.3s ease, color 0.3s ease',
-    },
-    heading: {
-      color: darkMode ? '#fff' : '#333',
-      textAlign: "center",
-      paddingBottom: "3px",
-      borderBottom: "8px solid rgb(255, 220, 112)",
-      display: "block",
-      margin: "20px auto",
-      fontSize: "45px",
-      fontWeight: "600",
-      width: "fit-content",
-      transition: 'color 0.3s ease',
-    },
-    content: {
-      maxWidth: "1200px",
-      margin: "0 auto",
-      padding: "40px 20px",
-      width: "100%",
-      color: darkMode ? '#f0f0f0' : '#333',
-      transition: 'color 0.3s ease',
-    },
-    tabs: {
-      display: "flex",
-      gap: "20px",
-      marginBottom: "30px",
-    },
-    tab: {
-      flex: 1,
-      backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#f0f0f0',
-      border: darkMode ? '2px solid #444' : '2px solid #ddd',
-      borderRadius: "8px",
-      padding: "20px",
-      textAlign: "center",
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: darkMode ? '0 4px 8px rgba(0,0,0,0.3)' : '0 4px 8px rgba(0,0,0,0.1)',
-      },
-    },
-    activeTab: {
-      backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#FFCF01',
-      border: darkMode ? '2px solid rgb(255, 220, 100)' : '2px solid #35006D',
-      color: darkMode ? '#2c3e50' : '#35006D',
-    },
-    tabNumber: {
-      fontSize: "36px",
-      fontWeight: "700",
-      marginBottom: "5px",
-      color: 'inherit',
-    },
-    tabLabel: {
-      fontSize: "14px",
-      fontWeight: "600",
-      textTransform: "uppercase",
-      color: 'inherit',
-    },
-    requestsList: {
-      display: "flex",
-      flexDirection: "column",
-      gap: "20px",
-    },
-    requestCard: {
-      backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#f9f9f9',
-      border: darkMode ? '1px solid #444' : '1px solid #ddd',
-      borderRadius: "8px",
-      padding: "24px",
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        transform: 'translateY(-2px)',
-        boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)',
-      },
-    },
-    requestHeader: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      marginBottom: "15px",
-      flexWrap: "wrap",
-      gap: "10px",
-    },
-    studentInfo: {
-      flex: 1,
-    },
-    studentName: {
-      color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-      fontSize: "20px",
-      fontWeight: "600",
-      marginBottom: "5px",
-      transition: 'color 0.3s ease',
-    },
-    studentEmail: {
-      color: darkMode ? '#bbb' : '#666',
-      fontSize: "14px",
-      transition: 'color 0.3s ease',
-    },
-    statusBadge: {
-      padding: "6px 12px",
-      borderRadius: "4px",
-      fontSize: "12px",
-      fontWeight: "600",
-      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-      color: darkMode ? '#f0f0f0' : '#333',
-      transition: 'all 0.3s ease',
-    },
-    requestDetails: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "15px",
-      marginBottom: "15px",
-    },
-    detailItem: {
-      display: "flex",
-      flexDirection: "column",
-    },
-    detailLabel: {
-      color: darkMode ? '#aaa' : '#666',
-      fontSize: "12px",
-      fontWeight: "600",
-      marginBottom: "4px",
-      transition: 'color 0.3s ease',
-    },
-    detailValue: {
-      color: darkMode ? '#f0f0f0' : '#333',
-      fontSize: "14px",
-      transition: 'color 0.3s ease',
-    },
-    description: {
-      backgroundColor: darkMode ? 'rgb(50, 50, 50)' : '#fff',
-      border: darkMode ? '1px solid #555' : '1px solid #ddd',
-      borderRadius: "4px",
-      padding: "12px",
-      marginBottom: "15px",
-      transition: 'all 0.3s ease',
-    },
-    descriptionLabel: {
-      color: darkMode ? '#aaa' : '#666',
-      fontSize: "12px",
-      fontWeight: "600",
-      marginBottom: "8px",
-      transition: 'color 0.3s ease',
-    },
-    descriptionText: {
-      color: darkMode ? '#f0f0f0' : '#333',
-      fontSize: "14px",
-      lineHeight: "1.6",
-      transition: 'color 0.3s ease',
-    },
-    requestActions: {
-      display: "flex",
-      gap: "12px",
-      marginTop: "15px",
-    },
-    button: {
-      flex: 1,
-      padding: "10px 20px",
-      border: "none",
-      borderRadius: "4px",
-      fontSize: "14px",
-      fontWeight: "600",
-      cursor: "pointer",
-      transition: "all 0.3s ease",
-      '&:hover': {
-        transform: 'translateY(-1px)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-      },
-      '&:active': {
-        transform: 'translateY(0)',
-      },
-    },
-    approveButton: {
-      backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-      color: darkMode ? '#2c3e50' : '#fff',
-      '&:hover': {
-        backgroundColor: darkMode ? 'rgb(255, 215, 90)' : '#2a0057',
-        boxShadow: `0 2px 8px ${darkMode ? 'rgba(255, 220, 100, 0.4)' : 'rgba(53, 0, 109, 0.5)'}`,
-      },
-      '&:active': {
-        transform: 'translateY(1px)',
-        boxShadow: 'none',
-      },
-      transition: 'all 0.2s ease',
-    },
-    declineButton: {
-      backgroundColor: darkMode ? '#c82333' : '#dc3545',
-      color: "#fff",
-      '&:hover': {
-        backgroundColor: darkMode ? '#bd2130' : '#c82333',
-        boxShadow: '0 2px 8px rgba(220, 53, 69, 0.5)',
-      },
-      '&:active': {
-        transform: 'translateY(1px)',
-        boxShadow: 'none',
-      },
-      transition: 'all 0.2s ease',
-    },
-    cancelButton: {
-      backgroundColor: 'rgb(107, 21, 36)',
-      color: "#fff",
-      '&:hover': {
-        backgroundColor: darkMode ? '#5a6268' : '#5a6268',
-        boxShadow: '0 2px 8px rgba(108, 117, 125, 0.5)',
-      },
-      '&:active': {
-        transform: 'translateY(1px)',
-        boxShadow: 'none',
-      },
-      transition: 'all 0.2s ease',
-    },
-    submittedTime: {
-      color: darkMode ? '#888' : '#999',
-      fontSize: "12px",
-      marginTop: "10px",
-      textAlign: "right",
-      transition: 'color 0.3s ease',
-    },
-    emptyState: {
-      textAlign: "center",
-      padding: "60px 20px",
-      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-      borderRadius: '8px',
-      border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
-      color: darkMode ? '#aaa' : '#666',
-      transition: 'all 0.3s ease',
-      '& h3': {
-        color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-        marginBottom: '12px',
-        fontSize: '1.5rem',
-      },
-      '& p': {
-        color: darkMode ? '#bbb' : '#666',
-        fontSize: '1rem',
-        lineHeight: '1.6',
-      },
-    },
-    modalOverlay: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: "rgba(0, 0, 0, 0.5)",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-      zIndex: 1000,
-    },
-    modalContent: {
-      backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#fff',
-      padding: "30px",
-      borderRadius: "8px",
-      width: "90%",
-      maxWidth: "500px",
-      boxShadow: "0 4px 12px rgba(0,0,0,0.2)",
-      color: darkMode ? '#f0f0f0' : '#333',
-    },
-    modalTitle: {
-      fontSize: "20px",
-      fontWeight: "600",
-      marginBottom: "20px",
-      color: darkMode ? '#fff' : '#333',
-    },
-    textarea: {
-      width: "100%",
-      minHeight: "100px",
-      padding: "10px",
-      marginBottom: "15px",
-      borderRadius: "4px",
-      border: darkMode ? '1px solid #555' : '1px solid #ddd',
-      backgroundColor: darkMode ? '#333' : '#fff',
-      color: darkMode ? '#fff' : '#333',
-      resize: "vertical",
-    },
-    modalActions: {
-      display: "flex",
-      justifyContent: "flex-end",
-      gap: "10px",
-    },
-    messageSuccess: {
-      color: "#28a745",
-      marginBottom: "15px",
-      fontSize: "14px",
-    },
-    messageError: {
-      color: "#dc3545",
-      marginBottom: "15px",
-      fontSize: "14px",
-    },
+  // Sort bookings
+  const sortedBookings = [...filteredBookings].sort((a, b) => {
+    const dateA = new Date(a.start_time);
+    const dateB = new Date(b.start_time);
+    return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(sortedBookings.length / itemsPerPage);
+  const paginatedBookings = sortedBookings.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+
+
+
   return (
-    <div style={styles.container}>
+    <div className={`page-container ${darkMode ? 'dark' : 'not-dark'}`}>
       <Header />
 
-      <div style={styles.content}>
-        <h1 style={styles.heading}>Appointment Requests</h1>
+      <div className="page-content">
+        <h1 className="page-heading">Your Appointments</h1>
 
         {loading ? (
-          <div style={{
-            textAlign: 'center',
-            padding: '40px',
-            color: darkMode ? '#aaa' : '#666',
-            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)',
-            borderRadius: '8px',
-            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)'
-          }}>
+          <div className="empty-state">
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
               <div>Loading appointment requests...</div>
               <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }} />
@@ -711,225 +366,226 @@ const AppointmentRequestsPage = () => {
           </div>
         ) : (
           <>
-            <div style={styles.tabs}>
+            <div className="tabs-container">
               <div
-                style={{
-                  ...styles.tab,
-                  ...(activeTab === "pending" ? styles.activeTab : {}),
-                  color: activeTab === "pending" ? (darkMode ? '#2c3e50' : '#35006D') : (darkMode ? '#aaa' : '#666')
-                }}
+                className={`tab-item ${activeTab === "pending" ? "active" : ""}`}
                 onClick={() => setActiveTab("pending")}
               >
-                <div style={styles.tabNumber}>{counts.pending}</div>
-                <div style={styles.tabLabel}>Pending Requests</div>
+                <div className="tab-number">{counts.pending}</div>
+                <div className="tab-label">Pending Requests</div>
               </div>
               <div
-                style={{
-                  ...styles.tab,
-                  ...(activeTab === "upcoming" ? styles.activeTab : {}),
-                  color: activeTab === "upcoming" ? (darkMode ? '#2c3e50' : '#35006D') : (darkMode ? '#aaa' : '#666')
-                }}
+                className={`tab-item ${activeTab === "upcoming" ? "active" : ""}`}
                 onClick={() => setActiveTab("upcoming")}
               >
-                <div style={styles.tabNumber}>{counts.upcoming}</div>
-                <div style={styles.tabLabel}>Upcoming Sessions</div>
+                <div className="tab-number">{counts.upcoming}</div>
+                <div className="tab-label">Upcoming Appointments</div>
               </div>
               <div
-                style={{
-                  ...styles.tab,
-                  ...(activeTab === "completed" ? styles.activeTab : {}),
-                  color: activeTab === "completed" ? (darkMode ? '#2c3e50' : '#35006D') : (darkMode ? '#aaa' : '#666')
-                }}
+                className={`tab-item ${activeTab === "completed" ? "active" : ""}`}
                 onClick={() => setActiveTab("completed")}
               >
-                <div style={styles.tabNumber}>{counts.completed}</div>
-                <div style={styles.tabLabel}>Completed</div>
+                <div className="tab-number">{counts.completed}</div>
+                <div className="tab-label">Completed</div>
               </div>
             </div>
 
             {filteredBookings.length === 0 ? (
-              <div style={styles.emptyState}>
+              <div className="empty-state">
                 {activeTab === "pending" && "No pending appointment requests found."}
                 {activeTab === "upcoming" && "No upcoming sessions scheduled."}
                 {activeTab === "completed" && "No completed sessions yet."}
               </div>
             ) : (
-              <div style={styles.requestsList}>
-                {filteredBookings.map((request) => (
-                  <div
-                    key={request.booking_id}
-                    id={`booking-card-${request.booking_id}`}
-                    style={{
-                      ...styles.requestCard,
-                      ...(highlightedBookingId === request.booking_id ? {
+              <>
+                <div className="controls-header">
+                  <div style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666' }}>
+                    Showing {paginatedBookings.length} of {filteredBookings.length} results
+                  </div>
+                  <div 
+                    className="sort-control"
+                    onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    title={`Sort by date (${sortOrder === 'asc' ? 'Oldest first' : 'Newest first'})`}
+                  >
+                    <span>Sort by Date</span>
+                    <i 
+                      className={`fas fa-arrow-${sortOrder === 'asc' ? 'up' : 'down'} sort-arrow`}
+                    />
+                  </div>
+                </div>
+
+                <div className="requests-list">
+                  {paginatedBookings.map((request) => (
+                    <div
+                      key={request.booking_id}
+                      id={`booking-card-${request.booking_id}`}
+                      className="request-card"
+                      style={highlightedBookingId === request.booking_id ? {
                         boxShadow: darkMode
                           ? '0 0 6px 2px rgb(255, 220, 100), 0 0 0 3px #35006D'
                           : '0 0 6px 2px #fff82c, 0 0 0 3px #35006D',
                         background: darkMode ? 'rgba(255, 251, 229, 0.1)' : '#fffbe5',
                         animation: 'calendarGlow 1.7s cubic-bezier(0.4,0,1,1) 2'
-                      } : {})
-                    }}
-                  >
-                    <div style={styles.requestHeader}>
-                      <div style={styles.studentInfo}>
-                        <div style={styles.studentName}>
-                          {request.student_name || 'Student'}
+                      } : {}}
+                    >
+                      <div className="request-card-header">
+                        <div className="student-info">
+                          <div className="student-name">
+                            {request.student_name || 'Student'}
+                          </div>
+                          <div className="student-email">
+                            {request.student_email || 'No email provided'}
+                          </div>
                         </div>
-                        <div style={styles.studentEmail}>
-                          {request.student_email || 'No email provided'}
+                        <div className="status-badge" style={{
+                          backgroundColor: request.status === 'confirmed'
+                            ? darkMode ? 'rgba(40, 167, 69, 0.2)' : '#d4edda'
+                            : request.status === 'cancelled'
+                              ? darkMode ? 'rgba(220, 53, 69, 0.2)' : '#f8d7da'
+                              : request.status === 'completed'
+                                ? darkMode ? 'rgba(23, 162, 184, 0.2)' : '#d1ecf1'
+                                : darkMode ? 'rgba(255, 193, 7, 0.2)' : '#fff3cd',
+                          color: request.status === 'confirmed'
+                            ? '#155724'
+                            : request.status === 'cancelled'
+                              ? '#721c24'
+                              : request.status === 'completed'
+                                ? '#0c5460'
+                                : '#856404'
+                        }}>
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                         </div>
                       </div>
-                      <div style={{
-                        ...styles.statusBadge,
-                        backgroundColor: request.status === 'confirmed'
-                          ? darkMode ? 'rgba(40, 167, 69, 0.2)' : '#d4edda'
-                          : request.status === 'cancelled'
-                            ? darkMode ? 'rgba(220, 53, 69, 0.2)' : '#f8d7da'
-                            : request.status === 'completed'
-                              ? darkMode ? 'rgba(23, 162, 184, 0.2)' : '#d1ecf1'
-                              : darkMode ? 'rgba(255, 193, 7, 0.2)' : '#fff3cd',
-                        color: request.status === 'confirmed'
-                          ? '#155724'
-                          : request.status === 'cancelled'
-                            ? '#721c24'
-                            : request.status === 'completed'
-                              ? '#0c5460'
-                              : '#856404'
-                      }}>
-                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+
+                      <div className="request-details-grid">
+                        <div className="detail-item">
+                          <div className="detail-label">Course</div>
+                          <div className="detail-value">
+                            {request.course_title || 'No course specified'}
+                          </div>
+                        </div>
+                        <div className="detail-item">
+                          <div className="detail-label">Date</div>
+                          <div className="detail-value">
+                            {request.start_time ? formatDate(request.start_time) : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="detail-item">
+                          <div className="detail-label">Time</div>
+                          <div className="detail-value">
+                            {request.start_time && request.end_time
+                              ? formatTime(request.start_time, request.end_time)
+                              : 'N/A'}
+                          </div>
+                        </div>
+                        <div className="detail-item">
+                          <div className="detail-label">Type</div>
+                          <div className="detail-value">
+                            {request.meeting_link?.includes('zoom') ? 'Online' : 'In-Person'}
+                          </div>
+                        </div>
                       </div>
+
+                      <div className="description-box">
+                        <div className="detail-label">Notes</div>
+                        <div className="description-text">
+                          {request.notes || 'No additional notes provided.'}
+                        </div>
+                      </div>
+
+                      <div className="submitted-time">
+                        Requested on {request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}
+                      </div>
+
+                      {request.status === "pending" && (
+                        <div className="request-actions">
+                          <button
+                            className="action-btn btn-approve"
+                            onClick={() => handleAccept(request.booking_id || request.id)}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            className="action-btn btn-decline"
+                            onClick={() => handleDecline(request.booking_id || request.id)}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      )}
+
+                      {request.status === "confirmed" && new Date(request.end_time) > new Date() && (
+                        <div className="request-actions">
+                          {request.meeting_link && request.meeting_link.startsWith('http') && (
+                            <a
+                              href={request.meeting_link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="action-btn btn-join"
+                              style={{ textDecoration: 'none', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            >
+                              Join Meeting
+                            </a>
+                          )}
+                          <button
+                            className="action-btn btn-cancel"
+                            onClick={() => handleCancel(request.booking_id || request.id)}
+                          >
+                            Cancel Appointment
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Report button for completed sessions */}
+                      {(request.status === "completed" || (request.status === "confirmed" && new Date(request.end_time) <= new Date())) && (
+                        <div className="request-actions">
+                          <button
+                            className="action-btn btn-decline"
+                            onClick={() => openReportModal(request)}
+                          >
+                            Report Student
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  ))}
+                </div>
 
-                    <div style={styles.requestDetails}>
-                      <div style={styles.detailItem}>
-                        <div style={styles.detailLabel}>Course</div>
-                        <div style={styles.detailValue}>
-                          {request.course_title || 'No course specified'}
-                        </div>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <div style={styles.detailLabel}>Date</div>
-                        <div style={styles.detailValue}>
-                          {request.start_time ? formatDate(request.start_time) : 'N/A'}
-                        </div>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <div style={styles.detailLabel}>Time</div>
-                        <div style={styles.detailValue}>
-                          {request.start_time && request.end_time
-                            ? formatTime(request.start_time, request.end_time)
-                            : 'N/A'}
-                        </div>
-                      </div>
-                      <div style={styles.detailItem}>
-                        <div style={styles.detailLabel}>Type</div>
-                        <div style={styles.detailValue}>
-                          {request.meeting_link?.includes('zoom') ? 'Online' : 'In-Person'}
-                        </div>
-                      </div>
-                    </div>
+                {totalPages > 1 && (
+                  <div className="pagination">
+                    <button
+                      className={`page-button ${currentPage === 1 ? 'disabled-button' : ''}`}
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Previous
+                    </button>
 
-                    <div style={styles.description}>
-                      <div style={styles.descriptionLabel}>Notes</div>
-                      <div style={styles.descriptionText}>
-                        {request.notes || 'No additional notes provided.'}
-                      </div>
-                    </div>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                      <button
+                        key={page}
+                        className={`page-button ${currentPage === page ? 'active-page-button' : ''}`}
+                        onClick={() => handlePageChange(page)}
+                      >
+                        {page}
+                      </button>
+                    ))}
 
-                    <div style={styles.submittedTime}>
-                      Requested on {request.created_at ? new Date(request.created_at).toLocaleString() : 'N/A'}
-                    </div>
-
-                    {request.status === "pending" && (
-                      <div style={styles.requestActions}>
-                        <button
-                          style={{ ...styles.button, ...styles.approveButton }}
-                          onClick={() => handleAccept(request.booking_id || request.id)}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          style={{ ...styles.button, ...styles.declineButton }}
-                          onClick={() => handleDecline(request.booking_id || request.id)}
-                        >
-                          Decline
-                        </button>
-                      </div>
-                    )}
-
-                    {request.status === "confirmed" && new Date(request.end_time) > new Date() && (
-                      <div style={styles.requestActions}>
-                        <button
-                          style={{ ...styles.button, ...styles.cancelButton }}
-                          onClick={() => handleCancel(request.booking_id || request.id)}
-                        >
-                          Cancel Appointment
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Report button for completed sessions */}
-                    {(request.status === "completed" || (request.status === "confirmed" && new Date(request.end_time) <= new Date())) && (
-                      <div style={styles.requestActions}>
-                        <button
-                          style={{ ...styles.button, ...styles.declineButton }}
-                          onClick={() => openReportModal(request)}
-                        >
-                          Report Student
-                        </button>
-                      </div>
-                    )}
+                    <button
+                      className={`page-button ${currentPage === totalPages ? 'disabled-button' : ''}`}
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                    </button>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </>
         )}
       </div>
-
-      {/* Report Modal */}
-      {showReportModal && (
-        <div style={styles.modalOverlay} onClick={(e) => {
-          if (e.target === e.currentTarget) closeReportModal();
-        }}>
-          <div style={styles.modalContent}>
-            <h3 style={styles.modalTitle}>Report Student</h3>
-            {reportSuccess && <div style={styles.messageSuccess}>{reportSuccess}</div>}
-            {reportError && <div style={styles.messageError}>{reportError}</div>}
-
-            {!reportSuccess && (
-              <>
-                <p style={{ marginBottom: '10px' }}>
-                  Reason for reporting {selectedSessionForReport?.student_name || 'this student'}:
-                </p>
-                <textarea
-                  style={styles.textarea}
-                  value={reportReason}
-                  onChange={(e) => setReportReason(e.target.value)}
-                  placeholder="Please describe the issue..."
-                  disabled={reportLoading}
-                />
-                <div style={styles.modalActions}>
-                  <button
-                    style={{ ...styles.button, backgroundColor: 'transparent', border: '1px solid #ccc', color: darkMode ? '#ccc' : '#666' }}
-                    onClick={closeReportModal}
-                    disabled={reportLoading}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    style={{ ...styles.button, backgroundColor: '#dc3545', color: '#fff' }}
-                    onClick={submitReport}
-                    disabled={reportLoading}
-                  >
-                    {reportLoading ? 'Submitting...' : 'Submit Report'}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <Footer />
     </div>
   );
 };

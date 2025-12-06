@@ -12,25 +12,33 @@ const AdminHome = () => {
   useEffect(() => {
     setIsDarkMode(darkMode);
   }, [darkMode]);
-  
+
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  const isMobile = windowWidth <= 768;
+
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
     const saved = localStorage.getItem('searchQuery');
     return saved || '';
   });
-  
+
   const [searchCategory, setSearchCategory] = useState(() => {
     const saved = localStorage.getItem('searchCategory');
     return saved || 'default';
   });
-  
+
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  
+
   const handleSearchQueryChange = (e) => {
     const value = e.target.value;
     setSearchQuery(value);
   };
-  
+
   const handleSearch = async (e) => {
     e.preventDefault();
     const searchText = searchQuery.trim();
@@ -44,53 +52,53 @@ const AdminHome = () => {
       localStorage.removeItem('searchCategory');
     }
 
-    const apiBaseUrl = window.location.hostname === 'localhost' 
-      ? 'http://localhost:8000' 
+    const apiBaseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
       : '/api';
-    
+
     const typeMap = {
       'tutor': 'tutor',
       'course': 'course',
       'default': 'all'
     };
-    
+
     const searchType = typeMap[searchCategory] || 'all';
-    
+
     try {
       let results = [];
-      
+
       if (searchType === 'tutor' || searchType === 'all') {
         const params = new URLSearchParams({
           limit: 20,
           offset: 0,
           ...(searchText && { q: searchText })
         });
-        
+
         const response = await fetch(
           `${apiBaseUrl}/search/tutors?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'tutor', ...item }))];
       }
-      
+
       if (searchType === 'course' || searchType === 'all') {
         const params = new URLSearchParams({
           limit: 20,
           offset: 0,
           ...(searchText && { q: searchText })
         });
-        
+
         const response = await fetch(
           `${apiBaseUrl}/search/courses?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'course', ...item }))];
       }
-      
+
       navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
         state: { results }
       });
-      
+
     } catch (error) {
       console.error('Search error:', error);
       navigate(`/search?q=${encodeURIComponent(searchText)}&type=${searchType}`, {
@@ -98,17 +106,17 @@ const AdminHome = () => {
       });
     }
   };
-  
+
   const toggleCategory = () => {
     setIsCategoryOpen(!isCategoryOpen);
   };
-  
+
   const selectCategory = (category) => {
     setSearchCategory(category);
     localStorage.setItem('searchCategory', category);
     setIsCategoryOpen(false);
   };
-  
+
   const styles = {
     container: {
       minHeight: '100vh',
@@ -156,7 +164,7 @@ const AdminHome = () => {
       borderBottom: "4px solid rgb(255, 220, 112)",
       display: "inline-block",
       margin: "20px auto",
-      fontSize: "45px",
+      fontSize: isMobile ? "28px" : "45px",
       fontWeight: "600",
       lineHeight: "1.2",
       position: "relative"
@@ -187,7 +195,8 @@ const AdminHome = () => {
     },
     searchInputContainer: {
       display: 'flex',
-      alignItems: 'center',
+      flexDirection: isMobile ? 'column' : 'row',
+      alignItems: isMobile ? 'stretch' : 'center',
       gap: '8px',
       marginTop: '10px'
     },
@@ -210,6 +219,7 @@ const AdminHome = () => {
       border: 'none',
       borderRadius: '6px',
       cursor: 'pointer',
+      width: isMobile ? '100%' : 'auto',
       fontSize: '16px',
       fontWeight: '600',
       transition: 'background-color 0.2s',
@@ -220,8 +230,8 @@ const AdminHome = () => {
     categoryDropdown: {
       position: 'relative',
       display: 'inline-block',
-      minWidth: '120px',
-      width: '120px'
+      minWidth: isMobile ? '100%' : '120px',
+      width: isMobile ? '100%' : '120px'
     },
     categoryButton: {
       padding: '12px 16px',
@@ -264,7 +274,7 @@ const AdminHome = () => {
         }
       }
     },
-    
+
   };
 
 
@@ -272,7 +282,7 @@ const AdminHome = () => {
     <div style={styles.container}>
       <Header />
       <h1 style={styles.heading}>Admin Dashboard</h1>
-      
+
       <div style={styles.content}>
         {/* User Profile Section */}
         <div style={{
@@ -289,8 +299,8 @@ const AdminHome = () => {
           boxSizing: 'border-box',
           transition: 'all 0.3s ease'
         }}>
-          <div style={{ 
-            display: 'flex', 
+          <div style={{
+            display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             paddingBottom: '20px',
@@ -320,15 +330,15 @@ const AdminHome = () => {
                   {user.firstName[0]}{user.lastName[0]}
                 </div>
               ) : (
-                <i className="fas fa-user" style={{ 
-                  fontSize: '36px', 
+                <i className="fas fa-user" style={{
+                  fontSize: '36px',
                   color: '#9A2250',
-                  opacity: 0.7 
+                  opacity: 0.7
                 }}></i>
               )}
             </div>
-            
-            <h3 style={{ 
+
+            <h3 style={{
               margin: '8px 0 6px',
               color: isDarkMode ? '#e6e6e6' : (user ? '#2c3e50' : '#6c757d'),
               fontSize: '1.5rem',
@@ -338,7 +348,7 @@ const AdminHome = () => {
             }}>
               {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
             </h3>
-            
+
             <div style={{
               backgroundColor: '#9A2250',
               color: 'white',
@@ -354,7 +364,7 @@ const AdminHome = () => {
               Administrator
             </div>
           </div>
-          
+
           {/* Admin Tools Grid */}
           <div style={{
             display: 'grid',
@@ -364,50 +374,50 @@ const AdminHome = () => {
             marginTop: '20px'
           }}>
             {[
-              { 
-                title: 'Registered Tutors', 
+              {
+                title: 'Registered Tutors',
                 icon: 'chalkboard-teacher',
                 path: '/admin/registered-tutors',
                 color: '#4e73df'
               },
-              { 
-                title: 'Registered Students', 
+              {
+                title: 'Registered Students',
                 icon: 'user-graduate',
                 path: '/admin/registered-students',
                 color: '#1cc88a'
               },
-              { 
-                title: 'Tutor Applications', 
+              {
+                title: 'Tutor Applications',
                 icon: 'file-signature',
                 path: '/admin/tutor-applications',
                 color: '#f6c23e'
               },
-              { 
-                title: 'Reports', 
+              {
+                title: 'Reports',
                 icon: 'chart-bar',
-                path: '/admin/reports',
+                path: '/reports',
                 color: '#e74a3b'
               },
-              { 
-                title: 'Tutor Course Addition Applications', 
+              {
+                title: 'Tutor Course Addition Applications',
                 icon: 'plus-circle',
                 path: '/admin/tutor-course-applications',
                 color: '#36b9cc'
               },
-              { 
-                title: 'Course Coverage Requests', 
+              {
+                title: 'Course Coverage Requests',
                 icon: 'book-reader',
                 path: '/admin/course-coverage-requests',
                 color: '#6f42c1'
               },
-              { 
-                title: 'Messages', 
+              {
+                title: 'Messages',
                 icon: 'envelope',
                 path: '/messages',
                 color: '#fd7e14'
               }
             ].map((item, index) => (
-              <a 
+              <a
                 key={index}
                 href={item.path}
                 style={{
@@ -462,9 +472,9 @@ const AdminHome = () => {
             ))}
           </div>
         </div>
-        
+
         {/* Search Section - Now full width */}
-        <div style={{ 
+        <div style={{
           width: '100%',
           maxWidth: '1000px',
           margin: '20px auto',
@@ -483,14 +493,14 @@ const AdminHome = () => {
             border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0',
             transition: 'all 0.3s ease'
           }}>
-            <h3 style={{ 
-              margin: "0 0 15px 0", 
+            <h3 style={{
+              margin: "0 0 15px 0",
               color: isDarkMode ? '#e6e6e6' : '#2c3e50',
               transition: 'all 0.3s ease'
             }}>Find Tutors & Courses</h3>
             <div style={styles.searchInputContainer}>
               <div style={styles.categoryDropdown}>
-                <button 
+                <button
                   style={{
                     ...styles.categoryButton,
                     backgroundColor: isDarkMode ? '#1f4068' : '#f8f9fa',
@@ -510,15 +520,15 @@ const AdminHome = () => {
                     boxShadow: isDarkMode ? '0 6px 12px rgba(0,0,0,0.3)' : '0 6px 12px rgba(0,0,0,.175)',
                     transition: 'all 0.3s ease'
                   }}>
-                    <li 
+                    <li
                       onClick={() => selectCategory('default')}
                       style={{ cursor: 'pointer' }}
                     >All</li>
-                    <li 
+                    <li
                       onClick={() => selectCategory('tutor')}
                       style={{ cursor: 'pointer' }}
                     >Tutors</li>
-                    <li 
+                    <li
                       onClick={() => selectCategory('course')}
                       style={{ cursor: 'pointer' }}
                     >Courses</li>
@@ -539,7 +549,7 @@ const AdminHome = () => {
                   transition: 'all 0.3s ease'
                 }}
               />
-              <button 
+              <button
                 style={{
                   backgroundColor: '#35006D',
                   color: 'white',

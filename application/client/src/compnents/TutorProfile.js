@@ -20,7 +20,7 @@ const TutorProfile = () => {
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [selectedCourse, setSelectedCourse] = useState('');
-  const [sessionType, setSessionType] = useState('zoom');
+  const [sessionType, setSessionType] = useState('online');
   const [notes, setNotes] = useState('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
@@ -448,13 +448,21 @@ const TutorProfile = () => {
       }
 
       // Prepare booking data according to API schema
+      let meetingLink = 'In-person meeting';
+      if (sessionType === 'online') {
+        // Generate a unique Jitsi Meet URL using guifi.net (no auth required)
+        // Format: https://meet.guifi.net/SFSU-Tutor-<TutorID>-<StudentID>-<Timestamp>
+        const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        meetingLink = `https://meet.guifi.net/SFSU-Tutor-${tutor.id}-${user.id}-${uniqueId}`;
+      }
+
       const bookingData = {
         tutor_id: tutor.id,
         student_id: user.id, // Use the ID from the authenticated user context
         start_time: formatDateTime(startDateTime),
         end_time: formatDateTime(endDateTime),
         course_id: courseIdNum, // Ensure it's a number
-        meeting_link: sessionType === 'zoom' ? 'https://sfsu.zoom.us/j/meeting-id' : 'In-person meeting',
+        meeting_link: meetingLink,
         notes: notes || ''
       };
 
@@ -527,7 +535,7 @@ const TutorProfile = () => {
       setSelectedTime('');
       setSelectedCourse('');
       setNotes('');
-      setSessionType('zoom');
+      setSessionType('online');
       setAvailableTimeSlots([]);
 
     } catch (error) {
@@ -979,11 +987,11 @@ const TutorProfile = () => {
                 <div
                   style={{
                     ...styles.sessionTypeOption,
-                    ...(sessionType === 'zoom' ? styles.selectedSessionType : {})
+                    ...(sessionType === 'online' ? styles.selectedSessionType : {})
                   }}
-                  onClick={() => setSessionType('zoom')}
+                  onClick={() => setSessionType('online')}
                 >
-                  Zoom
+                  Online (Video)
                 </div>
               </div>
 

@@ -20,9 +20,11 @@ const LoginPage = () => {
       minHeight: 'calc(100vh - 120px)',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
-      backgroundColor: darkMode ? '#121212' : '#fff',
+      background: darkMode 
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 53%, rgba(23, 23, 23, 1) 36%, rgba(28, 28, 28, 1) 63%, rgba(33, 33, 33, 1) 70%, rgba(34, 34, 34, 1) 75%, rgba(37, 37, 37, 1) 80%, rgba(42, 42, 42, 1) 85%, rgba(52, 52, 52, 1) 99%, rgba(49, 49, 49, 1) 90%, rgba(51, 51, 51, 1) 93%, rgba(53, 53, 53, 1) 95%, rgba(54, 54, 54, 1) 98%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)' 
+        : '#fff',
       color: darkMode ? '#f5f5f5' : '#333',
-      transition: 'background-color 0.3s, color 0.3s',
+      transition: 'background 0.3s, color 0.3s',
       boxSizing: 'border-box',
       width: '100%',
     },
@@ -200,11 +202,11 @@ const LoginPage = () => {
           type="submit" 
           style={{
             ...styles.loginButton,
-            backgroundColor: isLoading ? '#a5d6a7' : 'rgba(28, 168, 70, 0.8)',
+            backgroundColor: isLoading ? 'rgba(255, 210, 76, 0.8)' : 'rgba(255, 220, 112, 0.8)',
             cursor: isLoading ? 'not-allowed' : 'pointer'
           }}
-          onMouseOver={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(6, 141, 1, 0.7)')}
-          onMouseOut={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(28, 168, 70, 0.8)')}
+          onMouseOver={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(244, 205, 86, 0.7)')}
+          onMouseOut={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.8)')}
           disabled={isLoading}
         >
           {isLoading ? 'Logging in...' : 'Login'}

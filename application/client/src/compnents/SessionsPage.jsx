@@ -1,8 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useLocation, useNavigate } from 'react-router-dom';
 import Header from './Header';
+import Footer from './Footer';
 import { useAuth } from '../Context/Context';
 
+import './SessionsPage.css';
 
 const SessionsPage = () => {
   const { user, darkMode } = useAuth();
@@ -19,6 +21,15 @@ const SessionsPage = () => {
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState(null);
   const [reportSuccess, setReportSuccess] = useState(null);
+  const [sortOrder, setSortOrder] = useState('desc'); // 'asc' or 'desc'
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
+
+  React.useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Set active tab from URL and handle booking highlighting
   useEffect(() => {
@@ -99,6 +110,15 @@ const SessionsPage = () => {
     return new Date(timeStr);
   };
 
+  // Sort function for bookings
+  const sortBookings = (bookings, order) => {
+    return [...bookings].sort((a, b) => {
+      const dateA = new Date(a.start_time);
+      const dateB = new Date(b.start_time);
+      return order === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+  };
+
   // Tab logic
   function isUpcoming(b) {
     const endTime = parseTimeToLocal(b.end_time);
@@ -117,10 +137,18 @@ const SessionsPage = () => {
   function isRequestSent(b) {
     return b.status === "pending";
   }
-  let filtered;
-  if (activeTab === "requests") filtered = bookings.filter(isRequestSent);
-  else if (activeTab === "upcoming") filtered = bookings.filter(isUpcoming);
-  else filtered = bookings.filter(isPast);
+  // Filter and sort bookings based on active tab and sort order
+  const filtered = useMemo(() => {
+    let result;
+    if (activeTab === "requests") {
+      result = bookings.filter(isRequestSent);
+    } else if (activeTab === "upcoming") {
+      result = bookings.filter(isUpcoming);
+    } else {
+      result = bookings.filter(isPast);
+    }
+    return sortBookings(result, sortOrder);
+  }, [bookings, activeTab, sortOrder]);
 
   // Action handlers
   async function handleCancel(bookingId) {
@@ -224,6 +252,9 @@ const SessionsPage = () => {
       display: "flex",
       flexDirection: "column",
       minHeight: "100vh",
+      background: darkMode
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)'
+        : '#fff',
       backgroundColor: darkMode ? 'rgb(30, 30, 30)' : '#ffffff',
       transition: 'background-color 0.3s ease',
     },
@@ -234,7 +265,7 @@ const SessionsPage = () => {
       borderBottom: "8px solid rgb(255, 220, 112)",
       display: "block",
       margin: "20px auto",
-      fontSize: "45px",
+      fontSize: isMobile ? "28px" : "45px",
       fontWeight: "600",
       width: "fit-content",
       transition: 'color 0.3s ease',
@@ -242,17 +273,23 @@ const SessionsPage = () => {
     content: {
       maxWidth: "1200px",
       margin: "0 auto",
-      padding: "40px 20px",
+      padding: isMobile ? "20px 16px" : "40px 20px",
       width: "100%",
       color: darkMode ? '#f0f0f0' : '#333',
       transition: 'color 0.3s ease',
+      boxSizing: 'border-box',
     },
     tabContainer: {
-      display: "flex",
-      gap: "10px",
-      marginBottom: "30px",
-      borderBottom: darkMode ? '2px solid #444' : '2px solid #ddd',
-      transition: 'border-color 0.3s ease',
+      display: 'flex',
+      flexDirection: isMobile ? 'column' : 'row',
+      gap: isMobile ? '16px' : '0',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      width: '100%',
+      position: 'relative',
+      borderBottom: isMobile ? 'none' : (darkMode ? '1px solid #444' : '1px solid #e0e0e0'),
+      paddingBottom: isMobile ? '0' : '1px',
+      marginBottom: '20px',
     },
     tab: {
       padding: "12px 24px",
@@ -288,7 +325,7 @@ const SessionsPage = () => {
       backgroundColor: darkMode ? 'rgb(40, 40, 40)' : '#f9f9f9',
       border: darkMode ? '1px solid #444' : '1px solid #ddd',
       borderRadius: "8px",
-      padding: "24px",
+      padding: isMobile ? "16px" : "24px",
       display: "flex",
       flexDirection: "column",
       gap: "12px",
@@ -303,7 +340,7 @@ const SessionsPage = () => {
     },
     sessionTitle: {
       color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-      fontSize: "20px",
+      fontSize: isMobile ? "18px" : "20px",
       fontWeight: "600",
       transition: 'color 0.3s ease',
     },
@@ -327,8 +364,8 @@ const SessionsPage = () => {
     },
     sessionDetails: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "15px",
+      gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "12px",
     },
     detailItem: {
       display: "flex",
@@ -350,7 +387,7 @@ const SessionsPage = () => {
       display: "flex",
       gap: "12px",
       marginTop: "10px",
-
+      flexDirection: isMobile ? 'column' : 'row',
     },
     button: {
       padding: "8px 16px",
@@ -360,40 +397,14 @@ const SessionsPage = () => {
       fontWeight: "600",
       cursor: "pointer",
       transition: "all 0.3s ease",
-      '&:hover': {
-        opacity: 0.9,
-        transform: 'translateY(-1px)',
-      },
-      '&:active': {
-        transform: 'translateY(0)',
-      },
-      '@keyframes slideInLeft': {
-        from: { transform: 'translateX(-100%)', opacity: 0 },
-        to: { transform: 'translateX(0)', opacity: 1 },
-      },
-      '@keyframes slideOutLeft': {
-        from: { transform: 'translateX(0)', opacity: 1 },
-        to: { transform: 'translateX(-100%)', opacity: 0 },
-      },
-      '@keyframes pulse': {
-        '0%': { boxShadow: '0 0 5px rgba(53, 0, 109, 0.5)' },
-        '50%': { boxShadow: '0 0 20px rgba(53, 0, 109, 0.8)' },
-        '100%': { boxShadow: '0 0 5px rgba(53, 0, 109, 0.5)' },
-      }
     },
     secondaryButton: {
       backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#FFCF01',
       color: darkMode ? '#2c3e50' : '#35006D',
-      '&:hover': {
-        boxShadow: `0 2px 8px ${darkMode ? 'rgba(255, 220, 100, 0.3)' : 'rgba(255, 207, 1, 0.5)'}`,
-      },
     },
     dangerButton: {
       backgroundColor: "#dc3545",
       color: "#fff",
-      '&:hover': {
-        boxShadow: '0 2px 8px rgba(220, 53, 69, 0.5)',
-      },
     },
     stars: {
       color: "#FFCF01",
@@ -473,21 +484,78 @@ const SessionsPage = () => {
       <div style={styles.content}>
         <h1 style={styles.heading}>My Sessions</h1>
         <div style={styles.tabContainer}>
-          <button
-            style={activeTab === "requests" ? styles.activeTab : styles.tab}
-            onClick={() => setActiveTab("requests")}
-            data-testid="tab-requests"
-          >Requests Sent ({bookings.filter(isRequestSent).length})</button>
-          <button
-            style={activeTab === "upcoming" ? styles.activeTab : styles.tab}
-            onClick={() => setActiveTab("upcoming")}
-            data-testid="tab-upcoming"
-          >Upcoming ({bookings.filter(isUpcoming).length})</button>
-          <button
-            style={activeTab === "past" ? styles.activeTab : styles.tab}
-            onClick={() => setActiveTab("past")}
-            data-testid="tab-past"
-          >Past ({bookings.filter(isPast).length})</button>
+          <div style={{
+            display: 'flex',
+            overflowX: isMobile ? 'auto' : 'visible',
+            width: isMobile ? '100%' : 'auto',
+            gap: isMobile ? '8px' : '0',
+            scrollbarWidth: 'none', // Hide scrollbar for cleaner look
+            paddingBottom: isMobile ? '8px' : '0'
+          }}>
+            <button
+              style={{
+                ...(activeTab === "requests" ? styles.activeTab : styles.tab),
+                padding: isMobile ? "8px 16px" : "12px 24px",
+                fontSize: isMobile ? "14px" : "16px",
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              onClick={() => setActiveTab("requests")}
+              data-testid="tab-requests"
+            >Requests Sent ({bookings.filter(isRequestSent).length})</button>
+            <button
+              style={{
+                ...(activeTab === "upcoming" ? styles.activeTab : styles.tab),
+                padding: isMobile ? "8px 16px" : "12px 24px",
+                fontSize: isMobile ? "14px" : "16px",
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              onClick={() => setActiveTab("upcoming")}
+              data-testid="tab-upcoming"
+            >Upcoming ({bookings.filter(isUpcoming).length})</button>
+            <button
+              style={{
+                ...(activeTab === "past" ? styles.activeTab : styles.tab),
+                padding: isMobile ? "8px 16px" : "12px 24px",
+                fontSize: isMobile ? "14px" : "16px",
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+              onClick={() => setActiveTab("past")}
+              data-testid="tab-past"
+            >Past ({bookings.filter(isPast).length})</button>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '8px 12px',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'background-color 0.2s ease',
+              alignSelf: isMobile ? 'flex-end' : 'auto',
+              ':hover': {
+                color: darkMode ? '#fff' : '#000',
+                backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
+              }
+            }}
+            onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+            title={`Sort by date (${sortOrder === 'asc' ? 'Oldest first' : 'Newest first'})`}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: isMobile ? '14px' : 'inherit' }}>Sort by Date</span>
+              <i
+                className={`fas fa-arrow-${sortOrder === 'asc' ? 'up' : 'down'}`}
+                style={{
+                  fontSize: '12px',
+                  color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
+                  transition: 'transform 0.2s ease'
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {loading ? <div style={styles.emptyState}>Loading...</div> : null}
@@ -513,7 +581,7 @@ const SessionsPage = () => {
               <div style={styles.sessionDetails}>
                 <div style={styles.detailItem}>
                   <div style={styles.detailLabel}>Tutor</div>
-                  <div 
+                  <div
                     style={{
                       ...styles.detailValue,
                       cursor: 'pointer',
@@ -548,6 +616,16 @@ const SessionsPage = () => {
               {((activeTab === 'requests' && session.status === 'pending')
                 || (activeTab === 'upcoming' && session.status === 'confirmed')) && (
                   <div style={styles.sessionActions}>
+                    {activeTab === 'upcoming' && session.status === 'confirmed' && session.meeting_link && session.meeting_link.startsWith('http') && (
+                      <a
+                        href={session.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ ...styles.button, ...styles.secondaryButton, textDecoration: 'none', textAlign: 'center', marginRight: '10px' }}
+                      >
+                        Join Meeting
+                      </a>
+                    )}
                     <button style={{ ...styles.button, ...styles.dangerButton }} onClick={() => handleCancel(session.booking_id)} disabled={loading}>
                       Cancel
                     </button>
@@ -612,6 +690,7 @@ const SessionsPage = () => {
           </div>
         </div>
       )}
+      <Footer />
     </div>
   );
 };

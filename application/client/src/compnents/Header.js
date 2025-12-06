@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
+import './Header.css';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,13 +12,28 @@ const Header = () => {
   const { isAuthenticated, user, logout, darkMode, toggleDarkMode } = useAuth();
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
+  const [isCompact, setIsCompact] = useState(window.innerWidth <= 768);
+  const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 430);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logoutRef = useRef(null);
 
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-search', label: 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
-    { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
-    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
+    {
+      icon: 'fas fa-book',
+      label: 'Request Course Coverage',
+      path: '/request-coverage',
+      hideForAdmin: true
+    },
+    {
+      icon: 'fas fa-user-check',
+      label: 'Sessions',
+      path: '/sessions',
+      hideForAdmin: true
+    },
     // Tutor-only menu items
     {
       icon: 'fas fa-calendar-check',
@@ -29,13 +45,20 @@ const Header = () => {
 
   const isExpanded = isMenuOpen || isLocked;
 
-  const buttonWidth = 100;
-  const expandedWidth = buttonWidth + 55;
-  const leftShift = 20;
+  // Dynamic dimensions based on screen size
+  const buttonWidth = isCompact ? 90 : 100;
+  // Ensure the expanded menu touches the left edge by matching the container padding
+  const leftShift = isCompact ? 10 : 20;
+  // Calculate top shift to touch the top edge (Header is 60px, Button is 40px, so 10px gap)
+  const topShift = 10;
+
+  const expandedWidth = buttonWidth + (isCompact ? 45 : 55);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024);
+      setIsCompact(window.innerWidth <= 768);
+      setIsSmallScreen(window.innerWidth < 430);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -47,34 +70,14 @@ const Header = () => {
         setIsLocked(false);
         setIsMenuOpen(false);
       }
+      if (logoutRef.current && !logoutRef.current.contains(event.target)) {
+        setShowLogoutConfirm(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navButtonStyle = {
-    color: 'rgb(255, 220, 112)',
-    textDecoration: 'none',
-    fontFamily: 'inherit',
-    fontSize: '14px',
-    fontWeight: '400',
-    padding: '6px 10px',
-    borderRadius: '4px',
-    transition: 'all 0.2s ease-in-out',
-    display: 'flex',
-    alignItems: 'center',
-    border: '1px solid rgb(255, 220, 112)',
-    background: 'transparent',
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    margin: '0 4px'
-  };
-
-  const dividerStyle = {
-    color: 'rgba(255, 220, 112)',
-    margin: '0 8px',
-    userSelect: 'none'
-  };
 
   const toggleContainerStyle = {
     position: 'relative',
@@ -120,19 +123,6 @@ const Header = () => {
     color: 'inherit',
   };
 
-  const navBarStyle = {
-    backgroundColor: 'rgb(35, 17, 97)',
-    height: '54px',
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px',
-    boxSizing: 'border-box',
-    position: 'relative',
-    zIndex: 100,
-    boxShadow: 'rgba(0, 0, 0, 0.4) 0px 0px 8px',
-  };
-
   const menuWrapperStyle = {
     position: 'relative',
     zIndex: 1001,
@@ -151,8 +141,10 @@ const Header = () => {
     color: 'rgb(255, 220, 112)',
   };
 
-  // Filter menu items based on authentication and tutor status
+  // Filter menu items based on authentication, role, and permissions
   const filteredMenuItems = menuItems.filter(item => {
+    // Hide items marked for admin users
+    if (user?.role === 'admin' && item.hideForAdmin) return false;
     // Show all items that are not tutor-only
     if (!item.tutorOnly) return true;
     // Show tutor-only items only if user is authenticated and is a tutor
@@ -166,7 +158,7 @@ const Header = () => {
 
   const borderContainerStyle = {
     position: 'absolute',
-    top: isExpanded ? '-8px' : '0',
+    top: isExpanded ? `-${topShift}px` : '0',
     left: isExpanded ? `-${leftShift}px` : '0',
     width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
     height: isExpanded ? `${dynamicHeight}px` : '40px',
@@ -332,9 +324,28 @@ const Header = () => {
     }
   };
 
+  const handleLogoutClick = (e) => {
+    e.preventDefault();
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
 
   return (
-    <div style={navBarStyle}>
+    <div className="header-container">
       {/* Menu Container */}
       <div ref={menuRef} style={menuWrapperStyle}>
         {/* Invisible hover area */}
@@ -434,103 +445,200 @@ const Header = () => {
         display: 'flex',
         alignItems: 'center',
         marginLeft: 'auto',
-        paddingRight: '10px',
+        paddingRight: isMobile ? '0px' : '10px',
         zIndex: 99,
       }}>
-        {/* Dark Mode Toggle */}
-        <div
-          style={toggleContainerStyle}
-          onClick={toggleDarkMode}
-          title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          <div style={toggleCircleStyle}>
-            <i
-              className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
-              style={{
-                ...toggleIconStyle,
-                left: darkMode ? '4px' : '4px'
-              }}
-            />
-          </div>
-        </div>
-
-        {!isAuthenticated ? (
+        {isSmallScreen ? (
           <>
             <button
-              style={navButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-                e.currentTarget.style.color = 'rgb(35, 17, 97)';
-                e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'rgb(255, 220, 112)';
-                e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate('/login');
-              }}
+              onClick={() => setIsSettingsOpen(true)}
+              className="settings-btn"
             >
-              <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-              Login
+              <i className="fas fa-cog"></i>
             </button>
-            <span style={dividerStyle}>|</span>
-            <button
-              style={navButtonStyle}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-                e.currentTarget.style.color = 'rgb(35, 17, 97)';
-                e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.color = 'rgb(255, 220, 112)';
-                e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                navigate('/register');
-              }}
-            >
-              <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-              Sign Up
-            </button>
+
+            {isSettingsOpen && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  zIndex: 2000,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(3px)'
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setIsSettingsOpen(false);
+                }}
+              >
+                <div style={{
+                  backgroundColor: 'rgb(35, 17, 97)',
+                  padding: '30px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  alignItems: 'center',
+                  border: '1px solid rgb(255, 220, 112)',
+                  minWidth: '200px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                }}>
+                  {/* Dark Mode Toggle */}
+                  <div
+                    style={{ ...toggleContainerStyle, margin: 0 }}
+                    onClick={toggleDarkMode}
+                    title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                  >
+                    <div style={toggleCircleStyle}>
+                      <i
+                        className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                        style={{
+                          ...toggleIconStyle,
+                          left: darkMode ? '4px' : '4px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {!isAuthenticated ? (
+                    <>
+                      <button
+                        className="header-btn auth-btn"
+                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/login');
+                          setIsSettingsOpen(false);
+                        }}
+                      >
+                        <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                        Login
+                      </button>
+                      <button
+                        className="header-btn auth-btn"
+                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/register');
+                          setIsSettingsOpen(false);
+                        }}
+                      >
+                        <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                        Sign Up
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="header-btn"
+                      style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLogoutConfirm();
+                        setIsSettingsOpen(false);
+                      }}
+                    >
+                      <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                      Logout
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setIsSettingsOpen(false)}
+                    style={{
+                      marginTop: '10px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255, 220, 112, 0.7)',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         ) : (
-          <button
-            style={navButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-              e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(255, 220, 112)';
-              e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={async (e) => {
-              e.preventDefault();
+          <>
+            {/* Dark Mode Toggle */}
+            <div
+              style={toggleContainerStyle}
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <div style={toggleCircleStyle}>
+                <i
+                  className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                  style={{
+                    ...toggleIconStyle,
+                    left: darkMode ? '4px' : '4px'
+                  }}
+                />
+              </div>
+            </div>
 
-              // Show confirmation dialog
-              const confirmLogout = window.confirm('Are you sure you want to log out?');
+            {!isAuthenticated ? (
+              <>
+                <button
+                  className="header-btn auth-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/login');
+                  }}
+                >
+                  <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                  Login
+                </button>
+                <button
+                  className="header-btn auth-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/register');
+                  }}
+                >
+                  <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                  Sign Up
+                </button>
+              </>
+            ) : (
+              <div className="logout-container" ref={logoutRef}>
+                <button
+                  className="header-btn"
+                  onClick={handleLogoutClick}
+                >
+                  <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                  Logout
+                </button>
 
-              if (confirmLogout) {
-                try {
-                  logout();
-                  // Redirect to login page after logout
-                  navigate('/login');
-                } catch (error) {
-                  console.error('Logout failed:', error);
-                }
-              }
-            }}
-          >
-            <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
-            Logout
-          </button>
+                {showLogoutConfirm && (
+                  <div className="logout-confirm-dropdown">
+                    <p className="logout-confirm-text">Are you sure you want to logout?</p>
+                    <div className="logout-confirm-actions">
+                      <button 
+                        onClick={handleLogoutConfirm}
+                        className="logout-confirm-yes"
+                      >
+                        Yes, Logout
+                      </button>
+                      <button 
+                        onClick={handleLogoutCancel}
+                        className="logout-confirm-no"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
