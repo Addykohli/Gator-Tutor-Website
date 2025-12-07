@@ -1,5 +1,5 @@
 from search.database import engine, Base
-from admin.models.reports import Reports
+from admin.models.tutor_course_request import TutorCourseRequest
 
 print("creating report tables...")
 

@@ -207,7 +207,23 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
         User.first_name
     ).order_by(*order_by_clauses)
     
-    tutors = query.offset(params["offset"]).limit(params["limit"]).all()
+    # Execute query to get distinct tutor IDs first (avoids row duplication issues)
+    # We only select the ID to ensure distinctness works on the ID level
+    id_query = query.with_entities(TutorProfile.tutor_id)
+    tutor_ids_result = id_query.offset(params["offset"]).limit(params["limit"]).all()
+    tutor_ids = [r[0] for r in tutor_ids_result]
+    
+    # Fetch full tutor profiles for the found IDs
+    if tutor_ids:
+        # We need to join User again to access user details
+        tutors = db.query(TutorProfile).join(User, TutorProfile.tutor_id == User.user_id)\
+            .filter(TutorProfile.tutor_id.in_(tutor_ids)).all()
+        
+        # Sort tutors in Python to match the order of tutor_ids (since IN clause doesn't preserve order)
+        tutor_map = {t.tutor_id: t for t in tutors}
+        tutors = [tutor_map[tid] for tid in tutor_ids if tid in tutor_map]
+    else:
+        tutors = []
     
     # Build results as dicts
     results = []
@@ -233,6 +249,26 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
             for c in tutor_courses
         ]
         
+        # Get availability slots for display if needed
+        availability = []
+        if needs_availability:
+             # Fetch slots that matched the criteria or just all valid slots?
+             # For display, we usually show generic availability or the matched ones.
+             # Let's show a summary of their availability.
+             slots = db.query(AvailabilitySlot).filter(
+                 AvailabilitySlot.tutor_id == tutor.tutor_id,
+                 or_(AvailabilitySlot.valid_from == None, AvailabilitySlot.valid_from <= date.today()),
+                 or_(AvailabilitySlot.valid_until == None, AvailabilitySlot.valid_until >= date.today())
+             ).all()
+             
+             # Format availability for display (e.g. "Mon 9am-5pm")
+             day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+             for slot in slots:
+                 if slot.weekday is not None and 0 <= slot.weekday <= 6:
+                     start = slot.start_time.strftime("%I:%M%p").lstrip("0").lower() if slot.start_time else ""
+                     end = slot.end_time.strftime("%I:%M%p").lstrip("0").lower() if slot.end_time else ""
+                     availability.append(f"{day_names[slot.weekday]} {start}-{end}")
+        
         # Metrics not available - set to None
         results.append({
             "tutor_id": tutor.tutor_id,
@@ -243,6 +279,7 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
             "avg_rating": None,
             "sessions_completed": None,
             "courses": courses,
+            "availability": availability[:3] if availability else [], # Limit to 3 slots for display
             "profile_image_path_thumb": tutor.profile_image_path_thumb,
             "profile_image_path_full": tutor.profile_image_path_full
         })
@@ -276,9 +313,16 @@ def search_courses(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int
             )
         )
     
-    # Department filter
+    # Department filter - single or multiple (comma-separated)
+    department_list = []
     if params.get("department"):
-        conditions.append(Course.department_code == params["department"].upper())
+        department_list.append(params["department"].upper())
+    if params.get("departments"):
+        dept_list = [dept.strip().upper() for dept in params["departments"].split(",") if dept.strip()]
+        department_list.extend(dept_list)
+    
+    if department_list:
+        conditions.append(Course.department_code.in_(department_list))
     
     # Course number filter
     if params.get("course_number"):

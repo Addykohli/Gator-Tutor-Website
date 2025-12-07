@@ -446,10 +446,10 @@ const HomePage = () => {
       color: darkMode ? "#fff" : "#333",
       textAlign: "center",
       padding: "0px",
-      borderBottom: "4px solid rgb(255, 220, 112)",
+      borderBottom: "clamp(2px, 0.5vw, 4px) solid rgb(255, 220, 112)",
       display: "inline-block",
-      margin: isMobile ? "12px auto 10px" : "10px auto 5px",
-      fontSize: isMobile ? "24px" : "45px",
+      margin: "clamp(8px, 2vw, 12px) auto clamp(4px, 1vw, 10px)",
+      fontSize: "clamp(1.5rem, 4vw, 2.8rem)",
       fontWeight: "600",
       lineHeight: "1.2",
       position: "relative"
@@ -458,24 +458,24 @@ const HomePage = () => {
       width: "100%",
       maxWidth: "1400px",
       margin: "0 auto",
-      padding: isMobile ? "8px" : "20px 10px 20px 5px",
+      padding: "clamp(8px, 2vw, 20px) clamp(5px, 1.5vw, 10px)",
       flex: 1,
       boxSizing: "border-box",
-      marginBottom: isMobile ? '60px' : '80px',
+      marginBottom: "clamp(40px, 8vw, 80px)",
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
-      gap: '20px'
+      gap: "clamp(12px, 2.5vw, 20px)"
     },
     calendarHeader: {
       display: 'flex',
-      flexDirection: isMobile ? 'row' : 'row',
+      flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: isMobile ? '8px' : '12px',
-      gap: isMobile ? '6px' : '0'
+      marginBottom: "clamp(6px, 1.5vw, 12px)",
+      gap: "clamp(4px, 1vw, 8px)"
     },
     weekDisplay: {
-      fontSize: isMobile ? '0.7rem' : '1.2rem',
+      fontSize: "clamp(0.7rem, 1.5vw, 1.2rem)",
       fontWeight: '600',
       color: darkMode ? "#fff" : "#2c3e50",
       textAlign: 'center'
@@ -506,10 +506,10 @@ const HomePage = () => {
     dayHeader: {
       background: 'linear-gradient(to bottom, #35006D, #2d0054)',
       color: '#fff',
-      padding: isMobile ? '2px 1px' : '8px 4px',
+      padding: "clamp(2px, 0.8vw, 8px) clamp(1px, 0.5vw, 4px)",
       textAlign: 'center',
       fontWeight: '600',
-      fontSize: isMobile ? '0.5rem' : '0.9rem',
+      fontSize: "clamp(0.5rem, 1.2vw, 0.9rem)",
       borderBottom: '1px solid #2d0054',
       borderRight: '1px solid #2d0054',
       display: 'flex',
@@ -517,13 +517,13 @@ const HomePage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       gap: '0px',
-      minHeight: isMobile ? '28px' : '50px',
+      minHeight: "clamp(28px, 5vw, 50px)",
     },
     dayCell: {
       backgroundColor: 'var(--calendar-cell-bg, white)',
-      minHeight: isMobile ? '80px' : '120px',
+      minHeight: "clamp(80px, 12vw, 120px)",
       height: 'auto',
-      padding: isMobile ? '4px' : '8px',
+      padding: "clamp(4px, 1vw, 8px)",
       position: 'relative',
       overflow: 'visible',
       boxSizing: 'border-box',
@@ -599,7 +599,7 @@ const HomePage = () => {
     tutorCalendarGrid: {
       width: '100%',
       display: 'grid',
-      gridTemplateColumns: isMobile ? '30px repeat(7, 1fr)' : '60px repeat(7, 1fr)',
+      gridTemplateColumns: isMobile ? 'clamp(25px, 4vw, 30px) repeat(7, 1fr)' : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
       backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
       border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
       borderRadius: '8px',
@@ -614,9 +614,9 @@ const HomePage = () => {
     },
     timeLabel: {
       backgroundColor: 'var(--tutor-time-bg, #fff)',
-      padding: isMobile ? '0px 1px 4px' : '0px 4px 20px',
+      padding: "clamp(0px, 0.5vw, 4px) clamp(1px, 0.5vw, 4px) clamp(4px, 2vw, 20px)",
       textAlign: 'center',
-      fontSize: isMobile ? '0.5rem' : '0.75rem',
+      fontSize: "clamp(0.5rem, 1vw, 0.75rem)",
       fontWeight: '500',
       color: 'var(--tutor-time-text, #666)',
       borderRight: '1px solid var(--tutor-time-border, #e0e0e0)',
@@ -628,10 +628,10 @@ const HomePage = () => {
     tutorDayHeader: {
       background: 'linear-gradient(to bottom, #35006D, #2d0054)',
       color: '#fff',
-      padding: isMobile ? '3px 1px' : '12px 8px',
+      padding: "clamp(3px, 1.2vw, 12px) clamp(1px, 1vw, 8px)",
       textAlign: 'center',
       fontWeight: '500',
-      fontSize: isMobile ? '0.5rem' : '0.9rem',
+      fontSize: "clamp(0.5rem, 1.2vw, 0.9rem)",
       borderRight: darkMode ? '1px solid #3d3d3d' : '1px solid #dee2e6',
       display: 'flex',
       flexDirection: 'column',
@@ -639,8 +639,8 @@ const HomePage = () => {
       justifyContent: 'top',
     },
     tutorTimeSlot: (rowIndex) => ({
-      minHeight: isMobile ? '30px' : '40px',
-      padding: isMobile ? '2px' : '2px',
+      minHeight: "clamp(30px, 4vw, 40px)",
+      padding: "clamp(2px, 0.5vw, 4px)",
       position: 'relative',
       backgroundColor: rowIndex % 2 === 0
         ? 'var(--tutor-cell-bg, white)'
@@ -666,28 +666,28 @@ const HomePage = () => {
       background: darkMode
         ? "linear-gradient(145deg, rgba(40, 40, 40, 0.6), rgba(25, 25, 25, 0.6))"
         : "#fff",
-      borderRadius: '24px', /* Larger radius */
-      padding: isMobile ? '16px' : '32px',
+      borderRadius: "clamp(16px, 3vw, 24px)",
+      padding: "clamp(16px, 3vw, 32px)",
       boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
-      margin: isMobile ? '0 0 20px 0' : '0 0 32px 0',
+      margin: "0 0 clamp(20px, 3vw, 32px) 0",
       position: 'relative',
     },
     searchInputContainer: {
       display: 'flex',
       flexDirection: isMobile ? 'column' : 'row',
       alignItems: isMobile ? 'stretch' : 'center',
-      gap: isMobile ? '6px' : '8px',
-      marginTop: isMobile ? '6px' : '10px'
+      gap: "clamp(6px, 1vw, 8px)",
+      marginTop: "clamp(6px, 1.2vw, 10px)"
     },
     searchInput: {
       flex: 1,
-      padding: isMobile ? '10px 12px' : '12px 16px',
+      padding: "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
-      fontSize: isMobile ? '14px' : '16px',
+      fontSize: "clamp(14px, 1.8vw, 16px)",
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : "#ffffff",
     },
@@ -698,7 +698,7 @@ const HomePage = () => {
       width: isMobile ? '100%' : '120px'
     },
     categoryButton: {
-      padding: isMobile ? '10px 12px' : '12px 16px',
+      padding: "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : '#f8f9fa',
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
@@ -709,7 +709,7 @@ const HomePage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      fontSize: isMobile ? '14px' : '16px',
+      fontSize: "clamp(14px, 1.8vw, 16px)",
     },
     categoryList: {
       position: 'absolute',
@@ -729,13 +729,13 @@ const HomePage = () => {
       background: darkMode
         ? "linear-gradient(145deg, rgba(40, 40, 40, 0.6), rgba(25, 25, 25, 0.6))"
         : "#fff",
-      borderRadius: '24px',
-      padding: isMobile ? '16px' : '32px',
+      borderRadius: "clamp(16px, 3vw, 24px)",
+      padding: "clamp(16px, 3vw, 32px)",
       boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
-      margin: isMobile ? '0 0 20px 0' : '0 0 32px 0',
+      margin: "0 0 clamp(20px, 3vw, 32px) 0",
       position: 'relative',
     },
   };
@@ -2043,12 +2043,13 @@ const HomePage = () => {
                     }}>
                       {/* Appointment Requests Button */}
                       {user?.isTutor && (
-                        <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'relative', width: '100%' }}>
                           <button
                             onClick={() => navigate('/appointment-requests')}
                             style={{
                               position: 'relative',
                               padding: '4px 10px',
+                              minWidth: 'clamp(60px, 12vw, 80px)',
                               background: darkMode
                                 ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
                                 : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
@@ -2087,7 +2088,8 @@ const HomePage = () => {
                               textAlign: 'left',
                               fontSize: '0.6rem',
                               fontWeight: '200',
-                              marginRight: pendingRequestsCount > 0 ? '6px' : '0'
+                              marginRight: pendingRequestsCount > 0 ? '6px' : '0',
+                              minWidth: 'clamp(60px, 12vw, 80px)'
                             }}>
                               <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Requests</span>
                             </div>
@@ -2124,8 +2126,7 @@ const HomePage = () => {
                           style={{
                             position: 'relative',
                             padding: '4px 10px',
-                            width: '100%',
-                            minWidth: 'fit-content',
+                            minWidth: 'clamp(60px, 12vw, 80px)',
                             background: darkMode
                               ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
                               : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
@@ -2166,7 +2167,8 @@ const HomePage = () => {
                             fontWeight: '200',
                             whiteSpace: 'nowrap',
                             marginRight: '0',
-                            padding: '0'
+                            padding: '0',
+                            minWidth: 'clamp(60px, 12vw, 80px)'
                           }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Messages</span>
                           </div>
@@ -2861,15 +2863,15 @@ const HomePage = () => {
                         backgroundColor: '#35006D',
                         color: 'white',
                         border: 'none',
-                        borderRadius: isMobile ? '4px' : '6px',
-                        padding: isMobile ? '4px 8px' : '6px 12px',
+                        borderRadius: "clamp(4px, 0.8vw, 6px)",
+                        padding: "clamp(4px, 0.8vw, 6px) clamp(8px, 1.5vw, 12px)",
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: isMobile ? '4px' : '8px',
+                        gap: "clamp(4px, 1vw, 8px)",
                         fontWeight: '500',
-                        fontSize: isMobile ? '0.7rem' : '1rem',
+                        fontSize: "clamp(0.7rem, 1.2vw, 1rem)",
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -2898,15 +2900,15 @@ const HomePage = () => {
                         backgroundColor: '#35006D',
                         color: 'white',
                         border: 'none',
-                        borderRadius: isMobile ? '4px' : '6px',
-                        padding: isMobile ? '4px 8px' : '6px 12px',
+                        borderRadius: "clamp(4px, 0.8vw, 6px)",
+                        padding: "clamp(4px, 0.8vw, 6px) clamp(8px, 1.5vw, 12px)",
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        gap: isMobile ? '4px' : '8px',
+                        gap: "clamp(4px, 1vw, 8px)",
                         fontWeight: '500',
-                        fontSize: isMobile ? '0.7rem' : '1rem',
+                        fontSize: "clamp(0.7rem, 1.2vw, 1rem)",
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -2924,7 +2926,7 @@ const HomePage = () => {
                         e.currentTarget.style.transform = 'translateY(0)';
                       }}
                     >
-                      Next Week <i className="fas fa-chevron-right" style={{ marginLeft: '8px' }}></i>
+                      Next Week <i className="fas fa-chevron-right" style={{ marginLeft: "clamp(4px, 1vw, 8px)" }}></i>
                     </button>
                   </div>
 

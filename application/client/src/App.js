@@ -12,6 +12,7 @@ import RegisterPage from './compnents/RegisterPage';
 import SessionsPage from './compnents/SessionsPage';
 import AppointmentRequestsPage from './compnents/AppointmentRequestsPage';
 import ReportsPage from './compnents/ReportsPage';
+import CourseCatalog from './compnents/CourseCatalog';
 // Protected Route component for admin access
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -40,11 +41,11 @@ const PublicRoute = ({ children }) => {
 // Redirect component for admins
 const AdminRedirect = () => {
   const { isAuthenticated, user } = useAuth();
-  
+
   if (isAuthenticated && user?.role === 'admin') {
     return <Navigate to="/admin" replace />;
   }
-  
+
   return <HomePage />;
 };
 
@@ -61,8 +62,8 @@ const ProtectedContent = ({ adminOnly = false, tutorOnly = false, blockAdmin = f
     return <Navigate to="/admin" replace />;
   }
 
-  if ((adminOnly && user.role !== 'admin') || 
-      (tutorOnly && !user.isTutor)) {
+  if ((adminOnly && user.role !== 'admin') ||
+    (tutorOnly && !user.isTutor)) {
     return <Navigate to="/" replace />;
   }
 
@@ -105,6 +106,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminHome />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/course-catalog"
+              element={
+                <ProtectedRoute>
+                  <CourseCatalog />
                 </ProtectedRoute>
               }
             />

@@ -448,7 +448,7 @@ const Header = () => {
         paddingRight: isMobile ? '0px' : '10px',
         zIndex: 99,
       }}>
-        {isSmallScreen ? (
+        {isMobile ? (
           <>
             <button
               onClick={() => setIsSettingsOpen(true)}

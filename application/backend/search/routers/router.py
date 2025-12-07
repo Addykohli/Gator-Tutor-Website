@@ -161,6 +161,7 @@ def get_filter_options_endpoint(
 def search_courses_endpoint(
     q: Optional[str] = Query(None, max_length=100, description="Search query for course title, department code, or course number"),
     department: Optional[str] = Query(None, max_length=10, description="Filter by department code (e.g., 'CSC')"),
+    departments: Optional[str] = Query(None, max_length=100, description="Filter by multiple department codes, comma-separated"),
     course_number: Optional[str] = Query(None, max_length=10, description="Filter by course number (e.g., '210')"),
     limit: int = Query(20, ge=1, le=50),
     offset: int = Query(0, ge=0),
@@ -179,9 +180,12 @@ def search_courses_endpoint(
         q_norm = (q or "").strip()
         q_norm = q_norm if q_norm else None
         
+        departments_norm = departments.strip().upper() if departments and departments.strip() else None
+        
         params = {
             "q": q_norm,
             "department": department.upper() if department else None,
+            "departments": departments_norm,
             "course_number": course_number,
             "limit": limit,
             "offset": offset
@@ -241,49 +245,72 @@ def get_tutor_detail(
 @router.get("/all", response_model=SearchAllResponse)
 def search_all_endpoint(
     q: Optional[str] = Query(None, max_length=100, description="Search query for both tutors (names) and courses (titles/codes)"),
+    tutor_name: Optional[str] = Query(None, max_length=100, description="Search query specifically for tutor names"),
+    department: Optional[str] = Query(None, max_length=10, description="Filter tutors by department code"),
+    departments: Optional[str] = Query(None, max_length=100, description="Filter tutors by multiple department codes"),
+    course_number: Optional[str] = Query(None, max_length=10, description="Filter tutors by course number"),
+    course_levels: Optional[str] = Query(None, max_length=50, description="Filter by course levels"),
+    min_rate: Optional[int] = Query(None, ge=0, description="Minimum hourly rate in cents"),
+    max_rate: Optional[int] = Query(None, ge=0, description="Maximum hourly rate in cents"),
+    languages: Optional[str] = Query(None, max_length=200, description="Languages, comma-separated"),
+    sort_by: Optional[str] = Query("price", regex="^(price|name)$", description="Sort field"),
+    sort_order: Optional[str] = Query("asc", regex="^(asc|desc)$", description="Sort order"),
+    weekday: Optional[int] = Query(None, ge=0, le=6, description="Filter by weekday"),
+    available_after: Optional[time] = Query(None, description="Filter tutors available after"),
+    available_before: Optional[time] = Query(None, description="Filter tutors available before"),
+    location_modes: Optional[str] = Query(None, max_length=100, description="Location modes"),
+    has_availability: Optional[bool] = Query(None, description="Filter tutors that have availability"),
     limit: int = Query(20, ge=1, le=50, description="Total limit - will be split between tutors and courses"),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
     """
     Search for both tutors and courses in a single request.
-    
-    - **q**: Search query for both tutors (names) and courses (titles/codes).
-             If empty or whitespace, returns all approved tutors and active courses (paginated).
-    
-    Returns aggregated results with both tutors and courses matching the query.
-    The limit is split between tutors and courses (limit/2 each, minimum 1).
-    
-    NOTE: This endpoint executes both searches sequentially. For better performance
-    at scale, consider parallelizing with asyncio.gather() when moving to async endpoints.
-    
-    Pagination metadata (tutor_total, course_total) reflects the full result set,
-    not just the returned items within the limit.
     """
     try:
         # Normalize q: treat empty/whitespace as None (no filter)
         q_norm = (q or "").strip()
         q_norm = q_norm if q_norm else None
         
+        # Normalize other params
+        tutor_name_norm = (tutor_name or "").strip()
+        tutor_name_norm = tutor_name_norm if tutor_name_norm else None
+        departments_norm = departments.strip().upper() if departments and departments.strip() else None
+        languages_norm = languages.strip() if languages and languages.strip() else None
+        course_levels_norm = course_levels.strip() if course_levels and course_levels.strip() else None
+        location_modes_norm = location_modes.strip().lower() if location_modes and location_modes.strip() else None
+        
         # Split limit between tutors and courses (min 1 each)
-        # NOTE: Sequential execution - fine for now, but consider async parallelization later
         tutor_limit = max(1, limit // 2)
         course_limit = max(1, limit - tutor_limit)
         
         # Prepare params for both searches
         tutor_params = {
             "q": q_norm,
-            "tutor_name": None,
-            "department": None,
-            "course_number": None,
+            "tutor_name": tutor_name_norm,
+            "department": department.upper() if department else None,
+            "departments": departments_norm,
+            "course_number": course_number,
+            "course_levels": course_levels_norm,
+            "min_rate": min_rate,
+            "max_rate": max_rate,
+            "languages": languages_norm,
+            "sort_by": sort_by.lower() if sort_by else "price",
+            "sort_order": sort_order.lower() if sort_order else "asc",
+            "weekday": weekday,
+            "available_after": available_after,
+            "available_before": available_before,
+            "location_modes": location_modes_norm,
+            "has_availability": has_availability,
             "limit": tutor_limit,
             "offset": offset
         }
         
         course_params = {
             "q": q_norm,
-            "department": None,
-            "course_number": None,
+            "department": department.upper() if department else None,
+            "departments": departments_norm,
+            "course_number": course_number,
             "limit": course_limit,
             "offset": offset
         }

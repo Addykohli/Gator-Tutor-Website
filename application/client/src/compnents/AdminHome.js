@@ -405,9 +405,9 @@ const AdminHome = () => {
                 color: '#36b9cc'
               },
               {
-                title: 'Course Coverage Requests',
+                title: 'Course Catalog',
                 icon: 'book-reader',
-                path: '/admin/course-coverage-requests',
+                path: '/admin/course-catalog',
                 color: '#6f42c1'
               },
               {

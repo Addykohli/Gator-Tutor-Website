@@ -88,13 +88,8 @@ def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
         Booking.tutor_id == tutor_id
     ).order_by(Booking.start_time.desc()).all()
     
-    # Populate nested details for response model
+    # Populate course_title for response
     for booking in bookings:
-        # Populate student details
-        if booking.student:
-            booking.student_name = f"{booking.student.first_name} {booking.student.last_name}"
-            booking.student_email = booking.student.sfsu_email
-        # Populate course_title
         if booking.course:
             booking.course_title = booking.course.title
         elif booking.course_id:

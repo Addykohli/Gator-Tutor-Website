@@ -10,7 +10,6 @@ class ReportCreate(BaseModel):
     reason: str
 
 class ReportInfo(BaseModel):
-    report_id: int
     reporter_id: int
     reported_user_id: int
     reason: str

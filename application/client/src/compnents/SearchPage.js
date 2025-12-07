@@ -654,10 +654,6 @@ export default function SearchPage() {
               </svg>
               <span>{tutorText}</span>
             </div>
-            <div style={styles.detailRow}>
-              <span style={styles.detailLabel}>Department:</span>
-              <span>{item.department || 'N/A'}</span>
-            </div>
           </div>
 
           <button
@@ -868,7 +864,17 @@ export default function SearchPage() {
   // Apply client-side filters to results
   const getFilteredResults = (results) => {
     return results.filter(item => {
-      // Only apply filters to tutors
+      // For courses: only apply department filter
+      if (item._kind === 'course') {
+        const departments = q.get('departments');
+        if (departments) {
+          const deptArray = departments.split(',');
+          if (!deptArray.includes(item.department_code)) return false;
+        }
+        return true;
+      }
+
+      // For tutors: apply all filters
       if (item._kind !== 'tutor') return true;
 
       // Price filter
@@ -1075,11 +1081,11 @@ export default function SearchPage() {
 
         <div style={{ ...styles.content, display: 'flex', gap: '30px', flexDirection: isMobile ? 'column' : 'row', padding: isMobile ? '20px 10px' : '40px 20px' }}>
 
-          {/* Filters Sidebar */}
+          {/* Filters Sidebar - Only show for tutors or all */}
           <div style={{
             width: isMobile ? '100%' : '280px',
             flexShrink: 0,
-            display: searchCategory === 'course' ? 'none' : 'block' // Hide filters for course-only search for now if desired, or keep them
+            display: searchCategory === 'course' ? 'none' : 'block'
           }}>
             <div style={{
               backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
