@@ -14,3 +14,5 @@ class TutorCourseRequest(Base):
 
     status = Column(Enum("pending", "approved", "rejected", name="tutor_course_request_status"), default="pending")
     created_at = Column(DateTime, default = datetime.utcnow)
+
+    course = relationship("Course", lazy="joined")

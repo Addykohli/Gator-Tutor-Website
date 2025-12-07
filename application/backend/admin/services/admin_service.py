@@ -68,19 +68,17 @@ def create_tutor_course_request(db: Session, tutor_id: int, data):
     tutor = db.query(TutorProfile).filter(TutorProfile.tutor_id == tutor_id).first()
     if not tutor:
         raise HTTPException(status_code=404, detail="tutor not found")
-    
+
     course = db.query(Course).filter(Course.course_id == data.course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="course not found")
 
-    request = TutorCourseRequest(
-        tutor_id=tutor_id,
-        course_id=data.course_id,
-    )
-    db.add(request)
+    #adds the course request to tutor_course_requests table 
+    course_request = TutorCourseRequest(tutor_id=tutor_id, course_id=data.course_id)
+    db.add(course_request)
     db.commit()
-    db.refresh(request)
-    return request
+    db.refresh(course_request)
+    return course_request
 
 #change tutor_course request to approved, add course to tutor_courses
 def approve_tutor_course_request(db: Session, request_id: int):
@@ -88,12 +86,24 @@ def approve_tutor_course_request(db: Session, request_id: int):
     if not request:
         raise HTTPException(status_code=404, detail="request not found")
 
+    # stop if already approved/rejected
+    if request.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request already {request.status}")
+    
+    #course already added in tutor_courses
+    tutor_course = db.query(TutorCourse).filter_by(tutor_id=request.tutor_id, course_id=request.course_id).first()
+    if tutor_course:
+        raise HTTPException(
+            status_code=400,
+            detail="tutor already has this course approved and added."
+        )
+
     #changes status of entry in tutor_course_request table
     request.status = "approved"
 
     #adds entry to tutor_courses table in db
-    tutor_course = TutorCourse(tutor_id=request.tutor_id, course_id=request.course_id)
-    db.add(tutor_course)
+    new_tutor_course = TutorCourse(tutor_id=request.tutor_id, course_id=request.course_id)
+    db.add(new_tutor_course)
     db.commit()
     db.refresh(request)
     return request

@@ -1,6 +1,6 @@
 # Admin Documentation
 
-## Reports Endpoints
+## ADMIN: Reports Endpoints
 GET & POST Reports
 Note our original reports design had tutor_id included, but students can be reported too so its been excluded.
 inside routers/report_router.py
@@ -97,7 +97,7 @@ GET /api/admin/userreports/2
 }
 ````
 
-## Course Management Endpoints
+## ADMIN: Course Management Endpoints
 
 
 ###	GET /api/admin/allcourses
@@ -161,7 +161,7 @@ PATCH /api/admin/deactivate/30
 }
 ````
 
-## Tutor Management Enpoints
+## ADMIN: Tutor Management Endpoints
 
 ### 
 Promote Student to Tutor in user roles.
@@ -194,8 +194,139 @@ Deletes relevant tutor_profile entry from db table
   "message": "user 2 demoted to student and tutor_profile removed."
 }
 ````
+## ADMIN: Tutor Course Request Management Endpoints
+For admin to manage tutor requests to add more courses that they can tutor(ie more relevant entries in tutor_courses).
 
+Admin can see all the tutor course requests.
+Admin can see all tutor_course_requests.
+Admin can approve additional tutor course requests.
+Admin can reject additional tutor course requests.
+
+### GET /api/admin/all-tutor-course-requests
+Admin can see all the tutor course requests.
+
+#### Response (200)
+````json
+[
+  {
+    "request_id": 4,
+    "tutor_id": 1,
+    "status": "rejected",
+    "created_at": "2025-12-07T04:52:41",
+    "course": {
+      "course_id": 10,
+      "department_code": "GEOG",
+      "course_number": "445",
+      "title": "Geopolitcs and Globalization"
+    }
+  },
+  {
+    "request_id": 3,
+    "tutor_id": 1,
+    "status": "approved",
+    "created_at": "2025-12-07T04:51:28",
+    "course": {
+      "course_id": 8,
+      "department_code": "ERTH",
+      "course_number": "444",
+      "title": "Hydrogeology"
+    }
+  },
+  {
+    "request_id": 2,
+    "tutor_id": 1,
+    "status": "pending",
+    "created_at": "2025-12-07T04:50:21",
+    "course": {
+      "course_id": 3,
+      "department_code": "MATH",
+      "course_number": "226",
+      "title": "Calculus I"
+    }
+  }
+]
+````
+
+### POST /api/admin/tutor-course-request/{tutor_id}
+Tutor creates a Request to be added to tutor_course_request table to be reviewed by Admin.
+
+#### Request Body
+/api/admin/tutor-course-request/1
+````json
+{
+  "course_id": 10
+}
+````
+#### Response (200)
+````json
+{
+  "request_id": 4,
+  "tutor_id": 1,
+  "status": "pending",
+  "created_at": "2025-12-07T04:52:41",
+  "course": {
+    "course_id": 10,
+    "department_code": "GEOG",
+    "course_number": "445",
+    "title": "Geopolitcs and Globalization"
+  }
+}
+````
+**Possible Errors**
+- 404: Tutor not found
+- 404: Course not found
+
+
+### PATCH /api/admin/tutor-course-request/{request_id}/approve
+Admin can approve request (which will also add course to tutor_courses table in db & change the status to "approved" in tutor_course_requests)
+
+#### Request
+/api/admin/tutor-course-request/3/approve
+
+#### Response 200
+````json
+{
+  "request_id": 3,
+  "tutor_id": 1,
+  "status": "approved",
+  "created_at": "2025-12-07T04:51:28",
+  "course": {
+    "course_id": 8,
+    "department_code": "ERTH",
+    "course_number": "444",
+    "title": "Hydrogeology"
+  }
+}
+````
+**Possible Errors**
+- 404: request not found
+- 400: Course request already approved/rejected
+- 400: tutor already has this course approved and added.
+
+### PATCH /api/admin/tutor-course-request/{request_id}/reject 
+Admin can reject additional course request. This just changes the status in the related entry of tutor_course_request to "rejected".(this does not modify tutor_courses table in db)
+
+#### Request
+/api/admin/tutor-course-request/4/reject
+
+### Response (200)
+````json
+{
+  "request_id": 4,
+  "tutor_id": 1,
+  "status": "rejected",
+  "created_at": "2025-12-07T04:52:41",
+  "course": {
+    "course_id": 10,
+    "department_code": "GEOG",
+    "course_number": "445",
+    "title": "Geopolitcs and Globalization"
+  }
+}
+````
+**Possible Errors**
+- 404: request not found
+- 400: Course request already approved/rejected
 
 TODO: 
 deactivate a users profile,
-delete related tutor_courses entries for ever demoted tutor.
