@@ -218,6 +218,14 @@ Admin can see all the tutor course requests.
       "department_code": "GEOG",
       "course_number": "445",
       "title": "Geopolitcs and Globalization"
+    },
+    "tutor": {
+      "tutor_id": 1,
+      "user": {
+        "user_id": 1,
+        "first_name": "Sarah",
+        "last_name": "Cho"
+      }
     }
   },
   {
@@ -230,18 +238,14 @@ Admin can see all the tutor course requests.
       "department_code": "ERTH",
       "course_number": "444",
       "title": "Hydrogeology"
-    }
-  },
-  {
-    "request_id": 2,
-    "tutor_id": 1,
-    "status": "pending",
-    "created_at": "2025-12-07T04:50:21",
-    "course": {
-      "course_id": 3,
-      "department_code": "MATH",
-      "course_number": "226",
-      "title": "Calculus I"
+    },
+    "tutor": {
+      "tutor_id": 1,
+      "user": {
+        "user_id": 1,
+        "first_name": "Sarah",
+        "last_name": "Cho"
+      }
     }
   }
 ]
@@ -260,15 +264,23 @@ Tutor creates a Request to be added to tutor_course_request table to be reviewed
 #### Response (200)
 ````json
 {
-  "request_id": 4,
+  "request_id": 5,
   "tutor_id": 1,
   "status": "pending",
-  "created_at": "2025-12-07T04:52:41",
+  "created_at": "2025-12-07T09:04:00",
   "course": {
-    "course_id": 10,
-    "department_code": "GEOG",
-    "course_number": "445",
-    "title": "Geopolitcs and Globalization"
+    "course_id": 4,
+    "department_code": "ACCT",
+    "course_number": "100",
+    "title": "Introduction to Financial Accounting"
+  },
+  "tutor": {
+    "tutor_id": 1,
+    "user": {
+      "user_id": 1,
+      "first_name": "Sarah",
+      "last_name": "Cho"
+    }
   }
 }
 ````
@@ -286,15 +298,23 @@ Admin can approve request (which will also add course to tutor_courses table in 
 #### Response 200
 ````json
 {
-  "request_id": 3,
+  "request_id": 5,
   "tutor_id": 1,
   "status": "approved",
-  "created_at": "2025-12-07T04:51:28",
+  "created_at": "2025-12-07T09:04:00",
   "course": {
-    "course_id": 8,
-    "department_code": "ERTH",
-    "course_number": "444",
-    "title": "Hydrogeology"
+    "course_id": 4,
+    "department_code": "ACCT",
+    "course_number": "100",
+    "title": "Introduction to Financial Accounting"
+  },
+  "tutor": {
+    "tutor_id": 1,
+    "user": {
+      "user_id": 1,
+      "first_name": "Sarah",
+      "last_name": "Cho"
+    }
   }
 }
 ````
@@ -309,18 +329,26 @@ Admin can reject additional course request. This just changes the status in the 
 #### Request
 /api/admin/tutor-course-request/4/reject
 
-### Response (200)
+#### Response (200)
 ````json
 {
-  "request_id": 4,
+  "request_id": 2,
   "tutor_id": 1,
   "status": "rejected",
-  "created_at": "2025-12-07T04:52:41",
+  "created_at": "2025-12-07T04:50:21",
   "course": {
-    "course_id": 10,
-    "department_code": "GEOG",
-    "course_number": "445",
-    "title": "Geopolitcs and Globalization"
+    "course_id": 3,
+    "department_code": "MATH",
+    "course_number": "226",
+    "title": "Calculus I"
+  },
+  "tutor": {
+    "tutor_id": 1,
+    "user": {
+      "user_id": 1,
+      "first_name": "Sarah",
+      "last_name": "Cho"
+    }
   }
 }
 ````
@@ -328,5 +356,24 @@ Admin can reject additional course request. This just changes the status in the 
 - 404: request not found
 - 400: Course request already approved/rejected
 
-TODO: 
-deactivate a users profile,
+
+
+### DELETE /api/admin/tutor/{tutor_id}/course/{course_id}
+Admin can remove tutor_course entry with corresponding tutor_id and course_id.
+### Request
+/api/admin/tutor/1/course/1
+
+### Response (200)
+````json
+{
+  "detail": "Tutor's course removed.",
+  "tutor_id": 1,
+  "tutor_name": "Sarah Cho",
+  "course_id": 1,
+  "removed_course_title": "Introduction to Programming in Python"
+}
+````
+**Possible Errors**
+- 404: course/tutor not found
+- 404: Not currently a tutor of this course.
+

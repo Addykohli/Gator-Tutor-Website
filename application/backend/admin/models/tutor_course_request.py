@@ -1,10 +1,11 @@
 """
 Tutor Course Request model representing tutor courses submited to admin.
 """
-from sqlalchemy import Column, Integer, ForeignKey, Text, Enum, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, ForeignKey, Enum, DateTime
+from sqlalchemy.orm import relationship, foreign
 from search.database import Base
 from datetime import datetime
+from search.models.tutor_profile import TutorProfile
 
 class TutorCourseRequest(Base):
     __tablename__ ="tutor_course_requests"
@@ -16,3 +17,4 @@ class TutorCourseRequest(Base):
     created_at = Column(DateTime, default = datetime.utcnow)
 
     course = relationship("Course", lazy="joined")
+    tutor = relationship("TutorProfile", lazy="joined", primaryjoin=foreign(tutor_id) == TutorProfile.tutor_id)

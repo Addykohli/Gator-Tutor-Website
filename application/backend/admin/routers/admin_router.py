@@ -4,7 +4,7 @@ from admin.schemas.tutor_schema import TutorProfileResponse
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from search.database import get_db
-from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse
+from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse, CourseInfo, UserInfo
 from admin.services.admin_service import (
     get_all_reports, 
     get_user_reports,
@@ -19,7 +19,8 @@ from admin.services.admin_service import (
     create_tutor_course_request,
     get_all_tutor_course_requests,
     approve_tutor_course_request,
-    reject_tutor_course_request
+    reject_tutor_course_request,
+    remove_tutor_course
 )
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 #----------------------------------------------------------
@@ -29,7 +30,7 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 # x demote tutor to student
 # delete inactive user accounts
 #   -> this probably falls under  "drop a student" task
-# X approve/reject aditional courses for tutor to tutor_courses
+# X list/approve/reject aditional courses for tutor to tutor_courses
 # remove courses from tutor_courses
 
 
@@ -61,6 +62,11 @@ def approve_request(request_id: int, db: Session = Depends(get_db)):
 @router.patch("/tutor-course-request/{request_id}/reject", response_model=TutorCourseRequestResponse)
 def reject_request(request_id: int, db: Session = Depends(get_db)):
     return reject_tutor_course_request(db, request_id)
+
+#admin can remove a tutor_course
+@router.delete("/tutor/{tutor_id}/course/{course_id}")
+def admin_remove_tutor_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
+    return remove_tutor_course(db, tutor_id, course_id)
 
 #----------------------------------------------------------
 # Admin Manage Courses Endpoints

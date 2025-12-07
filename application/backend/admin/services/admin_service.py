@@ -120,6 +120,39 @@ def reject_tutor_course_request(db: Session, request_id: int):
     db.refresh(request)
     return request
 
+#for admin to remove tutor_course entry that already exists
+def remove_tutor_course(db: Session, tutor_id: int, course_id: int):
+    tutor_profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == tutor_id).first()
+    if not tutor_profile:
+        raise HTTPException(status_code=404, detail="Tutor not found")
+
+    tutor_user = db.query(User).filter(User.user_id == tutor_id).first()
+
+    course = db.query(Course).filter(Course.course_id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    #check that tutor is connected to this course already.
+    tutor_course = (db.query(TutorCourse).filter(TutorCourse.tutor_id == tutor_id, TutorCourse.course_id == course_id).first())
+    if not tutor_course:
+        raise HTTPException(
+            status_code=404,
+            detail="Not currently a tutor of this course"
+        )
+
+    # remove entry from tutor_course table 
+    db.delete(tutor_course)
+    db.commit()
+
+    return {
+        "detail": "Tutor's course removed.",
+        "tutor_id": tutor_id,
+        "tutor_name": f"{tutor_user.first_name} {tutor_user.last_name}" if tutor_user else None,
+        "course_id": course_id,
+        "removed_course_title": course.title
+    }
+
+
 #----------------------------------------------------------
 # Admin: Manage Courses
 # only courses, not tutor_courses
