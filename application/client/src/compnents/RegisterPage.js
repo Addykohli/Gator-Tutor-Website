@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
 
 const RegisterPage = () => {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -153,40 +150,14 @@ const RegisterPage = () => {
     },
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const { register, handleSubmit: handleFormSubmit, formState: { errors: formErrors } } = useForm();
+
+  const onSubmit = async (data) => {
     setError('');
     setSuccess('');
     setIsLoading(true);
 
-    // Validate email format
-    const emailRegex = /^[^@\s]+@sfsu\.edu$/i;
-    if (!emailRegex.test(email)) {
-      setError('Email must be a valid SFSU email address (e.g., username@sfsu.edu)');
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if there's content before @
-    const emailParts = email.split('@');
-    if (emailParts[0].trim() === '') {
-      setError('Email must have a username before @sfsu.edu');
-      setIsLoading(false);
-      return;
-    }
-
-    // Validate password requirements
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      setIsLoading(false);
-      return;
-    }
-
-    if (!/\d/.test(password)) {
-      setError('Password must contain at least 1 number');
-      setIsLoading(false);
-      return;
-    }
+    const { firstName, lastName, email, password } = data;
 
     try {
       const response = await fetch('/api/register', {
@@ -202,7 +173,7 @@ const RegisterPage = () => {
         }),
       });
 
-      const data = await response.json();
+      const responseData = await response.json();
 
       if (response.ok) {
         setSuccess('Registration successful! Redirecting to login...');
@@ -210,7 +181,7 @@ const RegisterPage = () => {
           window.location.href = '/login';
         }, 2000);
       } else {
-        setError(data.message || 'Registration failed. Please try again.');
+        setError(responseData.message || 'Registration failed. Please try again.');
       }
     } catch (err) {
       setError('Network error. Please try again.');
@@ -234,7 +205,16 @@ const RegisterPage = () => {
           {error && <div style={styles.errorMessage}>{error}</div>}
           {success && <div style={styles.successMessage}>{success}</div>}
 
-          <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
+          {/* Validation Errors */}
+          {(Object.keys(formErrors).length > 0) && (
+            <div style={styles.errorMessage}>
+              {Object.values(formErrors).map((err, index) => (
+                <div key={index}>{err.message}</div>
+              ))}
+            </div>
+          )}
+
+          <form onSubmit={handleFormSubmit(onSubmit)} style={{ width: '100%', maxWidth: '400px' }}>
             <div style={styles.inputContainer}>
               <div style={styles.nameContainer}>
                 <div style={styles.nameField}>
@@ -242,10 +222,8 @@ const RegisterPage = () => {
                     type="text"
                     id="firstName"
                     placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    {...register("firstName", { required: "First Name is required" })}
                     style={{ ...styles.inputField, ...styles.firstField, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }}
-                    required
                   />
                 </div>
                 <div style={styles.verticalDivider}></div>
@@ -254,10 +232,8 @@ const RegisterPage = () => {
                     type="text"
                     id="lastName"
                     placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    {...register("lastName", { required: "Last Name is required" })}
                     style={{ ...styles.inputField, ...styles.firstField, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: 'none' }}
-                    required
                   />
                 </div>
               </div>
@@ -265,20 +241,37 @@ const RegisterPage = () => {
               <input
                 type="email"
                 placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email", {
+                  required: "Email is required",
+                  pattern: {
+                    value: /^[^@\s]+@sfsu\.edu$/i,
+                    message: "Email must be a valid SFSU email address (e.g., username@sfsu.edu)"
+                  },
+                  validate: {
+                    notEmptyUsername: value => {
+                      const parts = value.split('@');
+                      return (parts[0] && parts[0].trim() !== '') || "Email must have a username before @sfsu.edu";
+                    }
+                  }
+                })}
                 style={styles.inputField}
-                required
                 disabled={isLoading}
               />
               <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
               <input
                 type="password"
                 placeholder="Create Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 8,
+                    message: "Password must be at least 8 characters long"
+                  },
+                  validate: {
+                    hasNumber: value => /\d/.test(value) || "Password must contain at least 1 number"
+                  }
+                })}
                 style={{ ...styles.inputField, ...styles.lastField }}
-                required
                 disabled={isLoading}
               />
             </div>

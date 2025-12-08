@@ -4,7 +4,7 @@ Search service for tutor search functionality.
 from typing import List, Tuple, Dict, Any, Optional
 from sqlalchemy import and_, or_, func, cast, String
 from sqlalchemy.orm import Session
-from datetime import date, time as time_type
+from datetime import date, time as time_type, timedelta
 
 from ..models import TutorProfile, User, Course, TutorCourse, AvailabilitySlot
 from admin.models.tutor_course_request import TutorCourseRequest
@@ -44,15 +44,33 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
     
     # Conditionally join AvailabilitySlot only when needed
     if needs_availability:
+        # Calculate target date for weekday filter
+        # If weekday is specified, find the next occurrence of that day
+        # (this week if day hasn't passed, next week if it has)
+        target_date = date.today()
+        if params.get("weekday") is not None:
+            selected_weekday = params["weekday"]  # 0=Sunday, 6=Saturday
+            today = date.today()
+            # Convert Python weekday (0=Monday) to DB weekday (0=Sunday)
+            current_weekday = (today.weekday() + 1) % 7
+            
+            # Calculate days until selected weekday
+            days_until = (selected_weekday - current_weekday) % 7
+            if days_until == 0:
+                # Same day - use today
+                target_date = today
+            else:
+                target_date = today + timedelta(days=days_until)
+        
         query = query.outerjoin(AvailabilitySlot, and_(
             TutorProfile.tutor_id == AvailabilitySlot.tutor_id,
             or_(
                 AvailabilitySlot.valid_from == None,
-                AvailabilitySlot.valid_from <= date.today()
+                AvailabilitySlot.valid_from <= target_date
             ),
             or_(
                 AvailabilitySlot.valid_until == None,
-                AvailabilitySlot.valid_until >= date.today()
+                AvailabilitySlot.valid_until >= target_date
             )
         ))
     

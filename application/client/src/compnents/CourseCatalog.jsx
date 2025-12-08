@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
@@ -12,11 +13,9 @@ const CourseCatalog = () => {
     const [filterDepartment, setFilterDepartment] = useState('');
     const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'active', 'inactive'
     const [showAddModal, setShowAddModal] = useState(false);
-    const [newCourse, setNewCourse] = useState({
-        department_code: '',
-        course_number: '',
-        title: ''
-    });
+
+    // [newCourse] removed
+
     const [addingCourse, setAddingCourse] = useState(false);
     const [addError, setAddError] = useState('');
     const [successMessage, setSuccessMessage] = useState('');
@@ -52,8 +51,10 @@ const CourseCatalog = () => {
     }, []);
 
     // Add new course
-    const handleAddCourse = async (e) => {
-        e.preventDefault();
+    const { register, handleSubmit, reset, formState: { errors } } = useForm();
+
+    // Add new course
+    const onSubmitCourse = async (data) => {
         setAddingCourse(true);
         setAddError('');
 
@@ -64,7 +65,7 @@ const CourseCatalog = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify(newCourse),
+                body: JSON.stringify(data),
             });
 
             if (!response.ok) {
@@ -75,7 +76,7 @@ const CourseCatalog = () => {
             const addedCourse = await response.json();
             setCourses(prev => [...prev, addedCourse]);
             setShowAddModal(false);
-            setNewCourse({ department_code: '', course_number: '', title: '' });
+            reset();
             setSuccessMessage(`Course "${addedCourse.department_code} ${addedCourse.course_number}" added successfully!`);
             setTimeout(() => setSuccessMessage(''), 3000);
         } catch (err) {
@@ -589,21 +590,20 @@ const CourseCatalog = () => {
                             <div style={styles.errorBanner}>{addError}</div>
                         )}
 
-                        <form onSubmit={handleAddCourse}>
+                        <form onSubmit={handleSubmit(onSubmitCourse)}>
                             <div style={styles.formGroup}>
                                 <label style={styles.label}>Department Code *</label>
                                 <input
                                     style={styles.input}
                                     type="text"
                                     placeholder="e.g., CSC, MATH, PHYS"
-                                    value={newCourse.department_code}
-                                    onChange={(e) => setNewCourse(prev => ({
-                                        ...prev,
-                                        department_code: e.target.value.toUpperCase()
-                                    }))}
-                                    required
-                                    maxLength={10}
+                                    {...register("department_code", {
+                                        required: "Department code is required",
+                                        maxLength: 10,
+                                        onChange: (e) => { e.target.value = e.target.value.toUpperCase(); }
+                                    })}
                                 />
+                                {errors.department_code && <span style={{ color: 'red', fontSize: '12px' }}>{errors.department_code.message}</span>}
                             </div>
 
                             <div style={styles.formGroup}>
@@ -612,14 +612,9 @@ const CourseCatalog = () => {
                                     style={styles.input}
                                     type="text"
                                     placeholder="e.g., 101, 648, 210"
-                                    value={newCourse.course_number}
-                                    onChange={(e) => setNewCourse(prev => ({
-                                        ...prev,
-                                        course_number: e.target.value
-                                    }))}
-                                    required
-                                    maxLength={10}
+                                    {...register("course_number", { required: "Course number is required", maxLength: 10 })}
                                 />
+                                {errors.course_number && <span style={{ color: 'red', fontSize: '12px' }}>{errors.course_number.message}</span>}
                             </div>
 
                             <div style={styles.formGroup}>
@@ -628,21 +623,16 @@ const CourseCatalog = () => {
                                     style={styles.input}
                                     type="text"
                                     placeholder="e.g., Introduction to Programming"
-                                    value={newCourse.title}
-                                    onChange={(e) => setNewCourse(prev => ({
-                                        ...prev,
-                                        title: e.target.value
-                                    }))}
-                                    required
-                                    maxLength={200}
+                                    {...register("title", { required: "Title is required", maxLength: 200 })}
                                 />
+                                {errors.title && <span style={{ color: 'red', fontSize: '12px' }}>{errors.title.message}</span>}
                             </div>
 
                             <div style={styles.modalActions}>
                                 <button
                                     type="button"
                                     style={styles.cancelButton}
-                                    onClick={() => setShowAddModal(false)}
+                                    onClick={() => { setShowAddModal(false); reset(); }}
                                 >
                                     Cancel
                                 </button>

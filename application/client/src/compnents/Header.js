@@ -16,11 +16,12 @@ const Header = () => {
   const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 430);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [hoveredIndex, setHoveredIndex] = useState(null);
   const logoutRef = useRef(null);
 
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
-    { icon: 'fas fa-search', label: 'Find', path: '/search' },
+    { icon: 'fas fa-search', label: user?.role === 'admin' ? 'Tutors' : 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
     {
       icon: 'fas fa-book',
@@ -243,8 +244,7 @@ const Header = () => {
       top: isExpanded ? `${expandedTop}px` : `${collapsedTop}px`,
       width: isExpanded ? `${itemWidth}px` : '18px',
       height: isExpanded ? '46px' : '2px',
-      color: 'rgb(255, 220, 112)',
-      backgroundColor: isExpanded ? 'rgba(255, 220, 112, 0.2)' : 'rgb(255, 220, 112)',
+      backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
       borderRadius: isExpanded ? '6px' : '1px',
       transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
       cursor: isExpanded ? 'pointer' : 'default',
@@ -385,23 +385,20 @@ const Header = () => {
                 style={getMenuItemStyle(visualIndex)}
                 onMouseEnter={(e) => {
                   if (isExpanded) {
-                    e.currentTarget.style.backgroundColor = 'rgba(0,0,0,0.08)';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.1)';
                     setIsMenuOpen(true);
+                    setHoveredIndex(visualIndex);
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (isExpanded) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.2)';
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    setHoveredIndex(null);
                   }
                 }}
                 onClick={() => {
                   if (isExpanded) {
-                    const protectedRoutes = ['/request-coverage', '/sessions', '/messages'];
-                    if (protectedRoutes.includes(item.path) && !isAuthenticated) {
-                      navigate('/login');
-                    } else {
-                      navigate(item.path);
-                    }
+                    navigate(item.path);
                     setIsMenuOpen(false);
                     setIsLocked(false);
                   }
@@ -436,7 +433,7 @@ const Header = () => {
           <img
             src={require('../assets/gator icon logo.png')}
             alt="Gator Tutor Logo"
-            style={{ height: '40px', width: 'auto' }}
+            style={{ height: '45px', width: 'auto' }}
             onError={(e) => {
               e.target.onerror = null;
               e.target.style.display = 'none';

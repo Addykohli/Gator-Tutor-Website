@@ -156,7 +156,7 @@ const AdminHome = () => {
       boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
       backdropFilter: 'blur(6.8px)',
       WebkitBackdropFilter: 'blur(6.8px)',
-      border: '1px solid rgba(255, 255, 255, 0.49)',
+      border: 'none',
       textDecoration: 'none',
       color: isDarkMode ? '#e6e6e6' : '#2c3e50',
       transition: 'all 0.3s ease',
@@ -458,7 +458,7 @@ const AdminHome = () => {
               fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
               color: isDarkMode ? '#e0e0e0' : '#444',
               marginBottom: '15px',
-              borderLeft: '4px solid #35006D',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
               paddingLeft: '10px'
             }}>
               User & Course Management
@@ -468,20 +468,20 @@ const AdminHome = () => {
                 {
                   title: 'Registered Tutors',
                   icon: 'chalkboard-teacher',
-                  path: '/admin/registered-tutors',
-                  color: '#3498db'
+                  path: '/search',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 },
                 {
                   title: 'Registered Students',
                   icon: 'user-graduate',
                   path: '/admin/registered-students',
-                  color: '#2ecc71'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 },
                 {
                   title: 'Course Catalog',
-                  icon: 'book-reader',
+                  icon: 'book',
                   path: '/admin/course-catalog',
-                  color: '#9b59b6'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 }
               ].map((item, index) => (
                 <a
@@ -491,15 +491,13 @@ const AdminHome = () => {
                   onMouseOver={(e) => {
                     e.currentTarget.style.transform = 'translateY(-3px)';
                     e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.borderColor = item.color;
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
                     e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.borderColor = isDarkMode ? '#444' : '#e0e0e0';
                   }}
                 >
-                  <div style={{ ...styles.iconWrapper, backgroundColor: `${item.color}15`, color: item.color }}>
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
                     <i className={`fas fa-${item.icon}`}></i>
                   </div>
                   <span style={styles.cardTitle}>{item.title}</span>
@@ -514,7 +512,7 @@ const AdminHome = () => {
               fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
               color: isDarkMode ? '#e0e0e0' : '#444',
               marginBottom: '15px',
-              borderLeft: '4px solid #f6c23e',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
               paddingLeft: '10px'
             }}>
               Applications & Requests
@@ -525,13 +523,14 @@ const AdminHome = () => {
                   title: 'Tutor Applications',
                   icon: 'file-signature',
                   path: '/admin/tutor-applications',
-                  color: '#f6c23e'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 },
                 {
                   title: 'Tutor Course Addition Requests',
-                  icon: 'plus-circle',
+                  icon: null,
+                  customIcon: 'TCA',
                   path: '/admin/tutor-course-applications',
-                  color: '#e67e22'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 }
               ].map((item, index) => (
                 <a
@@ -541,16 +540,18 @@ const AdminHome = () => {
                   onMouseOver={(e) => {
                     e.currentTarget.style.transform = 'translateY(-3px)';
                     e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.borderColor = item.color;
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
                     e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.borderColor = isDarkMode ? '#444' : '#e0e0e0';
                   }}
                 >
-                  <div style={{ ...styles.iconWrapper, backgroundColor: `${item.color}15`, color: item.color }}>
-                    <i className={`fas fa-${item.icon}`}></i>
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
+                    {item.customIcon ? (
+                      <span style={{ fontFamily: 'inherit', fontWeight: '700', fontSize: 'inherit' }}>{item.customIcon}</span>
+                    ) : (
+                      <i className={`fas fa-${item.icon}`}></i>
+                    )}
                   </div>
                   <span style={styles.cardTitle}>{item.title}</span>
                 </a>
@@ -564,7 +565,7 @@ const AdminHome = () => {
               fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
               color: isDarkMode ? '#e0e0e0' : '#444',
               marginBottom: '15px',
-              borderLeft: '4px solid #e74a3b',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
               paddingLeft: '10px'
             }}>
               Reports & Communication
@@ -575,13 +576,13 @@ const AdminHome = () => {
                   title: 'Submitted Reports',
                   icon: 'chart-bar',
                   path: '/reports',
-                  color: '#e74a3b'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 },
                 {
                   title: 'Messages',
                   icon: 'envelope',
                   path: '/messages',
-                  color: '#fd7e14'
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 }
               ].map((item, index) => (
                 <a
@@ -591,15 +592,13 @@ const AdminHome = () => {
                   onMouseOver={(e) => {
                     e.currentTarget.style.transform = 'translateY(-3px)';
                     e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
-                    e.currentTarget.style.borderColor = item.color;
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
                     e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
-                    e.currentTarget.style.borderColor = isDarkMode ? '#444' : '#e0e0e0';
                   }}
                 >
-                  <div style={{ ...styles.iconWrapper, backgroundColor: `${item.color}15`, color: item.color }}>
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
                     <i className={`fas fa-${item.icon}`}></i>
                   </div>
                   <span style={styles.cardTitle}>{item.title}</span>
@@ -611,8 +610,8 @@ const AdminHome = () => {
         </div>
 
 
-        {/* Search Section - Now full width */}
-        <div style={{
+        {/* Search Section - Now full width - Hidden for admin users */}
+        {user?.role !== 'admin' && <div style={{
           width: '100%',
           maxWidth: '1000px',
           margin: '20px auto',
@@ -723,7 +722,7 @@ const AdminHome = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
       <Footer />
     </div >

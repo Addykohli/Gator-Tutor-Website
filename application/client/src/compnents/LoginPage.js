@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
 import Header from './Header';
 
 const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { login, darkMode } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const styles = {
     container: {
@@ -108,22 +108,13 @@ const LoginPage = () => {
     },
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const { register, handleSubmit: handleFormSubmit, formState: { errors: formErrors } } = useForm();
+
+  const onSubmit = async (data) => {
     setError('');
-
-    // Basic validation
-    if (!email.endsWith('@sfsu.edu')) {
-      setError('Please use your SFSU email address');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
     setIsLoading(true);
+
+    const { email, password } = data;
 
     try {
       const response = await fetch('http://localhost:8000/api/login', {
@@ -137,14 +128,14 @@ const LoginPage = () => {
         }),
       });
 
-      const data = await response.json();
+      const responseData = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(responseData.message || 'Login failed');
       }
 
       // Get user details after successful login
-      const userResponse = await fetch(`http://localhost:8000/api/users/${data.user_id}`);
+      const userResponse = await fetch(`http://localhost:8000/api/users/${responseData.user_id}`);
       const userData = await userResponse.json();
 
       if (!userResponse.ok) {
@@ -156,24 +147,17 @@ const LoginPage = () => {
 
       // Login user in context
       const loginSuccess = await login({
-        id: data.user_id,
+        id: responseData.user_id,
         firstName: userData.first_name || '',
         lastName: userData.last_name || '',
         email: email,
         isTutor: userRole === 'tutor' || userRole === 'both',
         role: userRole,
-        authToken: data.token || null
+        authToken: responseData.token || null
       });
 
       if (loginSuccess) {
-        // Redirect based on user role
-        if (userData.role === 'admin') {
-          navigate('/admin');
-        } else if (userData.role === 'tutor' || userData.role === 'both') {
-          navigate('/');
-        } else {
-          navigate('/');
-        }
+        // Redirection is handled by the PublicRoute component based on authentication state
       }
 
     } catch (err) {
@@ -195,27 +179,53 @@ const LoginPage = () => {
       <main style={styles.container}>
         <div style={styles.glassWrapper}>
           <h1 style={styles.title}>Login</h1>
-          <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
+          <form onSubmit={handleFormSubmit(onSubmit)} style={{ width: '100%', maxWidth: '400px' }}>
             <div style={styles.inputContainer}>
               <input
                 type="email"
                 placeholder="SFSU Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                {...register("email", {
+                  required: "SFSU Email is required",
+                  pattern: {
+                    value: /^[a-zA-Z0-9._%+-]+@sfsu\.edu$/,
+                    message: "Please use your SFSU email address (@sfsu.edu)"
+                  }
+                })}
                 style={{ ...styles.inputField, ...styles.usernameField }}
-                required
               />
               <div style={styles.divider} />
               <input
                 type="password"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                {...register("password", {
+                  required: "Password is required",
+                  minLength: {
+                    value: 6,
+                    message: "Password must be at least 6 characters"
+                  }
+                })}
                 style={{ ...styles.inputField, ...styles.passwordField }}
-                minLength="6"
-                required
               />
             </div>
+
+            {/* Form Validation Errors */}
+            {(formErrors.email || formErrors.password) && (
+              <div style={{
+                color: '#d32f2f',
+                marginBottom: '15px',
+                padding: '10px',
+                backgroundColor: darkMode ? 'rgba(58, 26, 26, 0.8)' : 'rgba(255, 235, 238, 0.9)',
+                borderRadius: '6px',
+                width: '100%',
+                border: darkMode ? '1px solid #5c2a2a' : 'none',
+                textAlign: 'center',
+                boxSizing: 'border-box',
+                fontSize: '0.9rem'
+              }}>
+                {formErrors.email?.message || formErrors.password?.message}
+              </div>
+            )}
+
             <button
               type="submit"
               style={{

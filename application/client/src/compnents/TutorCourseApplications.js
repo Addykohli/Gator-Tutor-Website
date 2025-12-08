@@ -274,7 +274,7 @@ const TutorCourseApplications = () => {
         <div style={styles.container}>
             <Header />
             <div style={styles.content}>
-                <h1 style={styles.heading}>Course Coverage Requests</h1>
+                <h1 style={styles.heading}>Tutor Course Addition Request</h1>
 
                 {loading && <div style={styles.emptyState}>Loading requests...</div>}
                 {error && <div style={{ ...styles.emptyState, color: 'red' }}>Error: {error}</div>}

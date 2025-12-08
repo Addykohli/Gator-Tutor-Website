@@ -42,11 +42,11 @@ const HomePage = () => {
   });
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 850);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+      setIsMobile(window.innerWidth <= 850);
     };
 
     window.addEventListener('resize', handleResize);
@@ -554,7 +554,7 @@ const HomePage = () => {
     calendarGrid: {
       width: '100%',
       position: 'relative',
-      overflow: 'hidden',
+      overflow: 'visible',
       backgroundColor: darkMode ? '#1a1a1a' : '#ffffff',
       border: darkMode ? '1px solid #2d2d2d' : '1px solid #dee2e6',
       borderRadius: '8px',
@@ -894,9 +894,9 @@ const HomePage = () => {
           borderBottom: '1px solid var(--calendar-cell-border)',
           padding: isMobile ? '6px 4px' : '12px 8px',
           position: 'relative',
-          overflowY: 'auto',
-          maxHeight: isMobile ? '300px' : '500px',
-          transition: 'background-color 0.2s ease'
+          transition: 'background-color 0.2s ease',
+          display: 'flex',
+          flexDirection: 'column'
         }}
           onMouseEnter={(e) => {
             if (!isToday) {
@@ -1264,6 +1264,14 @@ const HomePage = () => {
         const isAvailable = isTimeSlotAvailable(currentDate, hour);
         const booking = getBookingForSlot(currentDate, hour);
 
+        // Time marker logic
+        const now = new Date();
+        const isToday = isSameDay(currentDate, now);
+        const currentHour = now.getHours();
+        const showTimeMarker = isToday && (hour === currentHour);
+        const currentMinute = now.getMinutes();
+        const markerTop = (currentMinute / 60) * 100;
+
         // Debug logging for all slots when bookings exist
         if (tutorBookings && tutorBookings.length > 0) {
           const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -1295,6 +1303,30 @@ const HomePage = () => {
               willChange: 'transform, background-color, border-color'
             }}
           >
+            {showTimeMarker && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: `${markerTop}%`,
+                  left: 0,
+                  width: '100%',
+                  height: '1px',
+                  backgroundColor: '#EA4335',
+                  zIndex: 15,
+                  pointerEvents: 'none'
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  left: '-4px',
+                  top: '-3px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EA4335',
+                }} />
+              </div>
+            )}
             {booking ? (
               <button
                 id={`booking-btn-${booking.booking_id}`}
@@ -1990,7 +2022,7 @@ const HomePage = () => {
           gridTemplateColumns: isMobile ? 'none' : (isSidebarCollapsed ? '80px 1fr' : '280px 1fr'),
           width: '100%',
           gap: '20px',
-          padding: isMobile ? '0 10px' : '0 20px',
+          padding: isMobile ? '0 6px' : '0 20px',
           boxSizing: 'border-box',
           maxWidth: '1400px',
           margin: '0 auto',
@@ -2002,7 +2034,7 @@ const HomePage = () => {
               <div style={{
                 backgroundColor: darkMode ? "rgba(40, 40, 40, 0.4)" : '#fff',
                 borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
                 padding: isMobile ? '12px' : (isSidebarCollapsed ? '24px 10px' : '24px'),
                 height: 'fit-content',
                 border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #f0f0f0',
@@ -2121,12 +2153,12 @@ const HomePage = () => {
                               position: 'relative',
                               padding: '4px 10px',
                               minWidth: 'clamp(60px, 12vw, 80px)',
-                              background: darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(10px)',
+                              WebkitBackdropFilter: 'blur(10px)',
                               color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                              border: 'none',
-                              borderRadius: '20px',
+                              border: '1px solid rgba(180, 180, 190, 0.4)',
+                              borderRadius: '8px',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
@@ -2134,21 +2166,17 @@ const HomePage = () => {
                               transition: 'all 0.2s',
                               zIndex: 1,
                               minHeight: '28px',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                             }}
                             onMouseOver={(e) => {
-                              e.currentTarget.style.background = darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                               e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                             }}
                             onMouseOut={(e) => {
-                              e.currentTarget.style.background = darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                             }}
                           >
                             <i className="fas fa-calendar-check" style={{ fontSize: '0.85rem' }}></i>
@@ -2202,12 +2230,12 @@ const HomePage = () => {
                             position: 'relative',
                             padding: '4px 10px',
                             minWidth: 'clamp(60px, 12vw, 80px)',
-                            background: darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
                             color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: 'none',
-                            borderRadius: '20px',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -2215,21 +2243,17 @@ const HomePage = () => {
                             transition: 'all 0.2s',
                             zIndex: 1,
                             minHeight: '28px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-envelope" style={{ fontSize: '0.85rem' }}></i>
@@ -2344,30 +2368,32 @@ const HomePage = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
                             color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: 'none',
-                            borderRadius: '1px',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            justifyContent: 'flex-start',
                             gap: '10px',
                             transition: 'all 0.2s',
                             fontWeight: '600',
                             fontSize: '0.95rem',
                             position: 'relative',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
@@ -2405,30 +2431,32 @@ const HomePage = () => {
                         style={{
                           width: '100%',
                           padding: '12px 16px',
-                          background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
                           color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                          border: 'none',
-                          borderRadius: '1px',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
+                          justifyContent: 'flex-start',
                           gap: '10px',
                           transition: 'all 0.2s',
                           fontWeight: '600',
                           fontSize: '0.95rem',
                           position: 'relative',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                         }}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                           e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                         }}
                       >
                         <i className="fas fa-envelope" style={{ fontSize: '1rem' }}></i>
@@ -2557,22 +2585,41 @@ const HomePage = () => {
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px', marginTop: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', marginTop: '16px' }}>
                       <button
                         onClick={() => setIsRemoveCourseModalOpen(true)}
                         style={{
                           flex: 1,
-                          padding: '8px',
-                          backgroundColor: 'transparent',
-                          border: darkMode ? '1px solid #dc3545' : '1px solid #dc3545',
-                          color: '#dc3545',
-                          borderRadius: '4px',
+                          padding: '8px 6px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
                           cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: '500'
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                          fontSize: '0.7rem',
+                          position: 'relative',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                         }}
                       >
-                        Remove Course
+                        <i className="fas fa-trash"></i>
                       </button>
                       <button
                         onClick={() => {
@@ -2582,17 +2629,36 @@ const HomePage = () => {
                         }}
                         style={{
                           flex: 1,
-                          padding: '8px',
-                          backgroundColor: '#35006D',
-                          border: 'none',
-                          color: 'white',
-                          borderRadius: '4px',
+                          padding: '8px 6px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
                           cursor: 'pointer',
-                          fontSize: '0.8rem',
-                          fontWeight: '500'
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                          fontSize: '0.7rem',
+                          position: 'relative',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                         }}
                       >
-                        Request Add Course
+                        <i className="fas fa-plus"></i>
                       </button>
                     </div>
                   </div>
@@ -3139,8 +3205,9 @@ const HomePage = () => {
                   width: '100%',
                   margin: 0,
                   position: 'relative',
-                  overflow: 'hidden',
-                  minHeight: '600px'
+                  overflow: 'visible',
+                  minHeight: '400px',
+                  height: 'auto'
                 }}>
                   <div style={styles.calendarHeader}>
                     <button
@@ -3226,21 +3293,20 @@ const HomePage = () => {
                     }}>
                       <div style={{
                         ...styles.calendarGrid,
-                        ...calendarAnimation[slideDirection]
+                        ...calendarAnimation[slideDirection],
+                        height: 'auto',
+                        minHeight: '400px',
+                        overflow: 'visible'
                       }}>
                         <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
+                          position: 'relative',
                           display: 'grid',
                           gridTemplateColumns: 'repeat(7, 1fr)',
                           gap: '1px',
                           backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
                           border: 'none',
                           borderRadius: '8px',
-                          overflow: 'hidden',
+                          overflow: 'visible',
                         }}>
                           {weekDays.map((day, i) => {
                             const currentDate = addDays(currentWeekStart, i);
@@ -3386,7 +3452,7 @@ const HomePage = () => {
                                   height: isMobile ? '12px' : '20px',
                                   backgroundColor: 'rgba(255, 255, 255, 0.7)',
                                   borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 1)`,
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(95, 0, 196, 1)`,
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
                                 }}></div>
                                 <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Your session</span>

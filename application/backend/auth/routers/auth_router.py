@@ -9,16 +9,13 @@ router = APIRouter(prefix="/api", tags=["auth"])
 
 @router.post("/login", response_model=TokenResponse)
 def login(req: UserIn, db: Session = Depends(get_db)):
-    #TBD may only be necessary for Register-require sfsu email instead of username for login
     if not validate_sfsu_email(req.email):
         return {"message": "Not a valid @sfsu.edu email."}
 
     auth_result = authenticate_user(db, req.email, req.password)
-    #incorrect password
     if auth_result is None:
         raise HTTPException(status_code=401, detail={"message": "Invalid email or password"})
 
-    #correct existing user and password
     user = auth_result
     token = make_simple_token(user.user_id)
     return {
@@ -39,3 +36,18 @@ def get_user_by_id_route(user_id: int, db: Session = Depends(get_db)):
         "sfsu_email": user.sfsu_email,
         "role": user.role
     }
+
+@router.get("/users")
+def get_all_users(db: Session = Depends(get_db)):
+    from search.models.user import User
+    users = db.query(User).all()
+    return [
+        {
+            "user_id": user.user_id,
+            "first_name": user.first_name,
+            "last_name": user.last_name,
+            "sfsu_email": user.sfsu_email,
+            "role": user.role
+        }
+        for user in users
+    ]

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
@@ -8,7 +9,6 @@ const ReportsPage = () => {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
-    const [searchName, setSearchName] = useState("");
     const [userNames, setUserNames] = useState({});
     const [userRoles, setUserRoles] = useState({});
     const [sortOrder, setSortOrder] = useState('desc');
@@ -111,9 +111,10 @@ const ReportsPage = () => {
         fetchReports();
     }, []);
 
-    const handleSearch = (e) => {
-        e.preventDefault();
-        fetchReports(searchName);
+    const { register, handleSubmit } = useForm();
+
+    const onSearch = (data) => {
+        fetchReports(data.searchName);
     };
 
     const getRoleBadge = (reportId, userId) => {
@@ -365,7 +366,7 @@ const ReportsPage = () => {
 
                     <div style={styles.cardRow}>
                         <div style={styles.cardLabel}>Reason</div>
-                        <div style={{...styles.cardValue, wordWrap: 'break-word', whiteSpace: 'normal' }}>{report.reason}</div>
+                        <div style={{ ...styles.cardValue, wordWrap: 'break-word', whiteSpace: 'normal' }}>{report.reason}</div>
                     </div>
 
                     <div style={styles.cardFooter}>
@@ -387,7 +388,7 @@ const ReportsPage = () => {
                         <th style={{ ...styles.th, width: '60px' }}>ID</th>
                         <th style={styles.th}>Reporter</th>
                         <th style={styles.th}>Reported User</th>
-                        <th style={{...styles.th, maxWidth: '300px'}}>Reason</th>
+                        <th style={{ ...styles.th, maxWidth: '300px' }}>Reason</th>
                         <th style={{ ...styles.th, width: '90px' }}>Status</th>
                         <th
                             style={{ ...styles.th, width: '100px', cursor: 'pointer' }}
@@ -415,7 +416,7 @@ const ReportsPage = () => {
                                 </span>
                                 {getRoleBadge(report.report_id, report.reported_user_id)}
                             </td>
-                            <td style={{...styles.td, maxWidth: '300px', whiteSpace: 'normal' }}>{report.reason}</td>
+                            <td style={{ ...styles.td, maxWidth: '300px', whiteSpace: 'normal' }}>{report.reason}</td>
                             <td style={styles.td}>{getStatusBadge(report.status)}</td>
                             <td style={styles.td}>
                                 {report.created_at ? new Date(report.created_at).toLocaleDateString() : '-'}
@@ -433,13 +434,12 @@ const ReportsPage = () => {
             <div style={styles.content}>
                 <h1 style={styles.heading}>Reports</h1>
 
-                <form style={styles.searchContainer} onSubmit={handleSearch}>
+                <form style={styles.searchContainer} onSubmit={handleSubmit(onSearch)}>
                     <input
                         style={styles.searchInput}
                         type="text"
                         placeholder="Search by Reported User Name..."
-                        value={searchName}
-                        onChange={(e) => setSearchName(e.target.value)}
+                        {...register("searchName")}
                     />
                     <button style={styles.searchButton} type="submit">Search</button>
                 </form>
