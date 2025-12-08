@@ -13,6 +13,7 @@ import SessionsPage from './compnents/SessionsPage';
 import AppointmentRequestsPage from './compnents/AppointmentRequestsPage';
 import ReportsPage from './compnents/ReportsPage';
 import CourseCatalog from './compnents/CourseCatalog';
+import TutorCourseApplications from './compnents/TutorCourseApplications';
 // Protected Route component for admin access
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -106,6 +107,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <AdminHome />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/tutor-course-applications"
+              element={
+                <ProtectedRoute>
+                  <TutorCourseApplications />
                 </ProtectedRoute>
               }
             />

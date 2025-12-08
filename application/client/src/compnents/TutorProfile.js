@@ -33,6 +33,16 @@ const TutorProfile = () => {
   const [isLoadingUserBookings, setIsLoadingUserBookings] = useState(false);
   const [isLoadingTutorBookings, setIsLoadingTutorBookings] = useState(false);
 
+  // Mobile detection
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Helper function to parse time string to local time
   const parseTimeToLocal = (timeStr) => {
     if (!timeStr) return null;
@@ -585,8 +595,8 @@ const TutorProfile = () => {
   const styles = {
     container: {
       maxWidth: '1200px',
-      margin: '20px auto',
-      padding: '20px',
+      margin: "clamp(10px, 2vw, 20px) auto",
+      padding: "clamp(12px, 2.5vw, 20px)",
       backgroundColor: darkMode ? '#1a1a1a' : '#fff',
       color: darkMode ? '#e0e0e0' : '#333',
       minHeight: '100vh',
@@ -594,22 +604,22 @@ const TutorProfile = () => {
     },
     bookingContainer: {
       backgroundColor: darkMode ? '#2d2d2d' : '#f9f9f9',
-      borderRadius: '15px',
-      padding: '25px',
-      marginTop: '30px',
+      borderRadius: "clamp(10px, 2vw, 15px)",
+      padding: "clamp(16px, 3vw, 25px)",
+      marginTop: "clamp(20px, 3vw, 30px)",
       boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     },
     bookingHeader: {
-      fontSize: '24px',
+      fontSize: "clamp(18px, 3vw, 24px)",
       color: darkMode ? '#fff' : '#2c3e50',
-      marginBottom: '25px',
-      paddingBottom: '10px',
+      marginBottom: "clamp(16px, 2.5vw, 25px)",
+      paddingBottom: "clamp(8px, 1.2vw, 10px)",
       borderBottom: '2px solid #eee',
     },
     bookingGrid: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '30px',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',  // Single column on mobile
+      gap: isMobile ? '20px' : '30px',
       marginTop: '20px',
     },
     timeSlotsGrid: {
@@ -743,74 +753,75 @@ const TutorProfile = () => {
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: '30px',
-      gap: '30px',
+      marginBottom: "clamp(20px, 3vw, 30px)",
+      gap: "clamp(16px, 3vw, 30px)",
       flexWrap: 'wrap',
     },
     infoSection: {
       flex: 1,
-      minWidth: '300px',
+      minWidth: "clamp(250px, 40vw, 300px)",
     },
     name: {
-      fontSize: '38px',
-      margin: '0 0 8px 0',
+      fontSize: "clamp(24px, 5vw, 38px)",
+      margin: '0 0 clamp(6px, 1vw, 8px) 0',
       color: darkMode ? '#fff' : '#2c3e50',
       fontWeight: '600',
       lineHeight: '1.2',
       display: 'block',
     },
     price: {
-      fontSize: '20px',
-      color: '#9A2250',
-      margin: '0 0 10px 0',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
+      color: 'rgb(255, 220, 112)',
+      margin: '0 0 clamp(8px, 1.2vw, 10px) 0',
       fontWeight: '600',
       display: 'block',
     },
     email: {
       color: darkMode ? '#aaa' : '#666',
-      margin: '0 0 15px 0',
-      fontSize: '16px',
+      margin: '0 0 clamp(12px, 2vw, 15px) 0',
+      fontSize: "clamp(14px, 2vw, 16px)",
       display: 'block',
     },
     profileImage: {
-      width: '200px',
-      height: '200px',
+      width: "clamp(120px, 25vw, 200px)",
+      height: "clamp(120px, 25vw, 200px)",
       borderRadius: '50%',
       objectFit: 'cover',
       border: `3px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     section: {
-      marginBottom: '25px',
+      marginBottom: "clamp(16px, 2.5vw, 25px)",
     },
     sectionTitle: {
-      fontSize: '20px',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
       color: darkMode ? '#fff' : '#2c3e50',
-      margin: '0 0 0px 20px',
-      paddingBottom: '5px',
+      margin: '0 0 0px clamp(12px, 2vw, 20px)',
+      paddingBottom: "clamp(4px, 0.8vw, 5px)",
       borderBottom: `2px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     tag: {
       display: 'inline-block',
       backgroundColor: '#f0f0f0',
-      padding: '5px 10px',
-      borderRadius: '15px',
-      margin: '0 10px 10px 0',
-      fontSize: '14px',
+      padding: "clamp(4px, 0.6vw, 5px) clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(12px, 2vw, 15px)",
+      margin: '0 clamp(8px, 1.2vw, 10px) clamp(8px, 1.2vw, 10px) 0',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
     },
     bio: {
       lineHeight: '1.6',
       color: darkMode ? '#bbb' : '#555',
-      margin: '0 0 0px 20px',
+      margin: '0 0 0px clamp(12px, 2vw, 20px)',
+      fontSize: "clamp(14px, 2vw, 16px)",
     },
     button: {
       backgroundColor: '#9A2250',
       color: 'white',
       border: 'none',
-      padding: '12px 25px',
-      borderRadius: '5px',
-      fontSize: '16px',
+      padding: "clamp(10px, 1.5vw, 12px) clamp(20px, 3vw, 25px)",
+      borderRadius: "clamp(4px, 0.8vw, 5px)",
+      fontSize: "clamp(14px, 2vw, 16px)",
       cursor: 'pointer',
-      marginTop: '10px',
+      marginTop: "clamp(8px, 1.2vw, 10px)",
       transition: 'background-color 0.3s',
     },
   };

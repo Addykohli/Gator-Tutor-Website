@@ -1,4 +1,4 @@
-import React, { useState} from 'react';
+import React, { useState } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
@@ -31,13 +31,32 @@ const RegisterPage = () => {
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
+      justifyContent: 'center',
       minHeight: 'calc(100vh - 120px)',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
       boxSizing: 'border-box',
-      backgroundColor: darkMode ? '#121212' : '#fff',
+      backgroundImage: `url(${require('../assets/Library_scene.JPG')})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundAttachment: 'fixed',
       color: darkMode ? '#f5f5f5' : '#333',
       transition: 'background-color 0.3s, color 0.3s',
+      width: '100%',
+    },
+    glassWrapper: {
+      background: darkMode ? "rgba(30, 30, 30, 0.45)" : "rgba(255, 255, 255, 0.45)",
+      backdropFilter: "blur(12px)",
+      borderRadius: "20px",
+      padding: "clamp(20px, 5vw, 40px)",
+      boxShadow: "0 8px 32px 0 rgba(0, 0, 0, 0.37)",
+      border: darkMode ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(255, 255, 255, 0.4)",
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      width: '100%',
+      maxWidth: '500px',
     },
     title: {
       color: darkMode ? '#f5f5f5' : "#333",
@@ -45,7 +64,7 @@ const RegisterPage = () => {
       paddingBottom: "3px",
       borderBottom: "8px solid rgb(255, 220, 112)",
       display: "block",
-      margin: "20px auto",
+      margin: "0 0 30px 0",
       fontSize: "45px",
       fontWeight: "600",
       width: "fit-content"
@@ -57,7 +76,7 @@ const RegisterPage = () => {
       outline: 'none',
       fontSize: '1rem',
       boxSizing: 'border-box',
-      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      backgroundColor: darkMode ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)',
       color: darkMode ? '#f5f5f5' : '#333',
       transition: 'background-color 0.3s, color 0.3s',
       '&::placeholder': {
@@ -76,25 +95,26 @@ const RegisterPage = () => {
       width: '100%',
       maxWidth: '400px',
       padding: '15px',
-      backgroundColor: 'rgba(28, 168, 70, 0.8)',
+      backgroundColor: 'rgba(28, 168, 70, 0.9)',
       color: 'white',
       border: 'none',
       borderRadius: '8px',
       fontSize: '1.3rem',
       fontWeight: 'bold',
       cursor: 'pointer',
-      transition: 'background-color 0.3s',
+      transition: 'all 0.3s',
+      boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
     },
     inputContainer: {
-      border: darkMode ? '1px solid #444' : '1px solid rgba(114, 113, 113, 0.39)',
+      border: darkMode ? '1px solid #444' : '1px solid rgba(114, 113, 113, 0.2)',
       borderRadius: '25px',
-      margin: '60px 0px 40px 0px',
+      margin: '0 0 30px 0',
       overflow: 'hidden',
-      backgroundColor: darkMode ? '#1e1e1e' : '#fff',
+      backgroundColor: 'transparent',
       transition: 'border-color 0.3s, background-color 0.3s',
     },
     errorMessage: {
-      backgroundColor: darkMode ? '#3a1a1a' : '#fee',
+      backgroundColor: darkMode ? 'rgba(58, 26, 26, 0.8)' : 'rgba(255, 235, 238, 0.9)',
       color: darkMode ? '#ff6b6b' : '#c00',
       padding: '12px',
       borderRadius: '8px',
@@ -104,9 +124,10 @@ const RegisterPage = () => {
       width: '100%',
       textAlign: 'center',
       border: darkMode ? '1px solid #5c2a2a' : 'none',
+      boxSizing: 'border-box'
     },
     successMessage: {
-      backgroundColor: darkMode ? '#1a3a1a' : '#efe',
+      backgroundColor: darkMode ? 'rgba(26, 58, 26, 0.8)' : 'rgba(238, 255, 238, 0.9)',
       color: darkMode ? '#6bff6b' : '#0a0',
       padding: '12px',
       borderRadius: '8px',
@@ -116,15 +137,16 @@ const RegisterPage = () => {
       width: '100%',
       textAlign: 'center',
       border: darkMode ? '1px solid #2a5c2a' : 'none',
+      boxSizing: 'border-box'
     },
     linkText: {
       textAlign: 'center',
       marginTop: '20px',
-      color: darkMode ? '#aaa' : '#666',
+      color: darkMode ? '#bbb' : '#444',
       fontSize: '14px',
     },
     link: {
-      color: 'rgba(28, 168, 70, 0.8)',
+      color: 'rgba(28, 168, 70, 0.9)',
       fontWeight: '600',
       cursor: 'pointer',
       textDecoration: 'underline',
@@ -172,11 +194,11 @@ const RegisterPage = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-          first_name: firstName, 
+        body: JSON.stringify({
+          first_name: firstName,
           last_name: lastName,
-          email, 
-          password 
+          email,
+          password
         }),
       });
 
@@ -198,91 +220,93 @@ const RegisterPage = () => {
   };
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      backgroundColor: darkMode ? '#121212' : '#fff',
+      backgroundColor: 'rgb(102, 102, 102)',
     }}>
       <Header />
       <div style={styles.container}>
-        <h1 style={styles.title}>Register</h1>
-        
-        {error && <div style={styles.errorMessage}>{error}</div>}
-        {success && <div style={styles.successMessage}>{success}</div>}
+        <div style={styles.glassWrapper}>
+          <h1 style={styles.title}>Register</h1>
 
-        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
-          <div style={styles.inputContainer}>
-            <div style={styles.nameContainer}>
-              <div style={styles.nameField}>
-                <input
-                  type="text"
-                  id="firstName"
-                  placeholder="First Name"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  style={{...styles.inputField, ...styles.firstField, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none'}}
-                  required
-                />
+          {error && <div style={styles.errorMessage}>{error}</div>}
+          {success && <div style={styles.successMessage}>{success}</div>}
+
+          <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '400px' }}>
+            <div style={styles.inputContainer}>
+              <div style={styles.nameContainer}>
+                <div style={styles.nameField}>
+                  <input
+                    type="text"
+                    id="firstName"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    style={{ ...styles.inputField, ...styles.firstField, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRight: 'none' }}
+                    required
+                  />
+                </div>
+                <div style={styles.verticalDivider}></div>
+                <div style={styles.nameField}>
+                  <input
+                    type="text"
+                    id="lastName"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    style={{ ...styles.inputField, ...styles.firstField, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: 'none' }}
+                    required
+                  />
+                </div>
               </div>
-              <div style={styles.verticalDivider}></div>
-              <div style={styles.nameField}>
-                <input
-                  type="text"
-                  id="lastName"
-                  placeholder="Last Name"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  style={{...styles.inputField, ...styles.firstField, borderTopLeftRadius: 0, borderBottomLeftRadius: 0, borderLeft: 'none'}}
-                  required
-                />
-              </div>
+              <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
+              <input
+                type="email"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={styles.inputField}
+                required
+                disabled={isLoading}
+              />
+              <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
+              <input
+                type="password"
+                placeholder="Create Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{ ...styles.inputField, ...styles.lastField }}
+                required
+                disabled={isLoading}
+              />
             </div>
-            <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={styles.inputField}
-              required
+            <button
+              type="submit"
+              style={{
+                ...styles.registerButton,
+                opacity: isLoading ? 0.6 : 1,
+                cursor: isLoading ? 'not-allowed' : 'pointer',
+              }}
+              onMouseOver={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(6, 141, 1, 0.7)')}
+              onMouseOut={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(28, 168, 70, 0.9)')}
               disabled={isLoading}
-            />
-            <div style={{ borderTop: '1px solid rgb(68, 68, 68)' }} />
-            <input
-              type="password"
-              placeholder="Create Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ ...styles.inputField, ...styles.lastField }}
-              required
-              disabled={isLoading}
-            />
-          </div>
-          <button 
-            type="submit" 
-            style={{
-              ...styles.registerButton,
-              opacity: isLoading ? 0.6 : 1,
-              cursor: isLoading ? 'not-allowed' : 'pointer',
-            }}
-            onMouseOver={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(6, 141, 1, 0.7)')}
-            onMouseOut={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'rgba(28, 168, 70, 0.8)')}
-            disabled={isLoading}
-          >
-            {isLoading ? 'Registering...' : 'Register'}
-          </button>
-
-          <div style={styles.linkText}>
-            Already have an account?{' '}
-            <span
-              style={styles.link}
-              onClick={() => !isLoading && (window.location.href = '/login')}
             >
-              Login here
-            </span>
-          </div>
-        </form>
+              {isLoading ? 'Registering...' : 'Register'}
+            </button>
+
+            <div style={styles.linkText}>
+              Already have an account?{' '}
+              <span
+                style={styles.link}
+                onClick={() => !isLoading && (window.location.href = '/login')}
+              >
+                Login here
+              </span>
+            </div>
+          </form>
+        </div>
       </div>
       <Footer style={{ marginTop: 'auto' }} />
     </div>

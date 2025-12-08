@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from datetime import date, time as time_type
 
 from ..models import TutorProfile, User, Course, TutorCourse, AvailabilitySlot
+from admin.models.tutor_course_request import TutorCourseRequest
 
 
 def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]:
@@ -58,14 +59,21 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
     # Build filters
     conditions = [TutorProfile.status == 'approved']
     
-    # General search (q) - only searches tutor names (not courses)
+    # General search (q) - searches tutor names AND courses they teach
     if params.get("q"):
         search_term = f"%{params['q'].lower()}%"
         conditions.append(
             or_(
+                # Tutor name matching
                 func.lower(User.first_name).like(search_term),
                 func.lower(User.last_name).like(search_term),
-                func.lower(func.concat(User.first_name, ' ', User.last_name)).like(search_term)
+                func.lower(func.concat(User.first_name, ' ', User.last_name)).like(search_term),
+                # Course matching - match if tutor teaches a course that matches the search
+                func.lower(Course.title).like(search_term),
+                func.lower(Course.department_code).like(search_term),
+                func.lower(Course.course_number).like(search_term),
+                func.lower(func.concat(Course.department_code, Course.course_number)).like(search_term),
+                func.lower(func.concat(Course.department_code, ' ', Course.course_number)).like(search_term)
             )
         )
     
@@ -242,6 +250,7 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
         
         courses = [
             {
+                "course_id": c.course_id,
                 "department_code": c.department_code,
                 "course_number": c.course_number,
                 "title": c.title
@@ -545,4 +554,100 @@ def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
         "profile_image_path_full": tutor.profile_image_path_full,
         "profile_image_path_thumb": tutor.profile_image_path_thumb
     }
+
+
+def add_tutor_course(db: Session, tutor_id: int, course_id: int) -> bool:
+    """
+    Add a course to a tutor's list of tutored courses.
+    Returns True if added or already exists, False if error.
+    """
+    try:
+        # Check if already exists
+        existing = db.query(TutorCourse).filter(
+            and_(
+                TutorCourse.tutor_id == tutor_id,
+                TutorCourse.course_id == course_id
+            )
+        ).first()
+        
+        if existing:
+            return True
+            
+        new_tutor_course = TutorCourse(tutor_id=tutor_id, course_id=course_id)
+        db.add(new_tutor_course)
+        db.commit()
+        return True
+    except Exception as e:
+        print(f"Error adding tutor course: {str(e)}")
+        db.rollback()
+        return False
+
+
+def remove_tutor_course(db: Session, tutor_id: int, course_id: int) -> bool:
+    """
+    Remove a course from a tutor's list of tutored courses.
+    Returns True if removed, False if not found or error.
+    """
+    try:
+        tutor_course = db.query(TutorCourse).filter(
+            and_(
+                TutorCourse.tutor_id == tutor_id,
+                TutorCourse.course_id == course_id
+            )
+        ).first()
+        
+        if not tutor_course:
+            return False
+            
+        db.delete(tutor_course)
+        db.commit()
+        return True
+    except Exception as e:
+        print(f"Error removing tutor course: {str(e)}")
+        db.rollback()
+        return False
+
+
+def request_tutor_course(db: Session, tutor_id: int, course_id: int):
+    """
+    Create a request for a tutor to add a course.
+    Returns the request object or raises ValueError.
+    """
+    try:
+        # Check if course exists
+        course = db.query(Course).filter(Course.course_id == course_id).first()
+        if not course:
+            raise ValueError("Course not found")
+            
+        # Check if already has course
+        existing = db.query(TutorCourse).filter(
+            and_(
+                TutorCourse.tutor_id == tutor_id,
+                TutorCourse.course_id == course_id
+            )
+        ).first()
+        if existing:
+            raise ValueError("Tutor already serves this course")
+            
+        # Check if pending request exists
+        pending = db.query(TutorCourseRequest).filter(
+            and_(
+                TutorCourseRequest.tutor_id == tutor_id, 
+                TutorCourseRequest.course_id == course_id, 
+                TutorCourseRequest.status == "pending"
+            )
+        ).first()
+        
+        if pending:
+            return pending
+            
+        request = TutorCourseRequest(tutor_id=tutor_id, course_id=course_id)
+        db.add(request)
+        db.commit()
+        db.refresh(request)
+        return request
+    except Exception as e:
+        print(f"Error requesting tutor course: {str(e)}")
+        db.rollback()
+        raise e
 

@@ -22,6 +22,14 @@ const HomePage = () => {
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
 
+  // Course Management State
+  const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+  const [isRemoveCourseModalOpen, setIsRemoveCourseModalOpen] = useState(false);
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [courseSearchResults, setCourseSearchResults] = useState([]);
+  const [isSearchingCourses, setIsSearchingCourses] = useState(false);
+  const [requestedCourses, setRequestedCourses] = useState(new Set());
+
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
     const saved = localStorage.getItem('searchQuery');
@@ -122,6 +130,69 @@ const HomePage = () => {
       setIsLoadingCourses(false);
     }
   }, [user?.isTutor, user?.id, apiBaseUrl]);
+
+  // Course Management Handlers
+  const handleCourseSearch = async (query) => {
+    if (!query) {
+      setCourseSearchResults([]);
+      return;
+    }
+    setIsSearchingCourses(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/courses?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      setCourseSearchResults(data.items || []);
+    } catch (error) {
+      console.error("Error searching courses:", error);
+    } finally {
+      setIsSearchingCourses(false);
+    }
+  };
+
+  const requestAddCourse = async (courseId) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ course_id: courseId })
+      });
+      if (response.ok) {
+        // Success! Update state to show checkmark
+        setRequestedCourses(prev => {
+          const newSet = new Set(prev);
+          newSet.add(courseId);
+          return newSet;
+        });
+        // Note: We keep the modal open as requested
+      } else {
+        const err = await response.json();
+        alert(err.detail || "Failed to submit request");
+      }
+    } catch (error) {
+      console.error("Error requesting course:", error);
+      alert("Error requesting course");
+    }
+  };
+
+  const removeCourse = async (courseId) => {
+    if (!window.confirm("Are you sure you want to remove this course?")) return;
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses/${courseId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setTutorCourses(tutorCourses.filter(c => c.course_id !== courseId && c.id !== courseId));
+        alert("Course removed successfully");
+        setIsRemoveCourseModalOpen(false);
+      } else {
+        const err = await response.json();
+        alert(err.detail || "Failed to remove course");
+      }
+    } catch (error) {
+      console.error("Error removing course:", error);
+      alert("Error removing course");
+    }
+  };
 
   // Fetch tutor bookings
   const fetchTutorBookings = React.useCallback(async () => {
@@ -2059,7 +2130,7 @@ const HomePage = () => {
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
+                              gap: '4px',
                               transition: 'all 0.2s',
                               zIndex: 1,
                               minHeight: '28px',
@@ -2084,12 +2155,16 @@ const HomePage = () => {
                             <div style={{
                               display: 'flex',
                               flexDirection: 'column',
+                              justifyContent: 'center',
+                              height: '100%',
                               lineHeight: '1.1',
                               textAlign: 'left',
                               fontSize: '0.6rem',
                               fontWeight: '200',
-                              marginRight: pendingRequestsCount > 0 ? '6px' : '0',
-                              minWidth: 'clamp(60px, 12vw, 80px)'
+                              margin: '0 4px 0 0',
+                              padding: 0,
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              whiteSpace: 'nowrap'
                             }}>
                               <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Requests</span>
                             </div>
@@ -2136,7 +2211,7 @@ const HomePage = () => {
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
+                            gap: '4px',
                             transition: 'all 0.2s',
                             zIndex: 1,
                             minHeight: '28px',
@@ -2163,12 +2238,14 @@ const HomePage = () => {
                             flexDirection: 'column',
                             justifyContent: 'center',
                             height: '100%',
+                            lineHeight: '1.1',
+                            textAlign: 'left',
                             fontSize: '0.6rem',
                             fontWeight: '200',
-                            whiteSpace: 'nowrap',
-                            marginRight: '0',
-                            padding: '0',
-                            minWidth: 'clamp(60px, 12vw, 80px)'
+                            margin: '0 4px 0 0',
+                            padding: 0,
+                            minWidth: 'clamp(60px, 12vw, 80px)',
+                            whiteSpace: 'nowrap'
                           }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Messages</span>
                           </div>
@@ -2388,39 +2465,45 @@ const HomePage = () => {
                       Courses I Tutor
                     </h4>
 
-                    {isLoadingCourses ? (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        padding: '10px 0'
-                      }}>
-                        <div className="spinner-border spinner-border-sm" role="status">
-                          <span className="visually-hidden">Loading...</span>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      padding: '8px',
+                      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                      borderRadius: '8px',
+                      marginTop: '10px'
+                    }}>
+                      {isLoadingCourses ? (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          padding: '10px 0'
+                        }}>
+                          <div className="spinner-border spinner-border-sm" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
                         </div>
-                      </div>
-                    ) : tutorCourses.length > 0 ? (
-                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {tutorCourses.map((course, index) => (
+                      ) : tutorCourses.length > 0 ? (
+                        tutorCourses.map((course, index) => (
                           <div key={index} style={{
                             display: 'flex',
                             alignItems: 'center',
-                            padding: '8px 12px',
-                            marginBottom: '6px',
-                            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                            padding: '8px',
+                            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.03)' : 'white',
                             borderRadius: '6px',
-                            transition: 'all 0.2s ease',
-                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #f0f0f0',
+                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e9ecef',
+                            transition: 'all 0.2s',
+                            ':hover': {
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                            }
                           }}>
                             <div style={{
-                              width: '34px',
-                              height: '34px',
                               backgroundColor: darkMode
                                 ? 'rgba(255, 220, 100, 0.1)'
                                 : '#fff3cd',
                               borderRadius: '6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
+                              padding: '4px 8px',
                               marginRight: '12px',
                               flexShrink: 0,
                               color: darkMode
@@ -2437,8 +2520,7 @@ const HomePage = () => {
                             <div style={{
                               flex: 1,
                               minWidth: 0,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
+                              overflow: 'hidden'
                             }}>
                               <div style={{
                                 fontWeight: '600',
@@ -2461,19 +2543,58 @@ const HomePage = () => {
                               </div>
                             </div>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div style={{
-                        fontSize: '0.8rem',
-                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
-                        fontStyle: 'italic',
-                        textAlign: 'center',
-                        padding: '8px 0'
-                      }}>
-                        No courses added yet
-                      </div>
-                    )}
+                        ))
+                      ) : (
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
+                          fontStyle: 'italic',
+                          textAlign: 'center',
+                          padding: '8px 0'
+                        }}>
+                          No courses added yet
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '8px', marginTop: '12px' }}>
+                      <button
+                        onClick={() => setIsRemoveCourseModalOpen(true)}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          backgroundColor: 'transparent',
+                          border: darkMode ? '1px solid #dc3545' : '1px solid #dc3545',
+                          color: '#dc3545',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Remove Course
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCourseSearchQuery('');
+                          setCourseSearchResults([]);
+                          setIsAddCourseModalOpen(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          backgroundColor: '#35006D',
+                          border: 'none',
+                          color: 'white',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        Request Add Course
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -2572,6 +2693,118 @@ const HomePage = () => {
               </div>
             )}
 
+            {/* Welcome Section for Non-Logged-In Users */}
+            {!isAuthenticated && (
+              <div style={{
+                marginTop: '30px',
+                padding: '20px',
+                borderRadius: '8px',
+                background: darkMode
+                  ? 'linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(25, 25, 25, 0.9))'
+                  : 'linear-gradient(145deg, #f8f9fa, #e9ecef)',
+                border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+              }}>
+                <h3 style={{
+                  margin: '0 0 15px 0',
+                  color: darkMode ? '#fff' : '#2c3e50',
+                  fontSize: '1.4rem',
+                  fontWeight: '600'
+                }}>
+                  Welcome to Gator Tutor! 🎓
+                </h3>
+
+                <p style={{
+                  color: darkMode ? 'rgba(255, 255, 255, 0.9)' : '#495057',
+                  marginBottom: '20px',
+                  lineHeight: '1.6'
+                }}>
+                  Connect with expert tutors, schedule one-on-one sessions, and get the help you need to succeed in your courses. Our platform makes it easy to find the perfect tutor for your learning style and schedule.
+                </p>
+
+                <div style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <button
+                    onClick={() => navigate('/login')}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#35006D',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      flex: isMobile ? '1' : 'none'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.backgroundColor = '#4b1a80';
+                      e.currentTarget.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.backgroundColor = '#35006D';
+                      e.currentTarget.boxShadow = 'none';
+                    }}
+                  >
+                    Log In
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/register')}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: 'transparent',
+                      color: darkMode ? '#fff' : '#35006D',
+                      border: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.2)' : '#35006D'}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      flex: isMobile ? '1' : 'none'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.backgroundColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(53, 0, 109, 0.1)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.backgroundColor = 'transparent';
+                    }}
+                  >
+                    Create Account
+                  </button>
+                </div>
+
+                <div style={{
+                  backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  borderLeft: `4px solid ${darkMode ? 'rgba(255, 220, 112, 0.8)' : '#35006D'}`
+                }}>
+                  <h4 style={{
+                    margin: '0 0 10px 0',
+                    color: darkMode ? 'rgba(255, 220, 112, 0.9)' : '#2c3e50',
+                    fontSize: '1.1rem'
+                  }}>
+                    Get the most out of Gator Tutor:
+                  </h4>
+                  <ul style={{
+                    margin: '0',
+                    paddingLeft: '20px',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#495057'
+                  }}>
+                    <li>📅 Schedule one-on-one tutoring sessions</li>
+                    <li>💬 Message tutors directly</li>
+                    <li>📚 Request course coverage for specific topics</li>
+                    <li>👨‍🏫 View and manage your tutoring sessions</li>
+                    <li>👩‍🏫 Apply to be a tutor yourself!</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Edit Availability Section */}
             {user?.isTutor && editingDate && (
               <div
@@ -2581,16 +2814,25 @@ const HomePage = () => {
                   width: '100%',
                   margin: 0,
                   animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
-                  transformOrigin: 'center top'
+                  transformOrigin: 'center top',
+                  padding: "clamp(16px, 3vw, 32px)",
                 }}>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '16px'
+                  marginBottom: "clamp(12px, 2vw, 16px)"
                 }}>
-                  <h3 style={{ margin: 0, color: darkMode ? '#fff' : '#2c3e50' }}>
-                    Edit Availability - {format(editingDate, 'EEEE, MMMM d, yyyy')}
+                  <h3 style={{
+                    margin: 0,
+                    color: darkMode ? '#fff' : '#2c3e50',
+                    fontSize: "clamp(1.1rem, 2.5vw, 1.5rem)",
+                    lineHeight: 1.2
+                  }}>
+                    Edit Availability <br style={{ display: isMobile ? 'block' : 'none' }} />
+                    <span style={{ fontSize: "clamp(0.9rem, 2vw, 1.2rem)", fontWeight: 'normal', color: darkMode ? '#ccc' : '#666' }}>
+                      {isMobile ? format(editingDate, 'MMM d, yyyy') : `- ${format(editingDate, 'EEEE, MMMM d, yyyy')}`}
+                    </span>
                   </h3>
                   <button
                     onClick={() => {
@@ -2602,9 +2844,10 @@ const HomePage = () => {
                       border: 'none',
                       color: '#6c757d',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      padding: '4px 8px',
-                      transition: 'color 0.2s'
+                      fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
+                      padding: "clamp(4px, 1vw, 8px)",
+                      transition: 'color 0.2s',
+                      marginLeft: '8px'
                     }}
                     onMouseOver={(e) => e.currentTarget.style.color = '#333'}
                     onMouseOut={(e) => e.currentTarget.style.color = '#6c757d'}
@@ -2613,53 +2856,84 @@ const HomePage = () => {
                   </button>
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: "clamp(12px, 2vw, 16px)" }}>
                   {editSlots.map((slot, index) => (
                     <div key={slot.id} style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '12px',
-                      padding: '12px',
+                      flexDirection: 'row',
+                      alignItems: isMobile ? 'flex-end' : 'center',
+                      gap: "clamp(8px, 1.5vw, 12px)",
+                      marginBottom: "clamp(8px, 1.5vw, 12px)",
+                      padding: "clamp(10px, 1.5vw, 12px)",
                       backgroundColor: 'rgba(255, 220, 100, 0.3)',
                       borderRadius: '8px',
                       border: darkMode ? '1px solid #444' : '1px solid #e9ecef',
                       animation: isEditPanelAnimating ? `editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.1 + index * 0.1}s backwards` : 'none'
                     }}>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '40px' }}>
-                          From:
-                        </label>
-                        <input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) => handleSlotTimeChange(slot.id, 'startTime', e.target.value)}
-                          style={{
-                            padding: '8px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '0.9rem',
-                            flex: 1
-                          }}
-                        />
-                      </div>
+                      <div style={{ display: 'flex', gap: "clamp(8px, 1.5vw, 12px)", flex: 1 }}>
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'flex-start' : 'center',
+                          gap: isMobile ? '4px' : '8px'
+                        }}>
+                          <label style={{
+                            fontSize: "clamp(0.8rem, 1.5vw, 0.9rem)",
+                            fontWeight: '500',
+                            color: darkMode ? 'rgb(173, 180, 187)' : '#495057',
+                            minWidth: '40px',
+                            marginBottom: isMobile ? '2px' : '0'
+                          }}>
+                            From{isMobile ? '' : ':'}
+                          </label>
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => handleSlotTimeChange(slot.id, 'startTime', e.target.value)}
+                            style={{
+                              padding: "clamp(4px, 1vw, 8px)",
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: "clamp(0.85rem, 1.5vw, 0.9rem)",
+                              width: '100%',
+                              minHeight: "clamp(32px, 5vw, 36px)",
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
 
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '30px' }}>
-                          To:
-                        </label>
-                        <input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) => handleSlotTimeChange(slot.id, 'endTime', e.target.value)}
-                          style={{
-                            padding: '8px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '0.9rem',
-                            flex: 1
-                          }}
-                        />
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'flex-start' : 'center',
+                          gap: isMobile ? '4px' : '8px'
+                        }}>
+                          <label style={{
+                            fontSize: "clamp(0.8rem, 1.5vw, 0.9rem)",
+                            fontWeight: '500',
+                            color: darkMode ? 'rgb(173, 180, 187)' : '#495057',
+                            minWidth: isMobile ? 'auto' : '30px',
+                            marginBottom: isMobile ? '2px' : '0'
+                          }}>
+                            To{isMobile ? '' : ':'}
+                          </label>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => handleSlotTimeChange(slot.id, 'endTime', e.target.value)}
+                            style={{
+                              padding: "clamp(4px, 1vw, 8px)",
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: "clamp(0.85rem, 1.5vw, 0.9rem)",
+                              width: '100%',
+                              minHeight: "clamp(32px, 5vw, 36px)",
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <button
@@ -2669,17 +2943,23 @@ const HomePage = () => {
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
-                          padding: '8px 12px',
+                          padding: isMobile ? '0' : "clamp(8px, 1.5vw, 8px) clamp(12px, 2vw, 12px)",
                           cursor: 'pointer',
-                          fontSize: '0.85rem',
+                          fontSize: "clamp(0.85rem, 1.5vw, 0.85rem)",
                           transition: 'background-color 0.2s',
-                          minWidth: '80px'
+                          minWidth: isMobile ? '36px' : '80px',
+                          height: isMobile ? '36px' : 'auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginTop: isMobile ? '0' : '0'
                         }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                        aria-label="Delete slot"
                       >
-                        <i className="fas fa-trash" style={{ marginRight: '4px' }}></i>
-                        Delete
+                        <i className="fas fa-trash" style={{ marginRight: isMobile ? '0' : '4px' }}></i>
+                        {!isMobile && 'Delete'}
                       </button>
                     </div>
                   ))}
@@ -2688,19 +2968,20 @@ const HomePage = () => {
                     onClick={handleAddSlot}
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: "clamp(10px, 2vw, 12px)",
                       backgroundColor: 'transparent',
                       border: darkMode ? '2px dashed rgb(114, 117, 120)' : '2px dashed rgb(206, 212, 218)',
                       borderRadius: '8px',
                       color: '#6c757d',
                       cursor: 'pointer',
-                      fontSize: '0.9rem',
+                      fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                       fontWeight: '500',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      marginTop: "clamp(8px, 1.5vw, 12px)"
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.borderColor = 'rgb(196, 180, 7)';
@@ -2720,30 +3001,36 @@ const HomePage = () => {
 
                 <div style={{
                   display: 'flex',
-                  gap: '12px',
-                  paddingTop: '16px',
+                  flexDirection: 'column',
+                  gap: "clamp(12px, 2vw, 16px)",
+                  paddingTop: "clamp(16px, 2vw, 16px)",
                   borderTop: '1px solid #e9ecef'
                 }}>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px', width: '100%' }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: "clamp(10px, 1.5vw, 12px)",
+                    width: '100%'
+                  }}>
                     <div style={{ flex: 1, position: 'relative' }}>
                       <button
                         onClick={handleApplyToThisDay}
                         disabled={isSaving}
                         style={{
                           width: '100%',
-                          padding: '10px 20px',
+                          padding: "clamp(10px, 2vw, 12px)",
                           backgroundColor: isSaving ? '#6c757d' : '#35006D',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: isSaving ? 'not-allowed' : 'pointer',
-                          fontSize: '0.9rem',
+                          fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                           fontWeight: '500',
                           transition: 'background-color 0.2s',
                           opacity: isSaving ? 0.7 : 1,
                           textAlign: 'center',
                           boxSizing: 'border-box',
-                          height: '40px',
+                          height: "clamp(42px, 6vw, 44px)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
@@ -2761,24 +3048,23 @@ const HomePage = () => {
                         disabled={isSaving}
                         style={{
                           width: '100%',
-                          padding: '10px 35px 10px 20px',
+                          padding: "clamp(10px, 2vw, 12px) clamp(35px, 3vw, 40px) clamp(10px, 2vw, 12px) clamp(10px, 2vw, 12px)",
                           backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: isSaving ? 'not-allowed' : 'pointer',
-                          fontSize: '0.9rem',
+                          fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                           fontWeight: '500',
                           transition: 'background-color 0.2s',
                           opacity: isSaving ? 0.7 : 1,
                           textAlign: 'center',
                           position: 'relative',
                           boxSizing: 'border-box',
-                          height: '40px',
+                          height: "clamp(42px, 6vw, 44px)",
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          paddingRight: '35px'
+                          justifyContent: 'center'
                         }}
                         onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
                         onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
@@ -2787,17 +3073,17 @@ const HomePage = () => {
                         <div
                           style={{
                             position: 'absolute',
-                            right: '8px',
+                            right: "clamp(8px, 1.5vw, 12px)",
                             top: '50%',
                             transform: 'translateY(-50%)',
                             backgroundColor: 'rgba(255, 255, 255, 0.2)',
                             borderRadius: '50%',
-                            width: '18px',
-                            height: '18px',
+                            width: "clamp(18px, 2.5vw, 20px)",
+                            height: "clamp(18px, 2.5vw, 20px)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '12px',
+                            fontSize: "clamp(10px, 1.5vw, 12px)",
                             fontWeight: 'bold',
                             cursor: 'help',
                             pointerEvents: 'auto'
@@ -2816,11 +3102,11 @@ const HomePage = () => {
                       top: '20px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      padding: '12px 24px',
+                      padding: "clamp(10px, 2vw, 12px) clamp(20px, 3vw, 24px)",
                       backgroundColor: saveStatus.success ? 'rgba(212, 237, 218, 0.95)' : 'rgba(248, 215, 218, 0.95)',
                       color: saveStatus.success ? '#155724' : '#721c24',
                       borderRadius: '8px',
-                      fontSize: '0.95rem',
+                      fontSize: "clamp(0.85rem, 1.5vw, 0.95rem)",
                       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                       zIndex: 1000,
                       transition: 'all 0.3s ease-in-out',
@@ -3027,7 +3313,7 @@ const HomePage = () => {
                           right: 0
                         }}>
                           <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
-                          <div>Loading availability...</div>
+                          <div>Loading your calendar...</div>
                         </div>
                       ) : (
                         <>
@@ -3216,6 +3502,144 @@ const HomePage = () => {
           </div>
         </div>
       </div>
+      {/* Add Course Modal */}
+      {isAddCourseModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: darkMode ? '#2a2a2a' : 'white',
+            padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+            maxHeight: '80vh', overflowY: 'auto',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            color: darkMode ? 'white' : 'black'
+          }}>
+            <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Request to Add Course</h3>
+            <input
+              type="text"
+              placeholder="Search course (e.g. CSC 300)..."
+              value={courseSearchQuery}
+              onChange={(e) => {
+                setCourseSearchQuery(e.target.value);
+                handleCourseSearch(e.target.value);
+              }}
+              style={{
+                width: '100%', padding: '10px', marginBottom: '15px',
+                borderRadius: '4px', border: '1px solid #ccc',
+                backgroundColor: darkMode ? '#333' : '#fff',
+                color: darkMode ? '#fff' : '#000'
+              }}
+            />
+
+            <div style={{ marginBottom: '15px', maxHeight: '300px', overflowY: 'auto' }}>
+              {isSearchingCourses && <p>Searching...</p>}
+              {!isSearchingCourses && courseSearchQuery && courseSearchResults.length === 0 && <p>No courses found.</p>}
+              {courseSearchResults.map(course => {
+                const isRequested = requestedCourses.has(course.course_id);
+                const isAlreadyHas = tutorCourses.some(c => (c.course_id || c.id) === course.course_id);
+
+                return (
+                  <div key={course.course_id} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px', borderBottom: '1px solid #eee'
+                  }}>
+                    <div>
+                      <strong>{course.department_code} {course.course_number}</strong>
+                      <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{course.title}</div>
+                    </div>
+                    <button
+                      onClick={() => !isRequested && !isAlreadyHas && requestAddCourse(course.course_id)}
+                      disabled={isRequested || isAlreadyHas}
+                      style={{
+                        backgroundColor: (isRequested || isAlreadyHas) ? '#28a745' : '#35006D',
+                        color: 'white', border: 'none',
+                        padding: '5px 10px', borderRadius: '4px',
+                        cursor: (isRequested || isAlreadyHas) ? 'default' : 'pointer',
+                        opacity: isAlreadyHas ? 0.7 : 1,
+                        minWidth: '60px'
+                      }}
+                    >
+                      {isRequested ? <i className="fas fa-check"></i> : (isAlreadyHas ? "Added" : "Add")}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <button
+                onClick={() => setIsAddCourseModalOpen(false)}
+                style={{
+                  padding: '8px 16px', backgroundColor: 'transparent',
+                  border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                  color: darkMode ? 'white' : 'black'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Course Modal */}
+      {isRemoveCourseModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            backgroundColor: darkMode ? '#2a2a2a' : 'white',
+            padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+            color: darkMode ? 'white' : 'black'
+          }}>
+            <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Remove Course</h3>
+            <p>Select a course to remove from your profile.</p>
+
+            <div style={{ marginBottom: '15px', maxHeight: '400px', overflowY: 'auto' }}>
+              {tutorCourses.length === 0 && <p>No courses to remove.</p>}
+              {tutorCourses.map((course, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '10px', borderBottom: '1px solid #eee',
+                  backgroundColor: darkMode ? '#333' : '#f9f9f9', marginBottom: '5px', borderRadius: '4px'
+                }}>
+                  <div>
+                    <strong>{course.department_code} {course.course_number}</strong>
+                  </div>
+                  <button
+                    onClick={() => removeCourse(course.course_id || course.id)}
+                    style={{
+                      backgroundColor: '#dc3545', color: 'white', border: 'none',
+                      padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
+                    }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ textAlign: 'right' }}>
+              <button
+                onClick={() => setIsRemoveCourseModalOpen(false)}
+                style={{
+                  padding: '8px 16px', backgroundColor: 'transparent',
+                  border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                  color: darkMode ? 'white' : 'black'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

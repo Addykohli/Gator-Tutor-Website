@@ -143,25 +143,25 @@ export default function SearchPage() {
     },
     tutorsGrid: {
       display: 'grid',
-      gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '160px' : '320px'}, 1fr))`,
-      gap: isMobile ? '12px' : '24px',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(160px, 25vw, 320px), 1fr))',
+      gap: "clamp(12px, 2vw, 24px)",
     },
     coursesGrid: {
       display: 'grid',
       gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-      gap: isMobile ? '12px' : '24px',
-      marginTop: '16px',
+      gap: "clamp(12px, 2vw, 24px)",
+      marginTop: "clamp(12px, 2vw, 16px)",
     },
     courseCard: {
       backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fafafa',
       border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
-      borderRadius: '8px',
-      padding: isMobile ? '12px' : '24px',
+      borderRadius: "clamp(6px, 1vw, 8px)",
+      padding: "clamp(10px, 2vw, 20px)",
       transition: 'box-shadow 0.2s, background-color 0.3s, border-color 0.3s',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      fontSize: isMobile ? '12px' : 'inherit',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       '&:hover': {
         boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
       }
@@ -170,24 +170,24 @@ export default function SearchPage() {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     courseCode: {
-      fontSize: '20px',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
       fontWeight: 'bold',
       color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-      marginBottom: '4px',
+      marginBottom: "clamp(2px, 0.5vw, 4px)",
       transition: 'color 0.3s',
     },
     courseName: {
-      fontSize: '14px',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       color: darkMode ? '#bbb' : '#666',
       transition: 'color 0.3s',
     },
     statusBadge: {
-      padding: '4px 12px',
-      borderRadius: '12px',
-      fontSize: '12px',
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(10px, 1.5vw, 12px)",
       fontWeight: '600',
       whiteSpace: 'nowrap',
     },
@@ -235,13 +235,13 @@ export default function SearchPage() {
     tutorCard: {
       backgroundColor: darkMode ? 'rgb(60, 60, 60)' : "#fafafa",
       border: darkMode ? '1px solid #444' : "1px solid #e8e8e8",
-      borderRadius: "8px",
-      padding: isMobile ? "12px" : "24px",
+      borderRadius: "clamp(6px, 1vw, 8px)",
+      padding: "clamp(10px, 2vw, 20px)",
       transition: "box-shadow 0.2s, background-color 0.3s, border-color 0.3s",
       display: "flex",
       flexDirection: "column",
       height: "100%",
-      fontSize: isMobile ? '12px' : 'inherit',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       '&:hover': {
         boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
       }
@@ -252,31 +252,32 @@ export default function SearchPage() {
       flexDirection: 'column',
     },
     coursesSection: {
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     availabilitySection: {
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     tutorHeader: {
       display: "flex",
       alignItems: "center",
-      gap: isMobile ? "8px" : "16px",
-      marginBottom: "16px",
+      gap: "clamp(8px, 1.5vw, 16px)",
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     tutorAvatar: {
-      width: isMobile ? "40px" : "64px",
-      height: isMobile ? "40px" : "64px",
+      width: "clamp(36px, 8vw, 56px)",
+      height: "clamp(36px, 8vw, 56px)",
       borderRadius: "50%",
       backgroundColor: "#35006D",
       color: "white",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: isMobile ? "16px" : "24px",
+      fontSize: "clamp(14px, 3vw, 22px)",
       fontWeight: "bold",
+      flexShrink: 0,
     },
     tutorName: {
-      fontSize: isMobile ? '16px' : '20px',
+      fontSize: "clamp(14px, 2.5vw, 18px)",
       fontWeight: '600',
       color: darkMode ? '#fff' : '#2c3e50',
       margin: 0,
@@ -299,37 +300,37 @@ export default function SearchPage() {
     },
     tutorRating: {
       color: "#FFCF01",
-      fontSize: "14px",
+      fontSize: "clamp(12px, 1.8vw, 14px)",
     },
     sectionLabel: {
-      fontSize: "14px",
-      color: "#666",
-      marginBottom: "8px",
+      fontSize: "clamp(12px, 1.8vw, 14px)",
+      color: "#ebeaeaff",
+      marginBottom: "clamp(6px, 1vw, 8px)",
       fontWeight: "500",
     },
     courseBadge: {
       display: "inline-block",
       backgroundColor: "#FFCF01",
       color: "#35006D",
-      padding: "4px 12px",
-      borderRadius: "12px",
-      fontSize: "14px",
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(11px, 1.6vw, 13px)",
       fontWeight: "500",
-      margin: "4px",
+      margin: "clamp(2px, 0.5vw, 4px)",
     },
     availabilityBadge: {
       display: "inline-block",
       border: "1px solid #35006D",
       color: "#35006D",
-      padding: "4px 12px",
-      borderRadius: "12px",
-      fontSize: "12px",
-      margin: "4px",
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(10px, 1.5vw, 12px)",
+      margin: "clamp(2px, 0.5vw, 4px)",
     },
     tutorActions: {
       display: "flex",
       flexDirection: "row",
-      gap: "12px",
+      gap: "clamp(8px, 1.5vw, 12px)",
       marginTop: "auto",
     },
     contactButton: {
@@ -337,10 +338,11 @@ export default function SearchPage() {
       backgroundColor: "#35006D",
       color: "white",
       border: "none",
-      padding: "10px",
-      borderRadius: "6px",
+      padding: "clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(4px, 0.8vw, 6px)",
       cursor: "pointer",
       fontWeight: "500",
+      fontSize: "clamp(12px, 1.6vw, 14px)",
       transition: "background-color 0.2s",
     },
     bookButton: {
@@ -348,10 +350,11 @@ export default function SearchPage() {
       backgroundColor: "#FFCF01",
       color: "#35006D",
       border: "none",
-      padding: "10px",
-      borderRadius: "6px",
+      padding: "clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(4px, 0.8vw, 6px)",
       cursor: "pointer",
       fontWeight: "500",
+      fontSize: "clamp(12px, 1.6vw, 14px)",
       transition: "background-color 0.2s",
     },
     noResults: {
@@ -708,14 +711,16 @@ export default function SearchPage() {
     },
     searchInput: {
       flex: 1,
-      padding: '12px 16px',
-      border: darkMode ? '1px solid #444' : '1px solid #ced4da',
-      borderRadius: '8px',
-      fontSize: '16px',
-      backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#fff',
-      color: darkMode ? '#fff' : '#2c3e50',
+      padding: '10px 16px',
+      border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'}`,
+      borderRadius: '6px',
+      fontSize: '14px',
+      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#fff',
+      color: darkMode ? '#fff' : '#333',
       outline: 'none',
-      transition: 'all 0.2s',
+      transition: 'all 0.3s ease',
+      height: '40px',
+      boxSizing: 'border-box',
       '&:focus': {
         borderColor: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
         boxShadow: darkMode
@@ -758,9 +763,14 @@ export default function SearchPage() {
       width: isMobile ? 'auto' : '120px'
     },
     categoryButton: {
-      padding: '12px 16px',
+      padding: '0 16px',
       backgroundColor: darkMode ? 'rgb(80, 80, 80)' : '#f8f9fa',
       color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
+      border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'}`,
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      whiteSpace: 'nowrap',
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
       cursor: 'pointer',
@@ -1085,7 +1095,8 @@ export default function SearchPage() {
           <div style={{
             width: isMobile ? '100%' : '280px',
             flexShrink: 0,
-            display: searchCategory === 'course' ? 'none' : 'block'
+            display: searchCategory === 'course' ? 'none' : 'block',
+            order: isMobile ? 2 : 1  // On mobile, filters come after search (order 2)
           }}>
             <div style={{
               backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
@@ -1211,8 +1222,8 @@ export default function SearchPage() {
           </div>
 
           {/* Main Content Area */}
-          <div style={{ flex: 1 }}>
-            <div style={searchBarStyles.searchContainer}>
+          <div style={{ flex: 1, order: isMobile ? 1 : 2 }}> {/* On mobile, search/results come first (order 1) */}
+            <div style={{ ...searchBarStyles.searchContainer, order: isMobile ? 1 : 1 }}>
               <h3 style={{
                 margin: '0 0 8px 0',
                 color: darkMode ? '#fff' : '#2c3e50',
@@ -1232,7 +1243,11 @@ export default function SearchPage() {
                           style={{
                             ...searchBarStyles.categoryButton,
                             padding: '10px 12px',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            height: '40px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            boxSizing: 'border-box'
                           }}
                           onClick={toggleCategory}
                           type="button"
@@ -1253,7 +1268,12 @@ export default function SearchPage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
                         placeholder={`Search...`}
-                        style={{ ...searchBarStyles.searchInput, width: 'auto' }}
+                        style={{ 
+                          ...searchBarStyles.searchInput, 
+                          width: 'auto',
+                          height: '40px',
+                          boxSizing: 'border-box'
+                        }}
                       />
                     </div>
                     <button
@@ -1305,7 +1325,7 @@ export default function SearchPage() {
               </div>
             </div>
 
-            <div style={styles.columnsContainer}>
+            <div style={{ ...styles.columnsContainer, order: isMobile ? 3 : 1 }}>
               <div style={{ width: '100%' }}>
                 {status === "idle" && (
                   <div style={styles.noResults}>

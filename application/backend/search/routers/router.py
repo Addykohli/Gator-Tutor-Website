@@ -2,6 +2,7 @@
 Search router for tutor and course search endpoints.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from typing import Optional
 
@@ -10,7 +11,9 @@ from ..services import (
     search_tutors, 
     search_courses, 
     get_tutor_by_id,
-    get_filter_options
+    get_filter_options,
+    remove_tutor_course,
+    request_tutor_course
 )
 from ..schemas import (
     TutorSearchResponse,
@@ -336,4 +339,59 @@ def search_all_endpoint(
         print(f"Search all error: {str(e)}")
         import traceback
         traceback.print_exc()
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+class CourseRequestCreate(BaseModel):
+    course_id: int
+
+
+@router.post("/tutors/{tutor_id}/courses")
+def request_course_endpoint(
+    tutor_id: int,
+    request_data: CourseRequestCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Request to add a course for a tutor.
+    """
+    try:
+        result = request_tutor_course(db, tutor_id, request_data.course_id)
+        # Check if it was directly added (True/False) or a request object
+        if hasattr(result, 'request_id'):
+            return {
+                "status": "success", 
+                "message": "Course request submitted", 
+                "request_id": result.request_id,
+                "request_status": result.status
+            }
+        else:
+             # Should be a request object, but just in case
+             return {
+                "status": "success",
+                "message": "Course request processed"
+             }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Request course error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.delete("/tutors/{tutor_id}/courses/{course_id}")
+def remove_course_endpoint(
+    tutor_id: int,
+    course_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove a course from a tutor's list.
+    """
+    try:
+        success = remove_tutor_course(db, tutor_id, course_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Course not found or could not be removed")
+        return {"status": "success", "message": "Course removed"}
+    except Exception as e:
+        print(f"Remove course error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -164,7 +164,7 @@ const Header = () => {
     height: isExpanded ? `${dynamicHeight}px` : '40px',
     border: '1px solid rgb(255, 220, 112)',
     borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
-    backgroundColor: isExpanded ? 'rgb(35, 17, 97)' : 'transparent',
+    background: 'linear-gradient(90deg, rgb(53, 0, 109) 0%, rgb(45, 0, 84) 100%)',
     transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
     pointerEvents: 'none',
@@ -396,7 +396,12 @@ const Header = () => {
                 }}
                 onClick={() => {
                   if (isExpanded) {
-                    navigate(item.path);
+                    const protectedRoutes = ['/request-coverage', '/sessions', '/messages'];
+                    if (protectedRoutes.includes(item.path) && !isAuthenticated) {
+                      navigate('/login');
+                    } else {
+                      navigate(item.path);
+                    }
                     setIsMenuOpen(false);
                     setIsLocked(false);
                   }
@@ -423,7 +428,7 @@ const Header = () => {
         display: 'flex',
         justifyContent: 'center',
         position: 'absolute',
-        left: '210px',
+        left: isMobile ? '50%' : '210px',
         transform: 'translateX(-50%)',
         zIndex: 99,
       }}>
@@ -621,13 +626,13 @@ const Header = () => {
                   <div className="logout-confirm-dropdown">
                     <p className="logout-confirm-text">Are you sure you want to logout?</p>
                     <div className="logout-confirm-actions">
-                      <button 
+                      <button
                         onClick={handleLogoutConfirm}
                         className="logout-confirm-yes"
                       >
                         Yes, Logout
                       </button>
-                      <button 
+                      <button
                         onClick={handleLogoutCancel}
                         className="logout-confirm-no"
                       >

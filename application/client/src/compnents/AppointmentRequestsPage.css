@@ -50,7 +50,7 @@
 .tabs-container {
     display: flex;
     gap: 20px;
-    marginBottom: 30px;
+    margin-bottom: 30px;
 }
 
 .tab-item {

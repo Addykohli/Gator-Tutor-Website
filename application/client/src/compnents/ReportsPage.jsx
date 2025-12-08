@@ -184,6 +184,7 @@ const ReportsPage = () => {
             fontSize: isMobile ? "24px" : "32px",
             fontWeight: "600",
             color: darkMode ? '#fff' : '#333',
+            borderBottom: '1px solid rgba(200, 200, 200, 0.49)',
         },
         searchContainer: {
             display: "flex",

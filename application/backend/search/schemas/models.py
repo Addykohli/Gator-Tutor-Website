@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 class CourseInfo(BaseModel):
     """Course information in search results."""
+    course_id: int
     department_code: str
     course_number: str
     title: str
