@@ -1,32 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
+import './Header.css';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const menuRef = useRef(null);
-  const { isAuthenticated, user } = useAuth();
-  
+  const { isAuthenticated, user, logout, darkMode, toggleDarkMode } = useAuth();
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
+  const [isCompact, setIsCompact] = useState(window.innerWidth <= 768);
+  const [isSmallScreen, setIsSmallScreen] = useState(window.innerWidth < 430);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logoutRef = useRef(null);
 
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-search', label: 'Find', path: '/search' },
     { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
-    { icon: 'fas fa-book', label: 'Request Course Coverage', path: '/request-coverage' },
-    { icon: 'fas fa-user-check', label: 'Sessions', path: '/sessions' },
-    // Tutor-only menu items
-    { 
-      icon: 'fas fa-calendar-alt', 
-      label: 'Appointments', 
-      path: '/appointments',
-      tutorOnly: true
+    {
+      icon: 'fas fa-book',
+      label: 'Request Course Coverage',
+      path: '/request-coverage',
+      hideForAdmin: true
     },
-    { 
-      icon: 'fas fa-calendar-check', 
-      label: 'Appointment Requests', 
+    {
+      icon: 'fas fa-user-check',
+      label: 'Sessions',
+      path: '/sessions',
+      hideForAdmin: true
+    },
+    // Tutor-only menu items
+    {
+      icon: 'fas fa-calendar-check',
+      label: 'Appointment Requests',
       path: '/appointment-requests',
       tutorOnly: true
     }
@@ -34,13 +45,20 @@ const Header = () => {
 
   const isExpanded = isMenuOpen || isLocked;
 
-  const buttonWidth = 100;
-  const expandedWidth = buttonWidth + 55; 
-  const leftShift = 20;
+  // Dynamic dimensions based on screen size
+  const buttonWidth = isCompact ? 90 : 100;
+  // Ensure the expanded menu touches the left edge by matching the container padding
+  const leftShift = isCompact ? 10 : 20;
+  // Calculate top shift to touch the top edge (Header is 60px, Button is 40px, so 10px gap)
+  const topShift = 10;
+
+  const expandedWidth = buttonWidth + (isCompact ? 45 : 55);
 
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024);
+      setIsCompact(window.innerWidth <= 768);
+      setIsSmallScreen(window.innerWidth < 430);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -52,33 +70,46 @@ const Header = () => {
         setIsLocked(false);
         setIsMenuOpen(false);
       }
+      if (logoutRef.current && !logoutRef.current.contains(event.target)) {
+        setShowLogoutConfirm(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const navButtonStyle = {
-    color: 'rgb(255, 220, 112)',
-    textDecoration: 'none',
-    fontFamily: 'inherit',
-    fontSize: '14px',
-    fontWeight: '400',
-    padding: '6px 10px',
-    borderRadius: '4px',
-    transition: 'all 0.2s ease-in-out',
-    display: 'flex',
-    alignItems: 'center',
-    border: '1px solid rgb(255, 220, 112)',
-    background: 'transparent',
+
+  const toggleContainerStyle = {
+    position: 'relative',
+    width: '50px',
+    height: '24px',
+    backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgba(255, 220, 112, 0.3)',
+    borderRadius: '12px',
     cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    margin: '0 4px'
+    transition: 'background-color 0.3s ease',
+    border: '1px solid rgb(255, 220, 112)',
+    margin: '0 8px'
   };
-  
-  const dividerStyle = {
-    color: 'rgba(255, 220, 112)',
-    margin: '0 8px',
-    userSelect: 'none'
+
+  const toggleCircleStyle = {
+    position: 'absolute',
+    top: '2px',
+    left: darkMode ? '26px' : '2px',
+    width: '18px',
+    height: '18px',
+    backgroundColor: 'rgb(255, 220, 112)',
+    borderRadius: '50%',
+    transition: 'left 0.3s ease',
+    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+  };
+
+  const toggleIconStyle = {
+    position: 'absolute',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    fontSize: '10px',
+    color: 'rgb(35, 17, 97)',
+    transition: 'opacity 0.3s ease'
   };
 
   const classTitle = {
@@ -90,18 +121,6 @@ const Header = () => {
     whiteSpace: 'normal',
     textAlign: isMobile ? 'center' : 'left',
     color: 'inherit',
-  };
-
-  const navBarStyle = {
-    backgroundColor: 'rgb(35, 17, 97)',
-    height: '54px',
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    padding: '0 20px',
-    boxSizing: 'border-box',
-    position: 'relative',
-    zIndex: 100,
   };
 
   const menuWrapperStyle = {
@@ -122,8 +141,10 @@ const Header = () => {
     color: 'rgb(255, 220, 112)',
   };
 
-  // Filter menu items based on authentication and tutor status
+  // Filter menu items based on authentication, role, and permissions
   const filteredMenuItems = menuItems.filter(item => {
+    // Hide items marked for admin users
+    if (user?.role === 'admin' && item.hideForAdmin) return false;
     // Show all items that are not tutor-only
     if (!item.tutorOnly) return true;
     // Show tutor-only items only if user is authenticated and is a tutor
@@ -132,12 +153,12 @@ const Header = () => {
 
   // Calculate dynamic height based on number of visible menu items
   const menuItemHeight = 54; // height per menu item in pixels
-  const menuPadding = 55; // top and bottom padding
+  const menuPadding = 58; // top and bottom padding
   const dynamicHeight = (filteredMenuItems.length * menuItemHeight) + menuPadding;
 
   const borderContainerStyle = {
     position: 'absolute',
-    top: isExpanded ? '-8px' : '0',
+    top: isExpanded ? `-${topShift}px` : '0',
     left: isExpanded ? `-${leftShift}px` : '0',
     width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
     height: isExpanded ? `${dynamicHeight}px` : '40px',
@@ -213,7 +234,7 @@ const Header = () => {
     const collapsedTop = 12 + (index * 6);
     const expandedTop = 48 + (index * 54);
     const itemWidth = expandedWidth - 16; // 124px with 8px padding each side
-    
+
     return {
       position: 'absolute',
       left: isExpanded ? `-${leftShift - 8}px` : '12px',
@@ -303,13 +324,32 @@ const Header = () => {
     }
   };
 
+  const handleLogoutClick = (e) => {
+    e.preventDefault();
+    setShowLogoutConfirm(true);
+  };
+
+  const handleLogoutConfirm = async () => {
+    setShowLogoutConfirm(false);
+    try {
+      logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
+  const handleLogoutCancel = () => {
+    setShowLogoutConfirm(false);
+  };
+
 
   return (
-    <div style={navBarStyle}>
+    <div className="header-container">
       {/* Menu Container */}
       <div ref={menuRef} style={menuWrapperStyle}>
         {/* Invisible hover area */}
-        <div 
+        <div
           style={hoverAreaStyle}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -322,7 +362,7 @@ const Header = () => {
         <div style={headerDividerStyle} />
 
         {/* Menu Button */}
-        <button 
+        <button
           style={menuButtonStyle}
           onClick={handleButtonClick}
           onMouseEnter={handleMouseEnter}
@@ -367,7 +407,7 @@ const Header = () => {
                 </div>
                 <span style={getLabelStyle(visualIndex)}>{item.label}</span>
               </button>
-              
+
               {/* Only show divider if not the last item */}
               {index < filteredMenuItems.length - 1 && (
                 <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
@@ -378,19 +418,19 @@ const Header = () => {
       </div>
 
       {/* Logo */}
-      <div style={{ 
-        flex: 1, 
-        display: 'flex', 
-        justifyContent: 'center', 
-        position: 'absolute', 
-        left: '16.5%', 
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        justifyContent: 'center',
+        position: 'absolute',
+        left: '210px',
         transform: 'translateX(-50%)',
         zIndex: 99,
       }}>
         <button onClick={() => navigate('/')} style={classTitle}>
-          <img 
-            src={require('../assets/gator icon logo.png')} 
-            alt="Gator Tutor Logo" 
+          <img
+            src={require('../assets/gator icon logo.png')}
+            alt="Gator Tutor Logo"
             style={{ height: '40px', width: 'auto' }}
             onError={(e) => {
               e.target.onerror = null;
@@ -400,58 +440,207 @@ const Header = () => {
         </button>
       </div>
 
-      {/* Login/Signup buttons - only show when not authenticated */}
-      {!isAuthenticated && (
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          marginLeft: 'auto',
-          paddingRight: '10px',
-          zIndex: 99,
-        }}>
-          <button 
-            style={navButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-              e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'rgb(255, 220, 112)';
-              e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/login');
-            }}
-          >
-            <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-            Login
-          </button>
-        <span style={dividerStyle}>|</span>
-          <button 
-          style={navButtonStyle}
-            onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgb(255, 220, 112)';
-            e.currentTarget.style.color = 'rgb(35, 17, 97)';
-              e.currentTarget.style.border = '1px solid rgb(35, 17, 97)';
-            }}
-            onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'rgb(255, 220, 112)';
-            e.currentTarget.style.border = '1px solid rgb(255, 220, 112)';
-            }}
-            onClick={(e) => {
-              e.preventDefault();
-              navigate('/register');
-            }}
-          >
-          <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-            Sign Up
-          </button>
-        </div>
-      )}
+      {/* Auth buttons */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginLeft: 'auto',
+        paddingRight: isMobile ? '0px' : '10px',
+        zIndex: 99,
+      }}>
+        {isMobile ? (
+          <>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="settings-btn"
+            >
+              <i className="fas fa-cog"></i>
+            </button>
+
+            {isSettingsOpen && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  width: '100vw',
+                  height: '100vh',
+                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                  zIndex: 2000,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backdropFilter: 'blur(3px)'
+                }}
+                onClick={(e) => {
+                  if (e.target === e.currentTarget) setIsSettingsOpen(false);
+                }}
+              >
+                <div style={{
+                  backgroundColor: 'rgb(35, 17, 97)',
+                  padding: '30px',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                  alignItems: 'center',
+                  border: '1px solid rgb(255, 220, 112)',
+                  minWidth: '200px',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                }}>
+                  {/* Dark Mode Toggle */}
+                  <div
+                    style={{ ...toggleContainerStyle, margin: 0 }}
+                    onClick={toggleDarkMode}
+                    title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                  >
+                    <div style={toggleCircleStyle}>
+                      <i
+                        className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                        style={{
+                          ...toggleIconStyle,
+                          left: darkMode ? '4px' : '4px'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {!isAuthenticated ? (
+                    <>
+                      <button
+                        className="header-btn auth-btn"
+                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/login');
+                          setIsSettingsOpen(false);
+                        }}
+                      >
+                        <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                        Login
+                      </button>
+                      <button
+                        className="header-btn auth-btn"
+                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          navigate('/register');
+                          setIsSettingsOpen(false);
+                        }}
+                      >
+                        <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                        Sign Up
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      className="header-btn"
+                      style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLogoutConfirm();
+                        setIsSettingsOpen(false);
+                      }}
+                    >
+                      <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                      Logout
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => setIsSettingsOpen(false)}
+                    style={{
+                      marginTop: '10px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255, 220, 112, 0.7)',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Dark Mode Toggle */}
+            <div
+              style={toggleContainerStyle}
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <div style={toggleCircleStyle}>
+                <i
+                  className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                  style={{
+                    ...toggleIconStyle,
+                    left: darkMode ? '4px' : '4px'
+                  }}
+                />
+              </div>
+            </div>
+
+            {!isAuthenticated ? (
+              <>
+                <button
+                  className="header-btn auth-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/login');
+                  }}
+                >
+                  <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                  Login
+                </button>
+                <button
+                  className="header-btn auth-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/register');
+                  }}
+                >
+                  <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                  Sign Up
+                </button>
+              </>
+            ) : (
+              <div className="logout-container" ref={logoutRef}>
+                <button
+                  className="header-btn"
+                  onClick={handleLogoutClick}
+                >
+                  <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                  Logout
+                </button>
+
+                {showLogoutConfirm && (
+                  <div className="logout-confirm-dropdown">
+                    <p className="logout-confirm-text">Are you sure you want to logout?</p>
+                    <div className="logout-confirm-actions">
+                      <button 
+                        onClick={handleLogoutConfirm}
+                        className="logout-confirm-yes"
+                      >
+                        Yes, Logout
+                      </button>
+                      <button 
+                        onClick={handleLogoutCancel}
+                        className="logout-confirm-no"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

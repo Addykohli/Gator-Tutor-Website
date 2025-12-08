@@ -1,0 +1,449 @@
+/* AppointmentRequestsPage.css */
+
+.page-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.page-container.dark {
+    background-color: rgb(30, 30, 30);
+    color: #f0f0f0;
+    background: linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%);
+}
+
+.page-container:not(.dark) {
+    background-color: #ffffff;
+    color: #333;
+}
+
+.page-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.page-heading {
+    text-align: center;
+    padding-bottom: 3px;
+    border-bottom: 8px solid rgb(255, 220, 112);
+    display: block;
+    margin: 20px auto 40px;
+    font-size: 45px;
+    font-weight: 600;
+    width: fit-content;
+    transition: color 0.3s ease;
+}
+
+.dark .page-heading {
+    color: #fff;
+}
+
+.not-dark .page-heading {
+    color: #333;
+}
+
+/* Tabs */
+.tabs-container {
+    display: flex;
+    gap: 20px;
+    marginBottom: 30px;
+}
+
+.tab-item {
+    flex: 1;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    user-select: none;
+}
+
+.dark .tab-item {
+    background-color: rgb(40, 40, 40);
+    border: 2px solid #444;
+    color: #aaa;
+}
+
+.not-dark .tab-item {
+    background-color: #f0f0f0;
+    border: 2px solid #ddd;
+    color: #666;
+}
+
+.tab-item:hover {
+    transform: translateY(-2px);
+}
+
+.dark .tab-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.not-dark .tab-item:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.tab-item.active {
+    color: #35006D;
+}
+
+.dark .tab-item.active {
+    background-color: rgb(255, 220, 100);
+    border: 2px solid rgb(255, 220, 100);
+    color: #2c3e50;
+}
+
+.not-dark .tab-item.active {
+    background-color: #FFCF01;
+    border: 2px solid #35006D;
+    color: #35006D;
+}
+
+.tab-number {
+    font-size: 36px;
+    font-weight: 700;
+    margin-bottom: 5px;
+    color: inherit;
+}
+
+.tab-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: inherit;
+}
+
+/* Requests List */
+.requests-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.request-card {
+    border-radius: 8px;
+    padding: 24px;
+    transition: all 0.3s ease;
+}
+
+.dark .request-card {
+    background-color: rgb(40, 40, 40);
+    border: 1px solid #444;
+}
+
+.not-dark .request-card {
+    background-color: #f9f9f9;
+    border: 1px solid #ddd;
+}
+
+.request-card:hover {
+    transform: translateY(-2px);
+}
+
+.dark .request-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.not-dark .request-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.request-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.student-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.dark .student-name {
+    color: rgb(255, 220, 100);
+    border-bottom: 1px solid rgb(255, 220, 100);
+    display: inline-block;
+    padding-bottom: 2px;
+}
+
+.not-dark .student-name {
+    color: #35006D;
+}
+
+.student-email {
+    font-size: 14px;
+}
+
+.dark .student-email {
+    color: #bbb;
+}
+
+.not-dark .student-email {
+    color: #666;
+}
+
+/* Status Badge */
+.status-badge {
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.dark .status-badge {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #f0f0f0;
+}
+
+.not-dark .status-badge {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: #333;
+}
+
+/* Details Grid */
+.request-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+.detail-label {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.dark .detail-label {
+    color: #aaa;
+}
+
+.not-dark .detail-label {
+    color: #666;
+}
+
+.detail-value {
+    font-size: 14px;
+}
+
+.dark .detail-value {
+    color: #f0f0f0;
+}
+
+.not-dark .detail-value {
+    color: #333;
+}
+
+/* Description Box */
+.description-box {
+    border-radius: 4px;
+    padding: 12px;
+    margin-bottom: 15px;
+}
+
+.dark .description-box {
+    background-color: rgb(50, 50, 50);
+    border: 1px solid #555;
+}
+
+.not-dark .description-box {
+    background-color: #fff;
+    border: 1px solid #ddd;
+}
+
+.description-text {
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.dark .description-text {
+    color: #f0f0f0;
+}
+
+.not-dark .description-text {
+    color: #333;
+}
+
+/* Actions */
+.request-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-approve {
+    color: #fff;
+}
+
+.dark .btn-approve {
+    background-color: rgb(255, 220, 100);
+    color: #2c3e50;
+}
+
+.not-dark .btn-approve {
+    background-color: #35006D;
+}
+
+.btn-decline {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.btn-cancel {
+    background-color: rgb(107, 21, 36);
+    color: #fff;
+}
+
+.btn-join {
+    background-color: #FFCF01;
+    color: #35006D;
+}
+
+.dark .btn-join {
+    background-color: rgb(255, 220, 100);
+    color: #2c3e50;
+}
+
+.not-dark .btn-join {
+    background-color: #FFCF01;
+    color: #35006D;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    border-radius: 8px;
+}
+
+.dark .empty-state {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #aaa;
+}
+
+.not-dark .empty-state {
+    background-color: rgba(0, 0, 0, 0.02);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    color: #666;
+}
+
+/* Controls */
+.controls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.sort-control {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    font-size: 14px;
+}
+
+.dark .sort-control:hover {
+    color: #fff;
+}
+
+.not-dark .sort-control:hover {
+    color: #000;
+}
+
+.sort-arrow {
+    font-size: 12px;
+}
+
+.dark .sort-arrow {
+    color: rgb(255, 220, 100);
+}
+
+.not-dark .sort-arrow {
+    color: #35006D;
+}
+
+
+/* --- Mobile Responsive Styles --- */
+@media (max-width: 768px) {
+    .page-content {
+        padding: 20px 16px;
+    }
+
+    .tabs-container {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .tab-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        text-align: left;
+    }
+
+    .tab-number {
+        font-size: 24px;
+        margin-bottom: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .page-heading {
+        font-size: 28px;
+        margin-top: 10px;
+        margin-bottom: 24px;
+        border-bottom-width: 4px;
+    }
+
+    .request-card {
+        padding: 16px;
+    }
+
+    .student-name {
+        font-size: 18px;
+    }
+
+    .request-actions {
+        flex-direction: column;
+    }
+
+    .request-details-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .controls-header {
+        flex-direction: column-reverse;
+        align-items: flex-start;
+    }
+}

@@ -8,7 +8,13 @@ from .models import (
     CourseSearchResult,
     CourseSearchResponse,
     SearchAllResponse,
-    TutorDetailResponse
+    TutorDetailResponse,
+    FilterOptionsResponse,
+    DepartmentFilterOption,
+    LanguageFilterOption,
+    PriceRangeOption,
+    LocationModeOption,
+    WeekdayOption
 )
 
 __all__ = [
@@ -18,6 +24,12 @@ __all__ = [
     "CourseSearchResult",
     "CourseSearchResponse",
     "SearchAllResponse",
-    "TutorDetailResponse"
+    "TutorDetailResponse",
+    "FilterOptionsResponse",
+    "DepartmentFilterOption",
+    "LanguageFilterOption",
+    "PriceRangeOption",
+    "LocationModeOption",
+    "WeekdayOption"
 ]
 

@@ -1,7 +1,7 @@
 """
 AvailabilitySlot model for tutor availability (optional - may not be used in initial search).
 """
-from sqlalchemy import Column, Integer, String, Time, ForeignKey, Index
+from sqlalchemy import Column, Integer, String, Time, Date, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from search.database import Base
 
@@ -21,6 +21,8 @@ class AvailabilitySlot(Base):
         end_time: End time of availability
         location_mode: Location mode (online, campus, etc.)
         location_note: Additional location notes
+        valid_from: Start date for the slot (NULL = starts immediately)
+        valid_until: Expiry date for the slot (NULL = never expires)
     """
     __tablename__ = "availability_slots"
 
@@ -31,6 +33,8 @@ class AvailabilitySlot(Base):
     end_time = Column(Time, nullable=True)
     location_mode = Column(String(50), nullable=True)  # online, campus, etc.
     location_note = Column(String(500), nullable=True)
+    valid_from = Column(Date, nullable=True)  # NULL = starts immediately
+    valid_until = Column(Date, nullable=True)  # NULL = never expires
 
     # Relationships
     tutor_profile = relationship("TutorProfile", back_populates="availability_slots")
