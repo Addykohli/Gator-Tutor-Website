@@ -670,12 +670,14 @@ const HomePage = () => {
     tutorCalendarGrid: {
       width: '100%',
       display: 'grid',
-      gridTemplateColumns: isMobile ? 'clamp(25px, 4vw, 30px) repeat(7, 1fr)' : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
+      gridTemplateColumns: isMobile
+        ? 'clamp(25px, 4vw, 30px) repeat(7, calc((100% - clamp(25px, 4vw, 30px)) / 3))'
+        : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
       backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
       border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
       borderRadius: '8px',
-      overflow: 'hidden',
-      overflowX: 'visible',
+      overflow: isAnimating ? 'hidden' : 'visible',
+      overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible'),
       '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
       '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
       '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
@@ -687,6 +689,10 @@ const HomePage = () => {
       backgroundColor: 'var(--tutor-time-bg, #fff)',
       padding: "clamp(0px, 0.5vw, 4px) clamp(1px, 0.5vw, 4px) clamp(4px, 2vw, 20px)",
       textAlign: 'center',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      zIndex: 5,
+      position: 'sticky',
+      left: 0,
       fontSize: "clamp(0.5rem, 1vw, 0.75rem)",
       fontWeight: '500',
       color: 'var(--tutor-time-text, #666)',
@@ -748,8 +754,9 @@ const HomePage = () => {
     },
     searchInputContainer: {
       display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row',
-      alignItems: isMobile ? 'stretch' : 'center',
+      flexDirection: 'row',
+      flexWrap: isMobile ? 'wrap' : 'nowrap',
+      alignItems: 'center',
       gap: "clamp(6px, 1vw, 8px)",
       marginTop: "clamp(6px, 1.2vw, 10px)"
     },
@@ -761,12 +768,14 @@ const HomePage = () => {
       fontSize: "clamp(14px, 1.8vw, 16px)",
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : "#ffffff",
+      height: isMobile ? '42px' : 'auto',
+      boxSizing: 'border-box'
     },
     categoryDropdown: {
       position: 'relative',
       display: 'inline-block',
-      minWidth: isMobile ? '100%' : '120px',
-      width: isMobile ? '100%' : '120px'
+      minWidth: isMobile ? '35%' : '120px',
+      width: isMobile ? '35%' : '120px'
     },
     categoryButton: {
       padding: "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
@@ -779,8 +788,14 @@ const HomePage = () => {
       textAlign: 'center',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      fontSize: "clamp(14px, 1.8vw, 16px)",
+      justifyContent: isMobile ? 'center' : 'space-between',
+      fontSize: isMobile ? '0.8rem' : "clamp(14px, 1.8vw, 16px)",
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      padding: isMobile ? '0 4px' : "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
+      height: isMobile ? '42px' : 'auto',
+      boxSizing: 'border-box'
     },
     categoryList: {
       position: 'absolute',
@@ -927,7 +942,7 @@ const HomePage = () => {
                   key={`${booking.booking_id || index}`}
                   style={{
                     backgroundColor: `${booking.color}44`,
-                    color: '#333',
+                    color: darkMode ? '#fff' : '#333',
                     borderRadius: isMobile ? '4px' : '6px',
                     padding: isMobile ? '4px 6px' : '10px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
@@ -965,7 +980,7 @@ const HomePage = () => {
                   )}
                   <div style={{
                     fontSize: isMobile ? '0.65rem' : '0.8rem',
-                    color: darkMode ? '#000000ff' : '#6c757d',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.9)' : '#6c757d',
                     fontWeight: isMobile ? '600' : '400'
                   }}>
                     {booking.formattedTime}
@@ -973,7 +988,7 @@ const HomePage = () => {
                   <div style={{
                     fontWeight: '500',
                     fontSize: isMobile ? '0.7rem' : '1rem',
-                    color: '#212529',
+                    color: darkMode ? '#fff' : '#212529',
                     lineHeight: isMobile ? '1.2' : '1.4'
                   }}>
                     {booking.tutor_name || 'Tutoring Session'}
@@ -981,14 +996,14 @@ const HomePage = () => {
                   {booking.course_name && (
                     <div style={{
                       fontSize: isMobile ? '0.6rem' : '0.8rem',
-                      color: '#495057',
+                      color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#495057',
                       display: 'flex',
                       alignItems: 'center',
                       marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-book" style={{
                         marginRight: isMobile ? '4px' : '6px',
-                        color: '#6c757d',
+                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
                         width: isMobile ? '10px' : '14px',
                         fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
@@ -999,14 +1014,14 @@ const HomePage = () => {
                   {booking.location && (
                     <div style={{
                       fontSize: isMobile ? '0.6rem' : '0.8rem',
-                      color: '#6c757d',
+                      color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#6c757d',
                       display: 'flex',
                       alignItems: 'center',
                       marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-map-marker-alt" style={{
                         marginRight: isMobile ? '4px' : '6px',
-                        color: '#6c757d',
+                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
                         width: isMobile ? '10px' : '14px',
                         fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
@@ -1355,9 +1370,11 @@ const HomePage = () => {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                   zIndex: 10,
                   border: `1px solid ${booking.isStudentBooking ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255,255,255,0.3)'}`,
-                  borderLeft: booking.status === 'confirmed'
-                    ? `${isMobile ? '3px' : '6px'} solid rgba(53, 0, 109, 0.95)`
-                    : `${isMobile ? '3px' : '6px'} solid rgba(255, 193, 7, 0.95)`,
+                  borderLeft: (booking.isStudentBooking && booking.status === 'confirmed')
+                    ? `${isMobile ? '3px' : '6px'} solid rgb(95, 0, 196)`
+                    : booking.status === 'confirmed'
+                      ? `${isMobile ? '3px' : '6px'} solid rgba(53, 0, 109, 0.95)`
+                      : `${isMobile ? '3px' : '6px'} solid rgba(255, 193, 7, 0.95)`,
                   cursor: 'pointer',
                   transition: 'box-shadow 0.3s, background 0.3s, transform 0.2s',
                 }}
@@ -2606,7 +2623,8 @@ const HomePage = () => {
                           fontWeight: '600',
                           fontSize: '0.7rem',
                           position: 'relative',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                          width: isMobile ? '100%' : 'auto'
                         }}
                         onMouseOver={(e) => {
                           e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
@@ -2734,7 +2752,9 @@ const HomePage = () => {
                       justifyContent: 'center',
                       gap: '8px',
                       fontWeight: '500',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      width: isMobile ? '100%' : 'auto',
+                      marginTop: isMobile ? '6px' : '0'
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.backgroundColor = '#4b1a80';
@@ -3289,19 +3309,21 @@ const HomePage = () => {
                   {!user?.isTutor && (
                     <div style={{
                       position: 'relative',
-                      minHeight: '400px'
+                      minHeight: '400px',
+                      overflow: isAnimating ? 'hidden' : (isMobile ? 'auto' : 'visible')
                     }}>
                       <div style={{
                         ...styles.calendarGrid,
                         ...calendarAnimation[slideDirection],
                         height: 'auto',
                         minHeight: '400px',
-                        overflow: 'visible'
+                        overflow: isAnimating ? 'hidden' : 'visible',
+                        overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible')
                       }}>
                         <div style={{
                           position: 'relative',
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(7, 1fr)',
+                          gridTemplateColumns: isMobile ? 'repeat(7, calc(100% / 3))' : 'repeat(7, 1fr)',
                           gap: '1px',
                           backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
                           border: 'none',
@@ -3461,7 +3483,8 @@ const HomePage = () => {
                           </div>
                           <div style={{
                             position: 'relative',
-                            minHeight: '500px'
+                            minHeight: '500px',
+                            overflow: isAnimating ? 'hidden' : 'visible'
                           }}>
                             <div style={{
                               ...styles.tutorCalendarGrid,
@@ -3541,7 +3564,9 @@ const HomePage = () => {
                       justifyContent: 'center',
                       gap: '8px',
                       fontWeight: '500',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      width: isMobile ? '100%' : 'auto',
+                      marginTop: isMobile ? '6px' : '0'
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.backgroundColor = '#4b1a80';

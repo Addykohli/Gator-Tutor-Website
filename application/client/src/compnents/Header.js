@@ -138,7 +138,7 @@ const Header = () => {
     width: isExpanded ? `${expandedWidth}px` : `${buttonWidth}px`,
     height: isExpanded ? '220px' : '40px',
     zIndex: 999,
-    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     color: 'rgb(255, 220, 112)',
   };
 
@@ -166,7 +166,7 @@ const Header = () => {
     border: '1px solid rgb(255, 220, 112)',
     borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
     background: 'linear-gradient(90deg, rgb(53, 0, 109) 0%, rgb(45, 0, 84) 100%)',
-    transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
     pointerEvents: 'none',
     zIndex: 1000,
@@ -213,7 +213,7 @@ const Header = () => {
     height: '2px',
     backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
     borderRadius: '1px',
-    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.05}s`,
+    transition: `all 0.25s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.03}s`,
     transformOrigin: 'left center',
   });
 
@@ -246,7 +246,7 @@ const Header = () => {
       height: isExpanded ? '46px' : '2px',
       backgroundColor: isExpanded ? 'transparent' : 'rgb(255, 220, 112)',
       borderRadius: isExpanded ? '6px' : '1px',
-      transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
+      transition: `all 0.3s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.05}s`,
       cursor: isExpanded ? 'pointer' : 'default',
       overflow: 'hidden',
       border: 'none',
@@ -264,13 +264,13 @@ const Header = () => {
     justifyContent: 'center',
     minWidth: isExpanded ? '22px' : '18px',
     height: isExpanded ? '22px' : '2px',
-    transition: `all 0.5s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.08}s`,
+    transition: `all 0.3s cubic-bezier(0.4, 0, 0.2, 1) ${index * 0.05}s`,
   });
 
   const getIconStyle = (index) => ({
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'scale(1) rotate(0deg)' : 'scale(0) rotate(-180deg)',
-    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.2 + index * 0.1}s`,
+    transition: `all 0.25s cubic-bezier(0.4, 0, 0.2, 1) ${0.1 + index * 0.06}s`,
     color: 'rgb(255, 220, 112)',
     fontSize: '14px',
   });
@@ -278,13 +278,13 @@ const Header = () => {
   const getLabelStyle = (index) => ({
     marginLeft: '8px',
     color: 'rgb(255, 220, 112)',
-    fontSize: '11px',
+    fontSize: '9px',
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: '0.3px',
     opacity: isExpanded ? 1 : 0,
     transform: isExpanded ? 'translateX(0)' : 'translateX(-30px)',
-    transition: `all 0.4s cubic-bezier(0.4, 0, 0.2, 1) ${0.25 + index * 0.1}s`,
+    transition: `all 0.25s cubic-bezier(0.4, 0, 0.2, 1) ${0.15 + index * 0.06}s`,
     whiteSpace: 'normal',
     lineHeight: '1.2',
     textAlign: 'left',

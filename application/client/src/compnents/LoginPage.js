@@ -18,7 +18,7 @@ const LoginPage = () => {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: 'calc(100vh - 120px)',
+      minHeight: '100vh',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
       backgroundImage: `url(${require('../assets/Library_scene.JPG')})`,

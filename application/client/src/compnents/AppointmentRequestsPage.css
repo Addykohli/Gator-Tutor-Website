@@ -119,9 +119,16 @@
 
 /* Requests List */
 .requests-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
+}
+
+/* Mobile: Single column */
+@media (max-width: 768px) {
+    .requests-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 .request-card {

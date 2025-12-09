@@ -242,18 +242,7 @@ const CourseCoverageRequestPage = () => {
                   />
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>
-                    Your Email<span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="your.email@sfsu.edu"
-                    {...register("email", { required: "Email is required" })}
-                    style={styles.formInput}
-                  />
-                  {errors.email && <span style={{ color: 'red', fontSize: '12px' }}>{errors.email.message}</span>}
-                </div>
+
 
                 <div style={styles.formActions}>
                   <button
