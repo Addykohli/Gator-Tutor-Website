@@ -1,0 +1,17 @@
+server:
+  static_root: /home/atharva/csc648-fa25-145-team08/application/client/build
+  backend_socket: /run/uvicorn-team08/uvicorn-team08.sock
+  server_name: 3.101.155.82
+  nginx_site: team08
+
+routes:
+  - prefix: /search
+    websocket: false
+  - prefix: /schedule
+    websocket: false
+  - prefix: /api
+    websocket: false
+  - prefix: /api/admin
+    websocket: false
+  - prefix: /api/chat
+    websocket: true

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, createSearchParams } from 'react-router-dom';
 import { ContextProvider, useAuth } from './Context/Context';
+import GoogleAnalytics from './utils/GoogleAnalytics';
 import HomePage from './compnents/HomePage';
 import AdminHome from './compnents/AdminHome';
 import LoginPage from './compnents/LoginPage';
@@ -112,6 +113,7 @@ function App() {
   return (
     <ContextProvider>
       <Router>
+        <GoogleAnalytics />
         <div className="App">
           <Routes>
             <Route path="/" element={<AdminRedirect />} />

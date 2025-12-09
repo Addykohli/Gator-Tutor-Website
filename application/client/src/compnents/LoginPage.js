@@ -117,7 +117,8 @@ const LoginPage = () => {
     const { email, password } = data;
 
     try {
-      const response = await fetch('http://localhost:8000/api/login', {
+      const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
+      const response = await fetch(`${apiBaseUrl}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,7 +136,7 @@ const LoginPage = () => {
       }
 
       // Get user details after successful login
-      const userResponse = await fetch(`http://localhost:8000/api/users/${responseData.user_id}`);
+      const userResponse = await fetch(`${apiBaseUrl}/api/users/${responseData.user_id}`);
       const userData = await userResponse.json();
 
       if (!userResponse.ok) {

@@ -59,7 +59,9 @@ const MessagesPage = () => {
   }, [messages]);
 
   const connectWebSocket = () => {
-    const wsUrl = `ws://localhost:8000/api/chat/ws/${CURRENT_USER_ID}`;
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+    const wsUrl = `${wsProtocol}//${wsHost}/api/chat/ws/${CURRENT_USER_ID}`;
     try {
       wsRef.current = new WebSocket(wsUrl);
       wsRef.current.onopen = () => {
