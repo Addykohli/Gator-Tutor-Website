@@ -55,7 +55,7 @@ const HomePage = () => {
 
   // Memoize the API base URL with useMemo since it doesn't depend on any props or state
   const apiBaseUrl = React.useMemo(() => {
-    return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+    return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
   }, []);
 
   // Fetch tutor availability
@@ -423,7 +423,7 @@ const HomePage = () => {
 
     const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : '/api';
+      : '';
 
     const typeMap = {
       'tutor': 'tutor',
@@ -1429,7 +1429,7 @@ const HomePage = () => {
     try {
       const apiBaseUrl = window.location.hostname === 'localhost'
         ? 'http://localhost:8000'
-        : '/api';
+        : '';
 
       const weekday = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
       const formattedDate = format(date, 'yyyy-MM-dd');

@@ -21,7 +21,7 @@ const TutorCourseApplications = () => {
 
     const fetchRequests = () => {
         setLoading(true);
-        const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+        const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
 
         fetch(`${apiBaseUrl}/api/admin/all-tutor-course-requests`)
             .then(res => {
@@ -46,7 +46,7 @@ const TutorCourseApplications = () => {
     const handleAction = async (requestId, action) => {
         if (!window.confirm(`Are you sure you want to ${action} this request?`)) return;
 
-        const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+        const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
         try {
             const response = await fetch(`${apiBaseUrl}/api/admin/tutor-course-request/${requestId}/${action}`, {
                 method: 'PATCH'

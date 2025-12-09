@@ -5,7 +5,7 @@ import Footer from './Footer';
 
 const CHAT_API_BASE = window.location.hostname === 'localhost'
   ? 'http://localhost:8000'
-  : '/api';
+  : '';
 
 const userCache = {};
 

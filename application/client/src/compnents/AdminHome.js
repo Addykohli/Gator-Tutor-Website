@@ -55,7 +55,7 @@ const AdminHome = () => {
 
     const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : '/api';
+      : '';
 
     const typeMap = {
       'tutor': 'tutor',
