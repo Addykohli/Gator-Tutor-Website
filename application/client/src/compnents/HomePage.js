@@ -802,7 +802,7 @@ const HomePage = () => {
         : "#fff",
       borderRadius: "clamp(16px, 3vw, 24px)",
       padding: "clamp(16px, 3vw, 32px)",
-      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
@@ -2065,7 +2065,7 @@ const HomePage = () => {
                       onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
                       style={{
                         position: 'relative',
-                        backgroundColor: 'rgba(231, 230, 230, 0.49)',
+                        backgroundColor: 'rgba(231, 230, 230, 0.29)',
                         border: 'none',
                         cursor: 'pointer',
                         color: darkMode ? 'rgba(0, 0, 0, 0.91)' : '#6c757d',
@@ -2081,14 +2081,14 @@ const HomePage = () => {
                         justifyContent: 'center',
                       }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
+                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.5)';
                         e.currentTarget.style.color = '#35006D';
                         if (isSidebarCollapsed) {
                           e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
                         }
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
+                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.29)';
                         e.currentTarget.style.color = 'rgba(0, 0, 0, 0.91)';
                         if (isSidebarCollapsed) {
                           e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
@@ -2769,7 +2769,7 @@ const HomePage = () => {
                   ? 'linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(25, 25, 25, 0.9))'
                   : 'linear-gradient(145deg, #f8f9fa, #e9ecef)',
                 border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)'
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
               }}>
                 <h3 style={{
                   margin: '0 0 15px 0',
@@ -3426,7 +3426,7 @@ const HomePage = () => {
                                 <div style={{
                                   minWidth: isMobile ? '16px' : '26px',
                                   height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(53, 0, 109, 0.31)',
+                                  backgroundColor: 'rgba(53, 0, 109, 0.51)',
                                   borderRadius: isMobile ? '2px' : '4px',
                                   borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 0.95)`,
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)'

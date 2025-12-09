@@ -59,7 +59,7 @@ const TutorCourseApplications = () => {
                         ? { ...req, status: action === 'approve' ? 'approved' : 'rejected' }
                         : req
                 ));
-                alert(`Request ${action}d successfully`);
+                // alert(`Request ${action}d successfully`);
             } else {
                 const err = await response.json();
                 alert(err.detail || `Failed to ${action} request`);
@@ -293,7 +293,7 @@ const TutorCourseApplications = () => {
                             <table style={styles.table}>
                                 <thead>
                                     <tr>
-                                        <th style={styles.th}>ID</th>
+                                        <th style={styles.th}>TCA ID</th>
                                         <th style={styles.th}>Tutor</th>
                                         <th style={styles.th}>Course</th>
                                         <th style={styles.th}>Status</th>

@@ -494,7 +494,7 @@ const AdminHome = () => {
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
                   }}
                 >
                   <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
@@ -543,7 +543,7 @@ const AdminHome = () => {
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
                   }}
                 >
                   <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
@@ -595,7 +595,7 @@ const AdminHome = () => {
                   }}
                   onMouseOut={(e) => {
                     e.currentTarget.style.transform = '';
-                    e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
                   }}
                 >
                   <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>

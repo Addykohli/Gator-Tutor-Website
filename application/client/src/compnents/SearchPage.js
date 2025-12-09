@@ -803,7 +803,7 @@ export default function SearchPage() {
             }}
             onClick={() => {
               if (tutorCount > 0) {
-                window.location.href = `/find-tutor?course=${encodeURIComponent(courseCode)}`;
+                window.location.href = `/search?q=${item.department_code}+${item.course_number}&type=tutor`;
               } else {
                 window.location.href = '/request-coverage';
               }
@@ -1006,7 +1006,12 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState(q.get('q') || '');
   const [searchCategory, setSearchCategory] = useState(isAdmin ? 'tutor' : (q.get('type') || 'default'));
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [tutorSortOrder, setTutorSortOrder] = useState(null); // null, 'asc', 'desc'
+  const [tutorSortOrder, setTutorSortOrder] = useState(q.get('sort_order')); // null, 'asc', 'desc'
+
+  // Update tutorSortOrder when q changes
+  useEffect(() => {
+    setTutorSortOrder(q.get('sort_order'));
+  }, [q]);
 
   // Apply client-side filters to results
   const getFilteredResults = (results) => {
@@ -1336,12 +1341,7 @@ export default function SearchPage() {
                           <option key={idx} value={idx}>{day}</option>
                         ))}
                       </select>
-                      <CheckboxGroup
-                        options={[{ label: 'Online', value: 'online' }, { label: 'In-Person', value: 'in-person' }]}
-                        selected={q.get('location_modes') ? q.get('location_modes').split(',') : []}
-                        onChange={(val) => updateFilters({ location_modes: val })}
-                        darkMode={darkMode}
-                      />
+
                     </FilterSection>
                   </div>
                 </>
@@ -1566,12 +1566,7 @@ export default function SearchPage() {
                           <option key={idx} value={idx}>{day}</option>
                         ))}
                       </select>
-                      <CheckboxGroup
-                        options={[{ label: 'Online', value: 'online' }, { label: 'In-Person', value: 'in-person' }]}
-                        selected={q.get('location_modes') ? q.get('location_modes').split(',') : []}
-                        onChange={(val) => updateFilters({ location_modes: val })}
-                        darkMode={darkMode}
-                      />
+
                     </FilterSection>
                   </div>
                 ) : (
@@ -1657,9 +1652,9 @@ export default function SearchPage() {
                             }}
                             title={tutorSortOrder === null ? 'Sort by price' : tutorSortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low'}
                           >
-                            <i className="fas fa-sort-amount-down" style={{
+                            <i className={`fas ${tutorSortOrder === 'asc' ? 'fa-arrow-down-short-wide' : 'fa-sort-amount-down'}`} style={{
                               fontSize: '18px',
-                              transform: tutorSortOrder === 'desc' ? 'scaleY(-1)' : 'scaleY(1)',
+                              transform: 'none',
                               transition: 'transform 0.3s',
                               opacity: tutorSortOrder === null ? 0.5 : 1
                             }}></i>

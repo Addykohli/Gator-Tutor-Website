@@ -402,13 +402,13 @@ const AppointmentRequestsPage = () => {
                   <div style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666' }}>
                     Showing {paginatedBookings.length} of {filteredBookings.length} results
                   </div>
-                  <div 
+                  <div
                     className="sort-control"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                     title={`Sort by date (${sortOrder === 'asc' ? 'Oldest first' : 'Newest first'})`}
                   >
                     <span>Sort by Date</span>
-                    <i 
+                    <i
                       className={`fas fa-arrow-${sortOrder === 'asc' ? 'up' : 'down'} sort-arrow`}
                     />
                   </div>
@@ -437,24 +437,7 @@ const AppointmentRequestsPage = () => {
                             {request.student_email || 'No email provided'}
                           </div>
                         </div>
-                        <div className="status-badge" style={{
-                          backgroundColor: request.status === 'confirmed'
-                            ? darkMode ? 'rgba(40, 167, 69, 0.2)' : '#d4edda'
-                            : request.status === 'cancelled'
-                              ? darkMode ? 'rgba(220, 53, 69, 0.2)' : '#f8d7da'
-                              : request.status === 'completed'
-                                ? darkMode ? 'rgba(23, 162, 184, 0.2)' : '#d1ecf1'
-                                : darkMode ? 'rgba(255, 193, 7, 0.2)' : '#fff3cd',
-                          color: request.status === 'confirmed'
-                            ? '#155724'
-                            : request.status === 'cancelled'
-                              ? '#721c24'
-                              : request.status === 'completed'
-                                ? '#0c5460'
-                                : '#856404'
-                        }}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </div>
+
                       </div>
 
                       <div className="request-details-grid">

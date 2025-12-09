@@ -264,7 +264,7 @@ const SessionsPage = () => {
       paddingBottom: "3px",
       borderBottom: "8px solid rgb(255, 220, 112)",
       display: "block",
-      margin: "20px auto",
+      margin: "0px auto",
       fontSize: isMobile ? "28px" : "45px",
       fontWeight: "600",
       width: "fit-content",
@@ -273,7 +273,7 @@ const SessionsPage = () => {
     content: {
       maxWidth: "1200px",
       margin: "0 auto",
-      padding: isMobile ? "20px 16px" : "40px 20px",
+      padding: isMobile ? "20px 16px" : "20px 20px",
       width: "100%",
       color: darkMode ? '#f0f0f0' : '#333',
       transition: 'color 0.3s ease',
@@ -478,6 +478,32 @@ const SessionsPage = () => {
     }
   };
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+  const paginatedSessions = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    // Scroll to top of list
+    const listElement = document.getElementById('sessions-list');
+    if (listElement) {
+      listElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   return (
     <div style={styles.container}>
       <Header />
@@ -566,8 +592,16 @@ const SessionsPage = () => {
             <p>You don't have any {activeTab === 'requests' ? 'sent requests' : activeTab + ' sessions'} at this time.</p>
           </div>
         )}
-        <div style={styles.sessionsList}>
-          {filtered.map(session => (
+
+        {/* Results Info */}
+        {!loading && filtered.length > 0 && (
+          <div style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666', marginBottom: '16px' }}>
+            Showing {paginatedSessions.length} of {filtered.length} results
+          </div>
+        )}
+
+        <div id="sessions-list" style={styles.sessionsList}>
+          {paginatedSessions.map(session => (
             <div
               key={session.booking_id}
               id={`booking-${session.booking_id}`}
@@ -589,6 +623,7 @@ const SessionsPage = () => {
                       padding: '4px 8px',
                       borderRadius: '4px',
                       backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                      boxShadow: darkMode ? '0 2px 4px rgba(0, 0, 0, 0.4)' : '0 2px 4px rgba(0, 0, 0, 0.1)',
                       transition: 'background-color 0.2s ease',
                       '&:hover': {
                         backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)'
@@ -645,6 +680,77 @@ const SessionsPage = () => {
             </div>
           ))}
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            gap: '8px',
+            marginTop: '30px',
+            flexWrap: 'wrap'
+          }}>
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                color: darkMode ? '#fff' : '#333',
+                cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                opacity: currentPage === 1 ? 0.5 : 1,
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Previous
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+              <button
+                key={page}
+                onClick={() => handlePageChange(page)}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: currentPage === page
+                    ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+                    : (darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'),
+                  color: currentPage === page
+                    ? (darkMode ? '#333' : '#fff')
+                    : (darkMode ? '#fff' : '#333'),
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  minWidth: '32px'
+                }}
+              >
+                {page}
+              </button>
+            ))}
+
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: 'none',
+                backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                color: darkMode ? '#fff' : '#333',
+                cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                opacity: currentPage === totalPages ? 0.5 : 1,
+                fontSize: '14px',
+                fontWeight: '500'
+              }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Report Modal */}
