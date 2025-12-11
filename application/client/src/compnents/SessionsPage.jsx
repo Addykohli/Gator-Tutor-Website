@@ -412,7 +412,7 @@ const SessionsPage = () => {
     },
     emptyState: {
       textAlign: "center",
-      padding: "60px 20px",
+      padding: "80px 20px",
       color: darkMode ? '#aaa' : '#666',
       transition: 'color 0.3s ease',
       '& h3': {
