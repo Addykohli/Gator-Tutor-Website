@@ -20,22 +20,37 @@ const Header = () => {
   const logoutRef = useRef(null);
 
   // Scroll detection state
-  const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState('none'); // 'up', 'down', or 'none'
+  const [shouldShowFixed, setShouldShowFixed] = useState(false); // Whether to show fixed header (sliding in from top)
+  const HEADER_HEIGHT = 70; // Height threshold for when header is considered "scrolled past"
 
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      if (currentScrollY > lastScrollY && currentScrollY > 70) {
-        // Scrolling down & past header height
-        setIsVisible(false);
-        // Close menu when header hides
-        setIsMenuOpen(false);
-        setIsLocked(false);
-      } else {
-        // Scrolling up
-        setIsVisible(true);
+      // Determine scroll direction
+      if (currentScrollY > lastScrollY) {
+        setScrollDirection('down');
+        // When scrolling down, header should be relative (scroll away naturally)
+        setShouldShowFixed(false);
+        // Close menu when scrolling down
+        if (currentScrollY > HEADER_HEIGHT) {
+          setIsMenuOpen(false);
+          setIsLocked(false);
+        }
+      } else if (currentScrollY < lastScrollY) {
+        setScrollDirection('up');
+        // When scrolling UP and we're past the header, show fixed header
+        if (currentScrollY > HEADER_HEIGHT) {
+          setShouldShowFixed(true);
+        }
+      }
+
+      // If we're at the top, reset to normal state
+      if (currentScrollY < 10) {
+        setScrollDirection('none');
+        setShouldShowFixed(false);
       }
 
       setLastScrollY(currentScrollY);
@@ -370,17 +385,24 @@ const Header = () => {
   };
 
 
+  // Determine if we're at the top of the page
+  const isAtTop = lastScrollY < 10;
+
   return (
     <>
       <div
         className="header-container"
         style={{
-          transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
-          position: 'fixed',
+          // Key behavior:
+          // - At top OR scrolling down: relative (scrolls with page naturally)
+          // - Scrolling up (past header): fixed, slides in from top
+          position: shouldShowFixed ? 'fixed' : 'relative',
           top: 0,
           left: 0,
           right: 0,
-          transition: 'transform 0.3s ease-in-out'
+          transform: shouldShowFixed ? 'translateY(0)' : 'none',
+          transition: shouldShowFixed ? 'transform 0.3s ease-in-out' : 'none',
+          zIndex: 1000
         }}
       >
         {/* Menu Container */}
@@ -681,8 +703,8 @@ const Header = () => {
           )}
         </div>
       </div>
-      {/* Spacer to prevent content overlap */}
-      <div style={{ height: '60px' }} />
+      {/* Spacer to prevent content overlap - only needed when header is fixed */}
+      {shouldShowFixed && <div style={{ height: '60px' }} />}
     </>
   );
 };

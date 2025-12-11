@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
@@ -52,6 +52,105 @@ const HomePage = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Tutor Profile State
+  const [tutorProfile, setTutorProfile] = useState({
+    bio: '',
+    hourly_rate: 0,
+    languages: []
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    bio: '',
+    hourly_rate: '',
+    languages: ''
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Fetch tutor profile data
+  useEffect(() => {
+    const fetchTutorProfile = async () => {
+      if (user?.isTutor) {
+        try {
+          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+          const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            // Backend returns hourly_rate_cents, convert to dollars for display
+            const hourlyRate = data.hourly_rate_cents ? data.hourly_rate_cents / 100 : 0;
+
+            setTutorProfile({
+              bio: data.bio || '',
+              hourly_rate: hourlyRate,
+              languages: data.languages || []
+            });
+            setEditForm({
+              bio: data.bio || '',
+              hourly_rate: hourlyRate.toString(),
+              languages: (data.languages || []).join(', ')
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching tutor profile:", error);
+        }
+      }
+    };
+    fetchTutorProfile();
+  }, [user]);
+
+  // Handle Profile Update
+  const handleProfileUpdate = async () => {
+    setIsSavingProfile(true);
+    const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+    try {
+      const updates = [];
+
+      // Update Price (convert to cents)
+      const rateCents = Math.round(parseFloat(editForm.hourly_rate) * 100);
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/price`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hourly_rate_cents: rateCents })
+        })
+      );
+
+      // Update Bio
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/bio`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio: editForm.bio })
+        })
+      );
+
+      // Update Languages
+      const langs = editForm.languages.split(',').map(l => l.trim()).filter(l => l);
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/languages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ languages: langs })
+        })
+      );
+
+      await Promise.all(updates);
+
+      // Update local state
+      setTutorProfile({
+        bio: editForm.bio,
+        hourly_rate: parseFloat(editForm.hourly_rate),
+        languages: editForm.languages.split(',').map(l => l.trim()).filter(l => l)
+      });
+      setIsEditingProfile(false);
+
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
 
   // Memoize the API base URL with useMemo since it doesn't depend on any props or state
   const apiBaseUrl = React.useMemo(() => {
@@ -529,7 +628,7 @@ const HomePage = () => {
       width: "100%",
       maxWidth: "1400px",
       margin: "0 auto",
-      padding: "clamp(8px, 2vw, 20px) clamp(5px, 1.5vw, 10px)",
+      padding: "clamp(6px, 2vw, 10px) clamp(5px, 1.5vw, 10px)",
       flex: 1,
       boxSizing: "border-box",
       marginBottom: "clamp(40px, 8vw, 80px)",
@@ -1348,7 +1447,7 @@ const HomePage = () => {
                 id={`booking-btn-${booking.booking_id}`}
                 type="button"
                 className={`calendar-booking-btn${glowBookingId === booking.booking_id ? ' glow-animation' : ''}`}
-                onClick={() => booking.isStudentBooking ? handleStudentBookingClick(booking) : handleBookingClick(booking.booking_id)}
+                onClick={() => booking.isStudentBooking ? handleStudentBookingClick(booking) : handleBookingClick(booking)}
                 style={{
                   position: 'absolute',
                   top: '1px', left: '1px', right: '1px', bottom: '1px',
@@ -1432,6 +1531,94 @@ const HomePage = () => {
   const [editingDate, setEditingDate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ success: false, message: '' });
+
+  // Scroll tracking for mobile calendars
+  const studentScrollRef = useRef(null);
+  const tutorScrollRef = useRef(null);
+  const [studentScrollProgress, setStudentScrollProgress] = useState(0);
+  const [tutorScrollProgress, setTutorScrollProgress] = useState(0);
+
+  const handleScroll = (ref, setProgress) => {
+    if (ref.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = ref.current;
+      const scrollableWidth = scrollWidth - clientWidth;
+      if (scrollableWidth > 0) {
+        const progress = (scrollLeft / scrollableWidth) * 100;
+        setProgress(progress);
+      } else {
+        setProgress(0);
+      }
+    }
+  };
+
+  // Set initial scroll position to show today (or Friday for weekend)
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isAnimating) return; // Don't scroll during animations
+    if (isLoadingAvailability) return; // Wait for loading to complete
+
+    const today = new Date();
+    const todayTime = today.getTime();
+    const weekStartTime = currentWeekStart.getTime();
+    const weekEndTime = addDays(currentWeekStart, 6).getTime();
+
+    // Check if today is within the current week being displayed
+    const isTodayInCurrentWeek = todayTime >= weekStartTime && todayTime <= weekEndTime;
+
+    // Calculate which day index should be leftmost
+    let targetDayIndex = 0; // Default to Sunday (start of week)
+
+    if (isTodayInCurrentWeek) {
+      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+
+      // For Saturday (6) or Sunday (0), use Friday (5)
+      if (dayOfWeek === 0) { // Sunday
+        targetDayIndex = 5; // Friday
+      } else if (dayOfWeek === 6) { // Saturday
+        targetDayIndex = 5; // Friday
+      } else {
+        targetDayIndex = dayOfWeek; // Today (1=Mon to 5=Fri)
+      }
+    }
+
+    // Calculate scroll position
+    const scrollToDay = (ref, calendarName) => {
+      if (ref.current && targetDayIndex > 0) {
+        const { scrollWidth, clientWidth } = ref.current;
+        const scrollableWidth = scrollWidth - clientWidth;
+        if (scrollableWidth > 0) {
+          // Calculate position based on day index
+          // At index 0, scrollLeft = 0
+          // At index 4 (max for 3-day view), scrollLeft = scrollableWidth
+          // Linear interpolation: scrollLeft = (targetDayIndex / 4) * scrollableWidth
+          const maxDayIndex = 4; // 7 days - 3 visible = 4 scroll positions
+          const scrollPosition = Math.min(targetDayIndex, maxDayIndex) / maxDayIndex * scrollableWidth;
+
+          ref.current.scrollLeft = scrollPosition;
+
+          // Update progress
+          const progress = (scrollPosition / scrollableWidth) * 100;
+          if (ref === studentScrollRef) {
+            setStudentScrollProgress(progress);
+          } else if (ref === tutorScrollRef) {
+            setTutorScrollProgress(progress);
+          }
+        }
+      }
+    };
+
+    // Small delay to ensure DOM is rendered
+    const timer = setTimeout(() => {
+      if (studentScrollRef.current) {
+        scrollToDay(studentScrollRef, 'Student');
+      }
+      if (tutorScrollRef.current) {
+        scrollToDay(tutorScrollRef, 'Tutor');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isMobile, currentWeekStart, isAnimating, isLoadingAvailability]); // Re-run when week changes or loading completes
 
   // Function to save availability for a specific date
   // Replace the saveAvailability function in HomePage.js with this corrected version
@@ -1883,9 +2070,26 @@ const HomePage = () => {
   };
 
   // Handle tutor booking clicks (navigates to appointment requests)
-  function handleBookingClick(bookingId) {
+  function handleBookingClick(booking) {
+    if (!booking) return;
+
+    const bookingId = booking.booking_id || booking.id;
     setGlowBookingId(bookingId);
-    navigate(`/appointment-requests?booking=${bookingId}`);
+
+    // Determine which tab to select based on booking status and end time
+    let tab = 'pending'; // Default tab
+    const now = new Date();
+    const endTime = booking.end_time ? new Date(booking.end_time) : null;
+
+    if (booking.status === 'pending') {
+      tab = 'pending';
+    } else if (booking.status === 'confirmed' && endTime && endTime > now) {
+      tab = 'upcoming';
+    } else if (booking.status === 'completed' || (endTime && endTime <= now)) {
+      tab = 'completed';
+    }
+
+    navigate(`/appointment-requests?booking=${bookingId}&tab=${tab}`);
   }
 
   // Handle student booking clicks (navigates to sessions page with correct tab)
@@ -2037,10 +2241,10 @@ const HomePage = () => {
         <div style={{
           display: isMobile ? 'flex' : (isAuthenticated ? 'grid' : 'flex'),
           flexDirection: isMobile ? 'column' : 'row',
-          gridTemplateColumns: isMobile ? 'none' : (isSidebarCollapsed ? '80px 1fr' : '280px 1fr'),
+          gridTemplateColumns: isMobile ? 'none' : '280px 1fr',
           width: '100%',
           gap: '20px',
-          padding: isMobile ? '0 6px' : '0 20px',
+          padding: isMobile ? '0 4px' : '0 10px',
           boxSizing: 'border-box',
           maxWidth: '1400px',
           margin: '0 auto',
@@ -2053,86 +2257,17 @@ const HomePage = () => {
                 backgroundColor: darkMode ? "rgba(40, 40, 40, 0.4)" : '#fff',
                 borderRadius: '12px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-                padding: isMobile ? '12px' : (isSidebarCollapsed ? '24px 10px' : '24px'),
+                padding: isMobile ? '12px' : '24px',
                 height: 'fit-content',
                 border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #f0f0f0',
-                width: isMobile ? '100%' : (isSidebarCollapsed ? '80px' : '280px'),
+                width: isMobile ? '100%' : '280px',
                 boxSizing: 'border-box',
                 transition: 'all 0.3s ease',
                 overflow: 'hidden',
                 minHeight: isMobile ? 'auto' : '300px',
                 position: 'relative'
               }}>
-                {/* Collapse/Expand Button - Hidden on mobile */}
-                {!isMobile && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    margin: isSidebarCollapsed ? '20px 0px' : '0px',
-                    height: isSidebarCollapsed ? '90%' : 'auto',
-                    width: '90%',
-                    display: 'flex',
-                    alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
-                    justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
-                    pointerEvents: 'none',
-                    zIndex: 10,
-                    paddingTop: isSidebarCollapsed ? 0 : '10px',
-                  }}>
-                    <button
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      style={{
-                        position: 'relative',
-                        backgroundColor: 'rgba(231, 230, 230, 0.29)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: darkMode ? 'rgba(0, 0, 0, 0.91)' : '#6c757d',
-                        padding: isSidebarCollapsed ? '15px 8px' : '5px',
-                        margin: isSidebarCollapsed ? '0px' : '0 10px',
-                        borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
-                        boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.3s ease',
-                        pointerEvents: 'auto',
-                        height: isSidebarCollapsed ? '100%' : 'auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.5)';
-                        e.currentTarget.style.color = '#35006D';
-                        if (isSidebarCollapsed) {
-                          e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.29)';
-                        e.currentTarget.style.color = 'rgba(0, 0, 0, 0.91)';
-                        if (isSidebarCollapsed) {
-                          e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
-                        } else {
-                          e.currentTarget.style.boxShadow = 'none';
-                        }
-                      }}
-                    >
-                      <span style={{
-                        fontSize: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '20px',
-                        height: '20px'
-                      }}>
-                        {isSidebarCollapsed ? (
-                          <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
-                        ) : (
-                          <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-                )}
-                {/* Profile Header */}
+                {/* Sidebar Content */}
                 <div style={{
                   display: 'flex',
                   flexDirection: isMobile ? 'row' : 'column',
@@ -2141,8 +2276,6 @@ const HomePage = () => {
                   paddingBottom: isMobile ? '20px' : '20px',
                   marginBottom: '20px',
                   borderBottom: user ? '1px solid rgb(100, 100, 100)' : 'none',
-                  opacity: isSidebarCollapsed ? 0 : 1,
-                  transition: 'opacity 0.2s ease',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -2427,8 +2560,6 @@ const HomePage = () => {
                 {/* Buttons Section - Desktop */}
                 {user && !isMobile && (
                   <div style={{
-                    opacity: isSidebarCollapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
@@ -2582,11 +2713,186 @@ const HomePage = () => {
                   </div>
                 )}
 
+                {/* Tutor Profile Section (Bio, Price, Languages) */}
+                {user?.isTutor && (
+                  <div style={{
+                    width: '100%',
+                    marginBottom: '20px',
+                    paddingBottom: '20px',
+                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{
+                        color: darkMode ? "#fff" : '#495057',
+                        fontSize: '0.95rem',
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600',
+                        letterSpacing: '0.3px'
+                      }}>
+                        <i className="fas fa-id-card" style={{
+                          color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
+                          width: '20px',
+                          textAlign: 'center'
+                        }}></i>
+                        Tutor Profile
+                      </h4>
+                      {!isEditingProfile && (
+                        <button
+                          onClick={() => setIsEditingProfile(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem'
+                          }}
+                          title="Edit Profile"
+                        >
+                          <i className="fas fa-edit"></i>
+                        </button>
+                      )}
+                    </div>
+
+                    {isEditingProfile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Hourly Rate ($)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={editForm.hourly_rate}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              if (val === '' || parseFloat(val) >= 0) {
+                                setEditForm(prev => ({ ...prev, hourly_rate: val }));
+                              }
+                            }}
+                            style={{
+                              padding: '6px',
+                              borderRadius: '4px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
+                              backgroundColor: darkMode ? '#333' : '#fff',
+                              color: darkMode ? '#fff' : '#000'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Languages (comma separated)</label>
+                          <input
+                            type="text"
+                            maxLength={250}
+                            value={editForm.languages}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, languages: e.target.value }))}
+                            style={{
+                              padding: '6px',
+                              borderRadius: '4px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
+                              backgroundColor: darkMode ? '#333' : '#fff',
+                              color: darkMode ? '#fff' : '#000'
+                            }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Bio (max 250 chars)</label>
+                          <textarea
+                            maxLength={250}
+                            value={editForm.bio}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                            rows={3}
+                            style={{
+                              padding: '6px',
+                              borderRadius: '4px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
+                              backgroundColor: darkMode ? '#333' : '#fff',
+                              color: darkMode ? '#fff' : '#000',
+                              resize: 'vertical'
+                            }}
+                          />
+                          <div style={{ textAlign: 'right', fontSize: '0.7rem', color: darkMode ? '#888' : '#666' }}>
+                            {editForm.bio.length}/250
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                          <button
+                            onClick={handleProfileUpdate}
+                            disabled={isSavingProfile}
+                            style={{
+                              flex: 1,
+                              padding: '6px',
+                              borderRadius: '4px',
+                              border: 'none',
+                              backgroundColor: '#28a745',
+                              color: '#fff',
+                              cursor: 'pointer',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            {isSavingProfile ? 'Saving...' : 'Save'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsEditingProfile(false);
+                              setEditForm({
+                                bio: tutorProfile.bio,
+                                hourly_rate: tutorProfile.hourly_rate.toString(),
+                                languages: tutorProfile.languages.join(', ')
+                              });
+                            }}
+                            disabled={isSavingProfile}
+                            style={{
+                              flex: 1,
+                              padding: '6px',
+                              borderRadius: '4px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
+                              backgroundColor: 'transparent',
+                              color: darkMode ? '#fff' : '#000',
+                              cursor: 'pointer',
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <span style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555' }}>Hourly Rate: </span>
+                          <span style={{ color: darkMode ? '#fff' : '#000' }}>
+                            {tutorProfile.hourly_rate > 0 ? `$${tutorProfile.hourly_rate}/hr` : 'Not set'}
+                          </span>
+                        </div>
+                        <div>
+                          <span style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555' }}>Languages: </span>
+                          <span style={{ color: darkMode ? '#fff' : '#000' }}>
+                            {tutorProfile.languages.length > 0 ? tutorProfile.languages.join(', ') : 'None listed'}
+                          </span>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555', marginBottom: '4px' }}>Bio:</div>
+                          <div style={{
+                            color: darkMode ? '#ddd' : '#333',
+                            fontSize: '0.85rem',
+                            lineHeight: '1.4',
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '100px',
+                            overflowY: 'auto'
+                          }}>
+                            {tutorProfile.bio || 'No bio provided.'}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Courses I Tutor Section - Only for tutors */}
                 {user?.isTutor && (
                   <div style={{
-                    opacity: isSidebarCollapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
@@ -3411,14 +3717,53 @@ const HomePage = () => {
                       minHeight: 'auto',
                       overflow: isAnimating ? 'hidden' : (isMobile ? 'auto' : 'visible')
                     }}>
-                      <div style={{
-                        ...styles.calendarGrid,
-                        ...calendarAnimation[slideDirection],
-                        height: 'auto',
-                        minHeight: 'auto',
-                        overflow: isAnimating ? 'hidden' : 'visible',
-                        overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible')
-                      }}>
+                      {/* Scroll Tracker for Mobile */}
+                      {isMobile && (
+                        <div style={{
+                          width: '100%',
+                          height: '3px',
+                          backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                          borderRadius: '2px',
+                          marginBottom: '8px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            width: '33%', // Fixed width indicator (represents visible portion)
+                            height: '100%',
+                            backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 103)',
+                            borderRadius: '2px',
+                            transition: 'transform 0.1s ease-out',
+                            position: 'absolute',
+                            left: 0,
+                            transform: `translateX(${studentScrollProgress * 2}%)` // Map 0-100% progress to remaining 66% width
+                          }} />
+                        </div>
+                      )}
+
+                      <div
+                        ref={studentScrollRef}
+                        onScroll={() => handleScroll(studentScrollRef, setStudentScrollProgress)}
+                        style={{
+                          ...styles.calendarGrid,
+                          ...calendarAnimation[slideDirection],
+                          height: 'auto',
+                          minHeight: 'auto',
+                          overflow: isAnimating ? 'hidden' : 'visible',
+                          overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible'),
+                          scrollbarWidth: 'none', // Firefox
+                          msOverflowStyle: 'none'  // IE 10+
+                        }}>
+                        <style>
+                          {`
+                            /* Hide scrollbar for Chrome, Safari and Opera */
+                            div::-webkit-scrollbar {
+                              display: none;
+                            }
+                          `}
+                        </style>
                         <div style={{
                           position: 'relative',
                           display: 'grid',
@@ -3487,7 +3832,9 @@ const HomePage = () => {
                     <div style={{
                       position: 'relative',
                       width: '100%',
-                      minHeight: '500px'
+                      minHeight: '500px',
+                      // Ensure the outer container allows visibility so the inner scroll container works
+                      overflow: isAnimating ? 'hidden' : 'visible'
                     }}>
                       {isLoadingAvailability ? (
                         <div style={{
@@ -3504,13 +3851,14 @@ const HomePage = () => {
                         </div>
                       ) : (
                         <>
+                          {/* Legend / Info Header */}
                           <div style={{
                             position: 'sticky',
                             top: '0',
-                            zIndex: 1,
+                            zIndex: 6, // Higher z-index than sticky time labels
                             marginBottom: isMobile ? '6px' : '10px',
                             padding: isMobile ? '4px 6px' : '8px 12px',
-                            backgroundColor: darkMode ? 'rgba(110, 110, 110, 0.32)' : 'rgba(237, 237, 237, 0.9)',
+                            backgroundColor: darkMode ? 'rgba(55, 55, 55, 0.95)' : 'rgba(237, 237, 237, 0.95)',
                             borderRadius: isMobile ? '4px' : '6px',
                             border: '1px solid rgba(0, 0, 0, 0.1)',
                             fontSize: isMobile ? '0.6rem' : '0.85rem',
@@ -3520,9 +3868,11 @@ const HomePage = () => {
                             justifyContent: 'space-between',
                             flexWrap: 'wrap',
                             gap: isMobile ? '6px' : '16px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            backdropFilter: 'blur(4px)'
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
+                              {/* Legend Items */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
                                 <div style={{
                                   width: isMobile ? '10px' : '16px',
@@ -3580,19 +3930,86 @@ const HomePage = () => {
                               </div>
                             </div>
                           </div>
+
+                          {/* Scroll Tracker for Mobile */}
+                          {isMobile && (
+                            <div style={{
+                              width: '100%',
+                              height: '3px',
+                              backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                              borderRadius: '2px',
+                              marginBottom: '8px',
+                              marginTop: '-2px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                width: '33%', // Fixed width for 3-day view out of 7? Actually roughly 3/7 is 42%, but let's use 33% as a visual indicator
+                                height: '100%',
+                                backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 103)',
+                                borderRadius: '2px',
+                                transition: 'transform 0.1s ease-out',
+                                position: 'absolute',
+                                left: 0,
+                                transform: `translateX(${tutorScrollProgress * 2}%)` // Map 0-100% progress to accessible width
+                              }} />
+                            </div>
+                          )}
+
+                          {/* Calendar Content */}
                           <div style={{
                             position: 'relative',
                             minHeight: '500px',
                             overflow: isAnimating ? 'hidden' : 'visible'
                           }}>
+                            {/* Animation Wrapper */}
                             <div style={{
-                              ...styles.tutorCalendarGrid,
                               ...calendarAnimation[slideDirection],
+                              width: '100%',
+                              backgroundColor: 'transparent',
+                              boxShadow: 'none',
+                              border: 'none',
                               willChange: 'transform, opacity',
                               backfaceVisibility: 'hidden',
                               transformStyle: 'preserve-3d'
                             }}>
-                              {renderTutorCalendar()}
+                              {/* Scrollable Grid Container - ALL styles inline to ensure isMobile is fresh */}
+                              <div
+                                ref={tutorScrollRef}
+                                onScroll={() => handleScroll(tutorScrollRef, setTutorScrollProgress)}
+                                style={{
+                                  width: '100%',
+                                  display: 'grid',
+                                  gridTemplateColumns: isMobile
+                                    ? 'clamp(25px, 4vw, 30px) repeat(7, calc((100% - clamp(25px, 4vw, 30px)) / 3))'
+                                    : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
+                                  backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
+                                  border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
+                                  borderRadius: '8px',
+                                  overflowX: isMobile ? 'auto' : 'visible',
+                                  overflowY: 'visible',
+                                  position: 'relative',
+                                  '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
+                                  '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
+                                  '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
+                                  '--tutor-time-text': darkMode ? '#bbb' : '#666',
+                                  '--tutor-time-border': darkMode ? '#3d3d3d' : '#e0e0e0',
+                                  '--tutor-striped-bg': darkMode ? '#252525' : '#f8f9fa',
+                                  scrollbarWidth: 'none', // Firefox
+                                  msOverflowStyle: 'none' // IE 10+
+                                }}>
+                                <style>
+                                  {`
+                                      /* Hide scrollbar for Chrome, Safari and Opera */
+                                      div::-webkit-scrollbar {
+                                        display: none;
+                                      }
+                                    `}
+                                </style>
+                                {renderTutorCalendar()}
+                              </div>
                             </div>
                           </div>
                         </>
@@ -3693,145 +4110,149 @@ const HomePage = () => {
         </div>
       </div>
       {/* Add Course Modal */}
-      {isAddCourseModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
+      {
+        isAddCourseModalOpen && (
           <div style={{
-            backgroundColor: darkMode ? '#2a2a2a' : 'white',
-            padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
-            maxHeight: '80vh', overflowY: 'auto',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            color: darkMode ? 'white' : 'black'
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
-            <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Request to Add Course</h3>
-            <input
-              type="text"
-              placeholder="Search course (e.g. CSC 300)..."
-              value={courseSearchQuery}
-              onChange={(e) => {
-                setCourseSearchQuery(e.target.value);
-                handleCourseSearch(e.target.value);
-              }}
-              style={{
-                width: '100%', padding: '10px', marginBottom: '15px',
-                borderRadius: '4px', border: '1px solid #ccc',
-                backgroundColor: darkMode ? '#333' : '#fff',
-                color: darkMode ? '#fff' : '#000'
-              }}
-            />
+            <div style={{
+              backgroundColor: darkMode ? '#2a2a2a' : 'white',
+              padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              color: darkMode ? 'white' : 'black'
+            }}>
+              <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Request to Add Course</h3>
+              <input
+                type="text"
+                placeholder="Search course (e.g. CSC 300)..."
+                value={courseSearchQuery}
+                onChange={(e) => {
+                  setCourseSearchQuery(e.target.value);
+                  handleCourseSearch(e.target.value);
+                }}
+                style={{
+                  width: '100%', padding: '10px', marginBottom: '15px',
+                  borderRadius: '4px', border: '1px solid #ccc',
+                  backgroundColor: darkMode ? '#333' : '#fff',
+                  color: darkMode ? '#fff' : '#000'
+                }}
+              />
 
-            <div style={{ marginBottom: '15px', maxHeight: '300px', overflowY: 'auto' }}>
-              {isSearchingCourses && <p>Searching...</p>}
-              {!isSearchingCourses && courseSearchQuery && courseSearchResults.length === 0 && <p>No courses found.</p>}
-              {courseSearchResults.map(course => {
-                const isRequested = requestedCourses.has(course.course_id);
-                const isAlreadyHas = tutorCourses.some(c => (c.course_id || c.id) === course.course_id);
+              <div style={{ marginBottom: '15px', maxHeight: '300px', overflowY: 'auto' }}>
+                {isSearchingCourses && <p>Searching...</p>}
+                {!isSearchingCourses && courseSearchQuery && courseSearchResults.length === 0 && <p>No courses found.</p>}
+                {courseSearchResults.map(course => {
+                  const isRequested = requestedCourses.has(course.course_id);
+                  const isAlreadyHas = tutorCourses.some(c => (c.course_id || c.id) === course.course_id);
 
-                return (
-                  <div key={course.course_id} style={{
+                  return (
+                    <div key={course.course_id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px', borderBottom: '1px solid #eee'
+                    }}>
+                      <div>
+                        <strong>{course.department_code} {course.course_number}</strong>
+                        <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{course.title}</div>
+                      </div>
+                      <button
+                        onClick={() => !isRequested && !isAlreadyHas && requestAddCourse(course.course_id)}
+                        disabled={isRequested || isAlreadyHas}
+                        style={{
+                          backgroundColor: (isRequested || isAlreadyHas) ? '#28a745' : '#35006D',
+                          color: 'white', border: 'none',
+                          padding: '5px 10px', borderRadius: '4px',
+                          cursor: (isRequested || isAlreadyHas) ? 'default' : 'pointer',
+                          opacity: isAlreadyHas ? 0.7 : 1,
+                          minWidth: '60px'
+                        }}
+                      >
+                        {isRequested ? <i className="fas fa-check"></i> : (isAlreadyHas ? "Added" : "Add")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  onClick={() => setIsAddCourseModalOpen(false)}
+                  style={{
+                    padding: '8px 16px', backgroundColor: 'transparent',
+                    border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                    color: darkMode ? 'white' : 'black'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Remove Course Modal */}
+      {
+        isRemoveCourseModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              backgroundColor: darkMode ? '#2a2a2a' : 'white',
+              padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              color: darkMode ? 'white' : 'black'
+            }}>
+              <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Remove Course</h3>
+              <p>Select a course to remove from your profile.</p>
+
+              <div style={{ marginBottom: '15px', maxHeight: '400px', overflowY: 'auto' }}>
+                {tutorCourses.length === 0 && <p>No courses to remove.</p>}
+                {tutorCourses.map((course, idx) => (
+                  <div key={idx} style={{
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    padding: '10px', borderBottom: '1px solid #eee'
+                    padding: '10px', borderBottom: '1px solid #eee',
+                    backgroundColor: darkMode ? '#333' : '#f9f9f9', marginBottom: '5px', borderRadius: '4px'
                   }}>
                     <div>
                       <strong>{course.department_code} {course.course_number}</strong>
-                      <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{course.title}</div>
                     </div>
                     <button
-                      onClick={() => !isRequested && !isAlreadyHas && requestAddCourse(course.course_id)}
-                      disabled={isRequested || isAlreadyHas}
+                      onClick={() => removeCourse(course.course_id || course.id)}
                       style={{
-                        backgroundColor: (isRequested || isAlreadyHas) ? '#28a745' : '#35006D',
-                        color: 'white', border: 'none',
-                        padding: '5px 10px', borderRadius: '4px',
-                        cursor: (isRequested || isAlreadyHas) ? 'default' : 'pointer',
-                        opacity: isAlreadyHas ? 0.7 : 1,
-                        minWidth: '60px'
+                        backgroundColor: '#dc3545', color: 'white', border: 'none',
+                        padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
                       }}
                     >
-                      {isRequested ? <i className="fas fa-check"></i> : (isAlreadyHas ? "Added" : "Add")}
+                      Remove
                     </button>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
 
-            <div style={{ textAlign: 'right' }}>
-              <button
-                onClick={() => setIsAddCourseModalOpen(false)}
-                style={{
-                  padding: '8px 16px', backgroundColor: 'transparent',
-                  border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
-                  color: darkMode ? 'white' : 'black'
-                }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Remove Course Modal */}
-      {isRemoveCourseModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            backgroundColor: darkMode ? '#2a2a2a' : 'white',
-            padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-            color: darkMode ? 'white' : 'black'
-          }}>
-            <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Remove Course</h3>
-            <p>Select a course to remove from your profile.</p>
-
-            <div style={{ marginBottom: '15px', maxHeight: '400px', overflowY: 'auto' }}>
-              {tutorCourses.length === 0 && <p>No courses to remove.</p>}
-              {tutorCourses.map((course, idx) => (
-                <div key={idx} style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '10px', borderBottom: '1px solid #eee',
-                  backgroundColor: darkMode ? '#333' : '#f9f9f9', marginBottom: '5px', borderRadius: '4px'
-                }}>
-                  <div>
-                    <strong>{course.department_code} {course.course_number}</strong>
-                  </div>
-                  <button
-                    onClick={() => removeCourse(course.course_id || course.id)}
-                    style={{
-                      backgroundColor: '#dc3545', color: 'white', border: 'none',
-                      padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
-                    }}
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ textAlign: 'right' }}>
-              <button
-                onClick={() => setIsRemoveCourseModalOpen(false)}
-                style={{
-                  padding: '8px 16px', backgroundColor: 'transparent',
-                  border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
-                  color: darkMode ? 'white' : 'black'
-                }}
-              >
-                Close
-              </button>
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  onClick={() => setIsRemoveCourseModalOpen(false)}
+                  style={{
+                    padding: '8px 16px', backgroundColor: 'transparent',
+                    border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                    color: darkMode ? 'white' : 'black'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <Footer />
-    </div>
+    </div >
   );
 };
 

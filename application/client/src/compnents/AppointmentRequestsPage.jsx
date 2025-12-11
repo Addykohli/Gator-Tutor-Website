@@ -228,14 +228,33 @@ const AppointmentRequestsPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const bId = params.get('booking');
+    const tabParam = params.get('tab'); // Read tab from URL parameter
+
     if (!bId || isNaN(Number(bId)) || !allBookings.length) return;
+
     // Safely parse booking id
     const bookingIdNum = Number(bId);
     const found = allBookings.find(b => b.booking_id === bookingIdNum || b.id === bookingIdNum);
+
     if (found) {
-      let desiredTab = 'pending';
-      if (found.status === 'confirmed') desiredTab = 'upcoming';
-      else if (found.status === 'completed') desiredTab = 'completed';
+      let desiredTab = 'pending'; // Default
+      const now = new Date();
+      const endTime = found.end_time ? new Date(found.end_time) : null;
+
+      // Determine correct tab based on status AND end time
+      if (found.status === 'pending') {
+        desiredTab = 'pending';
+      } else if (found.status === 'confirmed' && endTime && endTime > now) {
+        desiredTab = 'upcoming';
+      } else if (found.status === 'completed' || (found.status === 'confirmed' && endTime && endTime <= now)) {
+        desiredTab = 'completed';
+      }
+
+      // Use URL tab param if provided and valid (as a hint from the calendar)
+      if (tabParam && ['pending', 'upcoming', 'completed'].includes(tabParam)) {
+        desiredTab = tabParam;
+      }
+
       setActiveTab(desiredTab);
       setHighlightedBookingId(bookingIdNum);
       setTimeout(() => setHighlightedBookingId(null), 2200);
