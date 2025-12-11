@@ -75,6 +75,8 @@ const ApplyTutorPage = () => {
         credentials: 'include',
         body: JSON.stringify({
           user_id: user?.userId || user?.id || 0,
+          email: user.email,  
+          full_name: user.name || user.fullName,
           gpa: parseFloat(formData.gpa),
           courses: formData.courses,
           bio: formData.bio,

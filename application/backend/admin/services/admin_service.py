@@ -43,18 +43,20 @@ def demote_to_student_only(db: Session, user_id:int):
     user = db.query(User).filter(User.user_id==user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="user not found")
-    if user.role !="tutor":
-        raise HTTPException(status_code=400, detail="user is not a tutor")
+    
+    # If user is already a student, just return - no error
+    if user.role != "tutor":
+        return {"message": f"user {user_id} is already a student"}
     
     #change role in user db table
-    user.role="student"
-    profile = db.query(TutorProfile).filter(TutorProfile.tutor_id ==user_id).first()
-    #remove corresponsing table entry from tutor_profile
+    user.role = "student"
+    profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == user_id).first()
+    #remove corresponding table entry from tutor_profile
     if profile:
         db.delete(profile)
 
     db.commit()
-    return{"message":f"user {user_id} demoted to student and tutor_profile removed."}
+    return {"message": f"user {user_id} demoted to student and tutor_profile removed."}
 
 
 #--------------------------------------------------------------------

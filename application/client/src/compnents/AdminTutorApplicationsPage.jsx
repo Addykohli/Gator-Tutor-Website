@@ -473,7 +473,12 @@ const AdminTutorApplicationsPage = () => {
                   <div style={styles.detailLabel}>Applicant</div>
                   <div style={styles.detailValue}>
                     {selectedApplication.user_name || selectedApplication.full_name || `User #${selectedApplication.user_id}`}
-                  </div>
+                    {selectedApplication.email && (
+                      <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
+                        {selectedApplication.email}
+                        </div>
+                      )}
+                      </div>
                 </div>
 
                 <div style={styles.detailRow}>

@@ -188,7 +188,7 @@ const CourseCoverageRequestPage = () => {
           courseNumber: data.courseNumber,
           topics: data.topics || '',
           notes: data.notes || '',
-          email: data.email
+          email: JSON.parse(localStorage.getItem('user'))?.email || ''
         })
       });
 

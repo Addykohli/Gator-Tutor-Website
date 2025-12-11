@@ -37,7 +37,7 @@ const AdminCourseCoverageRequestsPage = () => {
       });
       if (!response.ok) throw new Error('Failed to fetch coverage requests');
       const data = await response.json();
-      setRequests(data.requests || []);
+      setRequests(Array.isArray(data) ? data : data.requests || []);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -56,6 +56,7 @@ const AdminCourseCoverageRequestsPage = () => {
         },
         credentials: 'include',
         body: JSON.stringify({ status: newStatus })
+        
       });
       if (!response.ok) throw new Error('Failed to update status');
       await fetchRequests();
