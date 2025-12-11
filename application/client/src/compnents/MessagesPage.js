@@ -1,16 +1,14 @@
-import { useForm } from 'react-hook-form';
 import { useState, useEffect, useRef } from 'react';
-import Header from './Header';
-import Footer from './Footer';
 
-const CHAT_API_BASE = window.location.hostname === 'localhost'
-  ? 'http://localhost:8000'
-  : '/api';
+const CHAT_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const userCache = {};
 
 const fetchUserInfo = async (userId) => {
-  if (userCache[userId]) return userCache[userId];
+  if (userCache[userId]) {
+    return userCache[userId];
+  }
+
   try {
     const response = await fetch(`${CHAT_API_BASE}/api/users/${userId}`);
     if (response.ok) {
@@ -27,60 +25,154 @@ const fetchUserInfo = async (userId) => {
   } catch (error) {
     console.error(`Error fetching user ${userId}:`, error);
   }
+
   return { id: userId, name: `User ${userId}`, email: '', role: 'User' };
 };
 
 const MessagesPage = () => {
-  const CURRENT_USER_ID = 1;
+  const getLoggedInUserId = () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        const userId = user.user_id || user.id;
+        if (userId) {
+          return userId;
+        }
+      }
+    } catch (error) {
+      console.error('Error getting logged in user:', error);
+    }
+    return 1;
+  };
+
+  const [currentUserId, setCurrentUserId] = useState(getLoggedInUserId());
   const [chatPartners, setChatPartners] = useState([]);
   const [selectedPartnerId, setSelectedPartnerId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [lastSeenMessages, setLastSeenMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`lastSeenMessages_${getLoggedInUserId()}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const saveLastSeen = (partnerId, messageId) => {
+    const updated = { ...lastSeenMessages, [partnerId]: messageId };
+    setLastSeenMessages(updated);
+    localStorage.setItem(`lastSeenMessages_${currentUserId}`, JSON.stringify(updated));
+  };
+ 
+  const hasUnreadMessages = (partnerId) => {
+    const lastSeen = lastSeenMessages[partnerId] || 0;
+    const lastMessage = partnerLastMessages[partnerId] || 0;
+    return lastMessage > lastSeen;
+  };  const [partnerLastMessages, setPartnerLastMessages] = useState({}); 
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
   const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
-
-  const { register, handleSubmit, reset, watch } = useForm();
-  const messageValue = watch("message", "");
+  const messagesContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
+  useEffect(() => {
+    const checkUserChange = () => {
+      const newUserId = getLoggedInUserId();
+      if (newUserId !== currentUserId) {
+        setCurrentUserId(newUserId);
+        setChatPartners([]);
+        setMessages([]);
+        setSelectedPartnerId(null);
+        setLoading(true);
+        
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+      }
+    };
+
+    window.addEventListener('storage', checkUserChange);
+    const interval = setInterval(checkUserChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', checkUserChange);
+      clearInterval(interval);
+    };
+  }, [currentUserId]);
+
+  useEffect(() => {
+    fetchChatPartners();
+    connectWebSocket();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [currentUserId]);
+
   const connectWebSocket = () => {
-    const wsUrl = `ws://localhost:8000/api/chat/ws/${CURRENT_USER_ID}`;
+    if (wsRef.current) {
+      wsRef.current.close();
+    }
+
+    const wsUrl = `ws://localhost:8000/api/chat/ws/${currentUserId}`;
+
     try {
       wsRef.current = new WebSocket(wsUrl);
+
       wsRef.current.onopen = () => {
         console.log('WebSocket connected');
         setWsConnected(true);
       };
+
       wsRef.current.onmessage = (event) => {
         const data = JSON.parse(event.data);
-        setMessages(prev => [...prev, {
-          message_id: data.message_id,
-          sender_id: data.sender_id,
-          receiver_id: data.receiver_id,
-          content: data.content,
-          created_at: data.created_at,
-        }]);
+        if (data.sender_id === selectedPartnerId || data.receiver_id === selectedPartnerId) {
+          setMessages(prev => {
+            const exists = prev.some(m => m.message_id === data.message_id);
+            if (exists) return prev;
+            return [...prev, {
+              message_id: data.message_id,
+              sender_id: data.sender_id,
+              receiver_id: data.receiver_id,
+              content: data.content,
+              media_path: data.media_path || null,
+              media_type: data.media_type || null,
+              created_at: data.created_at,
+            }];
+          });
+        }
       };
+
       wsRef.current.onclose = () => {
-        console.log('WebSocket disconnected');
         setWsConnected(false);
-        setTimeout(connectWebSocket, 3000);
+        setTimeout(() => connectWebSocket(), 3000);
       };
+
       wsRef.current.onerror = (error) => {
         console.error('WebSocket error:', error);
       };
@@ -89,27 +181,36 @@ const MessagesPage = () => {
     }
   };
 
-  useEffect(() => {
-    fetchChatPartners();
-    connectWebSocket();
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const fetchChatPartners = async () => {
     try {
-      const response = await fetch(`${CHAT_API_BASE}/api/chat/allchats/${CURRENT_USER_ID}`);
+      const response = await fetch(`${CHAT_API_BASE}/api/chat/allchats/${currentUserId}`);
       if (response.ok) {
         const userIds = await response.json();
-        const partners = await Promise.all(userIds.map(id => fetchUserInfo(id)));
+        const partnersPromises = userIds.map(id => fetchUserInfo(id));
+        const partners = await Promise.all(partnersPromises);
+        
+        // Fetch last message ID for each partner
+        const lastMsgs = {};
+        for (const partner of partners) {
+          try {
+            const msgResponse = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partner.id}`);
+            if (msgResponse.ok) {
+              const msgs = await msgResponse.json();
+              if (msgs.length > 0) {
+                lastMsgs[partner.id] = msgs[msgs.length - 1].message_id;
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching last message:', e);
+          }
+        }
+        setPartnerLastMessages(lastMsgs);
         setChatPartners(partners);
       } else {
         setChatPartners([]);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching chat partners:', error);
       setChatPartners([]);
     } finally {
       setLoading(false);
@@ -122,17 +223,20 @@ const MessagesPage = () => {
       const response = await fetch(`${CHAT_API_BASE}/api/users`);
       if (response.ok) {
         const users = await response.json();
-        setAllUsers(users.filter(u => u.user_id !== CURRENT_USER_ID).map(u => ({
-          id: u.user_id,
-          name: `${u.first_name} ${u.last_name}`,
-          email: u.sfsu_email,
-          role: u.role || 'User',
-        })));
+        const formattedUsers = users
+          .filter(u => u.user_id !== currentUserId)
+          .map(u => ({
+            id: u.user_id,
+            name: `${u.first_name} ${u.last_name}`,
+            email: u.sfsu_email,
+            role: u.role || 'User',
+          }));
+        setAllUsers(formattedUsers);
       } else {
         setAllUsers([]);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching users:', error);
       setAllUsers([]);
     } finally {
       setLoadingUsers(false);
@@ -142,14 +246,15 @@ const MessagesPage = () => {
   const fetchMessages = async (partnerId) => {
     setMessagesLoading(true);
     try {
-      const response = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${CURRENT_USER_ID}/${partnerId}`);
+      const response = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partnerId}`);
       if (response.ok) {
-        setMessages(await response.json());
+        const data = await response.json();
+        setMessages(data);
       } else {
         setMessages([]);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching messages:', error);
       setMessages([]);
     } finally {
       setMessagesLoading(false);
@@ -158,11 +263,17 @@ const MessagesPage = () => {
 
   const handleSelectPartner = (partner) => {
     setSelectedPartnerId(partner.id);
+    setSending(false);
     fetchMessages(partner.id);
+    // Mark as read - save the last message ID for this partner
+  if (partnerLastMessages[partner.id]) {
+    saveLastSeen(partner.id, partnerLastMessages[partner.id]);
+  }
   };
 
   const handleStartNewChat = (user) => {
-    if (!chatPartners.find(p => p.id === user.id)) {
+    const existingPartner = chatPartners.find(p => p.id === user.id);
+    if (!existingPartner) {
       setChatPartners(prev => [user, ...prev]);
     }
     setSelectedPartnerId(user.id);
@@ -176,623 +287,750 @@ const MessagesPage = () => {
     fetchAllUsers();
   };
 
-  const handleSendMessage = async (data) => {
-    const content = data.message;
-    if (!content?.trim() || !selectedPartnerId || sending) return;
-    setSending(true);
-    if (wsConnected && wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        receiver_id: selectedPartnerId,
-        content: content,
-      }));
-      reset();
-      setSending(false);
-    } else {
-      try {
-        const response = await fetch(`${CHAT_API_BASE}/api/chat/send?user_id=${CURRENT_USER_ID}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            receiver_id: selectedPartnerId,
-            content: content,
-          }),
-        });
-        if (response.ok) {
-          const sentMessage = await response.json();
-          setMessages(prev => [...prev, sentMessage]);
-          reset();
-        }
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setSending(false);
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size must be less than 10MB');
+        return;
       }
+      setSelectedFile(file);
     }
   };
 
-  const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) || allUsers.find(u => u.id === selectedPartnerId);
-  const filteredPartners = chatPartners.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()));
-  const filteredUsers = allUsers.filter(u =>
-    u.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(userSearchTerm.toLowerCase())
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    
+    if ((!newMessage.trim() && !selectedFile) || !selectedPartnerId || sending) {
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      if (selectedFile) {
+        setUploadingFile(true);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('receiver_id', selectedPartnerId);
+        if (newMessage.trim()) {
+          formData.append('content', newMessage);
+        }
+
+        const response = await fetch(`${CHAT_API_BASE}/api/chat/send-media?user_id=${currentUserId}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const sentMessage = await response.json();
+          setMessages(prev => [...prev, sentMessage]);
+          setNewMessage('');
+          setSelectedFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        } else {
+          alert('Failed to send file. Please try again.');
+        }
+        setUploadingFile(false);
+      } else {
+        const messageContent = newMessage.trim();
+        
+        const tempMessage = {
+          message_id: Date.now(),
+          sender_id: currentUserId,
+          receiver_id: selectedPartnerId,
+          content: messageContent,
+          media_path: null,
+          media_type: null,
+          created_at: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage('');
+
+        if (wsConnected && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            receiver_id: selectedPartnerId,
+            content: messageContent,
+          }));
+        } else {
+          const response = await fetch(`${CHAT_API_BASE}/api/chat/send?user_id=${currentUserId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              receiver_id: selectedPartnerId,
+              content: messageContent,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to send message');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filteredPartners = chatPartners
+  .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  .sort((a, b) => {
+    const aUnread = hasUnreadMessages(a.id);
+    const bUnread = hasUnreadMessages(b.id);
+    if (aUnread && !bUnread) return -1;
+    if (!aUnread && bUnread) return 1;
+    return 0;
+  });
+
+  const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) || 
+    allUsers.find(u => u.id === selectedPartnerId);
+
+  const filteredUsers = allUsers.filter(user =>
+    user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
-  const formatTime = (d) => {
-    if (!d) return '';
-    return new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
   const getInitials = (name) => {
+    if (!name) return '?';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const styles = {
-    container: {
-      display: 'flex',
-      flexDirection: 'column',
-      minHeight: '100vh',
-      backgroundColor: '#ffffff',
-    },
-    content: {
-      display: 'flex',
-      flex: 1,
-      overflow: 'hidden',
-      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    },
-    sidebar: {
-      width: '350px',
-      borderRight: '1px solid #e0e0e0',
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#fafafa',
-    },
-    sidebarHeader: {
-      padding: '20px',
-      borderBottom: '1px solid #e0e0e0',
-      backgroundColor: '#35006D',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    sidebarHeaderLeft: {
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    sidebarTitle: {
-      margin: 0,
-      fontSize: '24px',
-      fontWeight: '600',
-      color: '#ffffff',
-    },
-    connectionStatus: {
-      fontSize: '12px',
-      color: wsConnected ? '#90EE90' : '#FFB6C1',
-      marginTop: '5px',
-    },
-    newChatButton: {
-      backgroundColor: '#FFCF01',
-      color: '#35006D',
-      border: 'none',
-      borderRadius: '50%',
-      width: '40px',
-      height: '40px',
-      fontSize: '24px',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontWeight: 'bold',
-    },
-    searchContainer: {
-      padding: '15px',
-      borderBottom: '1px solid #e0e0e0',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '10px 15px',
-      borderRadius: '20px',
-      border: '1px solid #ddd',
-      outline: 'none',
-      fontSize: '14px',
-      boxSizing: 'border-box',
-    },
-    conversationList: {
-      flex: 1,
-      overflowY: 'auto',
-    },
-    conversationItem: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '15px',
-      borderBottom: '1px solid #f0f0f0',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    conversationItemSelected: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '15px',
-      borderBottom: '1px solid #f0f0f0',
-      cursor: 'pointer',
-      backgroundColor: '#e8d4f0',
-      borderLeft: '4px solid #35006D',
-    },
-    avatar: {
-      width: '50px',
-      height: '50px',
-      borderRadius: '50%',
-      marginRight: '15px',
-      backgroundColor: '#35006D',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '20px',
-      fontWeight: '600',
-    },
-    conversationInfo: {
-      flex: 1,
-      minWidth: 0,
-    },
-    conversationName: {
-      margin: 0,
-      fontSize: '16px',
-      fontWeight: '600',
-      color: '#333',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    },
-    conversationRole: {
-      margin: 0,
-      fontSize: '13px',
-      color: '#666',
-      whiteSpace: 'nowrap',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-    },
-    chatContainer: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: '#fff',
-    },
-    chatHeader: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '15px 20px',
-      borderBottom: '1px solid #e0e0e0',
-      backgroundColor: '#f9f9f9',
-    },
-    chatAvatar: {
-      width: '45px',
-      height: '45px',
-      borderRadius: '50%',
-      marginRight: '15px',
-      backgroundColor: '#35006D',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-      fontWeight: '600',
-    },
-    chatName: {
-      margin: 0,
-      fontSize: '18px',
-      fontWeight: '600',
-      color: '#333',
-    },
-    chatStatus: {
-      margin: 0,
-      fontSize: '13px',
-      color: '#666',
-    },
-    messagesContainer: {
-      flex: 1,
-      padding: '20px',
-      overflowY: 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px',
-      backgroundColor: '#f5f5f5',
-    },
-    messageMe: {
-      alignSelf: 'flex-end',
-      backgroundColor: '#35006D',
-      color: '#fff',
-      padding: '12px 16px',
-      borderRadius: '18px 18px 4px 18px',
-      maxWidth: '70%',
-      wordWrap: 'break-word',
-    },
-    messageThem: {
-      alignSelf: 'flex-start',
-      backgroundColor: '#fff',
-      color: '#333',
-      padding: '12px 16px',
-      borderRadius: '18px 18px 18px 4px',
-      maxWidth: '70%',
-      wordWrap: 'break-word',
-      boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
-    },
-    messageText: {
-      margin: 0,
-      fontSize: '15px',
-      lineHeight: '1.4',
-    },
-    messageTime: {
-      fontSize: '11px',
-      opacity: 0.7,
-      marginTop: '6px',
-      textAlign: 'right',
-    },
-    messageInputContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '15px 20px',
-      borderTop: '1px solid #e0e0e0',
-      backgroundColor: '#fff',
-      gap: '12px',
-    },
-    messageInput: {
-      flex: 1,
-      padding: '12px 18px',
-      borderRadius: '24px',
-      border: '1px solid #ddd',
-      outline: 'none',
-      fontSize: '15px',
-      fontFamily: 'inherit',
-    },
-    sendButton: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      border: 'none',
-      backgroundColor: '#35006D',
-      color: '#fff',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-    },
-    sendButtonDisabled: {
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      border: 'none',
-      backgroundColor: '#ccc',
-      color: '#fff',
-      cursor: 'not-allowed',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '18px',
-    },
-    noChatSelected: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      color: '#666',
-      backgroundColor: '#f9f9f9',
-    },
-    noChatTitle: {
-      fontSize: '24px',
-      fontWeight: '600',
-      color: '#35006D',
-      marginBottom: '10px',
-    },
-    noChatText: {
-      fontSize: '16px',
-      color: '#888',
-    },
-    loadingContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '40px',
-      color: '#666',
-    },
-    emptyChats: {
-      padding: '40px 20px',
-      textAlign: 'center',
-      color: '#666',
-    },
-    modalOverlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1000,
-    },
-    modal: {
-      backgroundColor: '#fff',
-      borderRadius: '12px',
-      width: '450px',
-      maxHeight: '70vh',
-      display: 'flex',
-      flexDirection: 'column',
-      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
-    },
-    modalHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '20px',
-      borderBottom: '1px solid #e0e0e0',
-      backgroundColor: '#35006D',
-      borderRadius: '12px 12px 0 0',
-    },
-    modalTitle: {
-      margin: 0,
-      fontSize: '20px',
-      fontWeight: '600',
-      color: '#ffffff',
-    },
-    modalCloseButton: {
-      backgroundColor: 'transparent',
-      border: 'none',
-      color: '#ffffff',
-      fontSize: '24px',
-      cursor: 'pointer',
-      padding: '0',
-      lineHeight: '1',
-    },
-    modalSearchContainer: {
-      padding: '15px 20px',
-      borderBottom: '1px solid #e0e0e0',
-    },
-    modalSearchInput: {
-      width: '100%',
-      padding: '12px 16px',
-      borderRadius: '8px',
-      border: '1px solid #ddd',
-      outline: 'none',
-      fontSize: '15px',
-      boxSizing: 'border-box',
-    },
-    modalUserList: {
-      flex: 1,
-      overflowY: 'auto',
-      maxHeight: '400px',
-    },
-    modalUserItem: {
-      display: 'flex',
-      alignItems: 'center',
-      padding: '15px 20px',
-      borderBottom: '1px solid #f0f0f0',
-      cursor: 'pointer',
-      transition: 'background-color 0.2s',
-    },
-    modalUserAvatar: {
-      width: '45px',
-      height: '45px',
-      borderRadius: '50%',
-      marginRight: '15px',
-      backgroundColor: '#35006D',
-      color: '#fff',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: '16px',
-      fontWeight: '600',
-    },
-    modalUserInfo: {
-      flex: 1,
-    },
-    modalUserName: {
-      margin: 0,
-      fontSize: '15px',
-      fontWeight: '600',
-      color: '#333',
-    },
-    modalUserEmail: {
-      margin: '2px 0 0 0',
-      fontSize: '13px',
-      color: '#666',
-    },
-    modalUserRole: {
-      display: 'inline-block',
-      marginTop: '4px',
-      padding: '2px 8px',
-      fontSize: '11px',
-      fontWeight: '500',
-      color: '#35006D',
-      backgroundColor: '#f0e6f6',
-      borderRadius: '10px',
-    },
-    emptyUsers: {
-      padding: '40px 20px',
-      textAlign: 'center',
-      color: '#666',
-    },
+  const renderMedia = (message) => {
+    if (!message.media_path) return null;
+    
+    const mediaUrl = message.media_path.startsWith('http') 
+      ? message.media_path 
+      : `${CHAT_API_BASE}${message.media_path}`;
+    
+    if (message.media_type?.startsWith('image/')) {
+      return (
+        <img 
+          src={mediaUrl} 
+          alt="Shared" 
+          style={styles.mediaImage}
+          onClick={() => window.open(mediaUrl, '_blank')}
+        />
+      );
+    } else if (message.media_type?.startsWith('video/')) {
+      return (
+        <video src={mediaUrl} controls style={styles.mediaVideo} />
+      );
+    } else if (message.media_type?.startsWith('audio/')) {
+      return (
+        <audio src={mediaUrl} controls style={styles.mediaAudio} />
+      );
+    } else {
+      return (
+        <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={styles.fileLink}>
+          Download File
+        </a>
+      );
+    }
   };
 
-  if (loading) {
-    return (
-      <div style={styles.container}>
-        <div style={styles.loadingContainer}>Loading conversations...</div>
-      </div>
-    );
-  }
+  const isButtonDisabled = (!newMessage.trim() && !selectedFile) || !selectedPartnerId || sending || uploadingFile;
 
   return (
-    <div style={styles.container}>
-      <Header />
-      <div style={styles.content}>
+    <div style={styles.pageContainer}>
+      <div style={styles.container}>
         <div style={styles.sidebar}>
           <div style={styles.sidebarHeader}>
-            <div style={styles.sidebarHeaderLeft}>
+            <div style={styles.headerLeft}>
+              <button 
+                onClick={() => window.location.href = '/'} 
+                style={styles.backButton}
+                data-testid="button-back-dashboard"
+              >
+                ←
+              </button>
               <h2 style={styles.sidebarTitle}>Messages</h2>
-              <div style={styles.connectionStatus}>
-                {wsConnected ? 'Connected' : 'Connecting...'}
-              </div>
             </div>
-            <button
-              style={styles.newChatButton}
-              onClick={handleOpenNewChatModal}
-              title="New Chat"
-            >
-              +
-            </button>
+            <button onClick={handleOpenNewChatModal} style={styles.newChatButton} data-testid="button-new-chat">+</button>
           </div>
-          <div style={styles.searchContainer}>
-            <input
-              type="text"
-              placeholder="Search conversations..."
-              style={styles.searchInput}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div style={styles.connectionStatus}>
+            {wsConnected ? 'Connected' : 'Disconnected'}
           </div>
+          <div style={styles.userIdDisplay}>User ID: {currentUserId}</div>
+          
+          <input
+            type="text"
+            placeholder="Search conversations..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+            data-testid="input-search-conversations"
+          />
+          
           <div style={styles.conversationList}>
-            {filteredPartners.length === 0 ? (
-              <div style={styles.emptyChats}>
-                <p>No conversations yet</p>
-                <p style={{ fontSize: '14px', color: '#999' }}>
-                  Click the + button to start a new chat
-                </p>
-              </div>
+            {loading ? (
+              <div style={styles.loadingContainer}>Loading...</div>
+            ) : filteredPartners.length === 0 ? (
+              <div style={styles.emptyState}>No conversations yet</div>
             ) : (
               filteredPartners.map((partner) => (
                 <div
                   key={partner.id}
-                  style={selectedPartnerId === partner.id ? styles.conversationItemSelected : styles.conversationItem}
                   onClick={() => handleSelectPartner(partner)}
-                >
-                  <div style={styles.avatar}>
-                    {getInitials(partner.name)}
+                  style={{
+                    ...styles.conversationItem,
+                    backgroundColor: selectedPartnerId === partner.id ? '#35006D' : 'transparent',
+                  }}
+                  data-testid={`conversation-item-${partner.id}`}
+                > 
+                <div style={styles.avatar}>{getInitials(partner.name)}</div>
+                <div style={styles.conversationInfo}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{
+                      ...styles.conversationName,
+                      fontWeight: hasUnreadMessages(partner.id) ? '700' : '500'
+                    }}>
+                      {partner.name}
+                    </h3>
+                    {hasUnreadMessages(partner.id) && (
+                      <span style={{
+                        width: '8px',
+                        height: '8px',
+                        backgroundColor: '#FFCF01',
+                        borderRadius: '50%',
+                        flexShrink: 0
+                      }} />
+                    )}
                   </div>
-                  <div style={styles.conversationInfo}>
-                    <h3 style={styles.conversationName}>{partner.name}</h3>
-                    <p style={styles.conversationRole}>{partner.role}</p>
-                  </div>
+                  <p style={styles.conversationRole}>{partner.role}</p>
+                </div>  
                 </div>
               ))
             )}
           </div>
         </div>
 
-        {selectedPartner ? (
-          <div style={styles.chatContainer}>
-            <div style={styles.chatHeader}>
-              <div style={styles.chatAvatar}>
-                {getInitials(selectedPartner.name)}
-              </div>
-              <div>
-                <h2 style={styles.chatName}>{selectedPartner.name}</h2>
-                <p style={styles.chatStatus}>{selectedPartner.role}</p>
-              </div>
-            </div>
-
-            <div style={styles.messagesContainer}>
-              {messagesLoading ? (
-                <div style={styles.loadingContainer}>Loading messages...</div>
-              ) : messages.length === 0 ? (
-                <div style={styles.loadingContainer}>
-                  No messages yet. Start the conversation!
+        <div style={styles.chatArea}>
+          {selectedPartner ? (
+            <>
+              <div style={styles.chatHeader}>
+                <div style={styles.chatAvatar}>{getInitials(selectedPartner.name)}</div>
+                <div>
+                  <h2 style={styles.chatName}>{selectedPartner.name}</h2>
+                  <p style={styles.chatStatus}>{selectedPartner.role}</p>
                 </div>
-              ) : (
-                messages.map((message) => (
-                  <div
-                    key={message.message_id}
-                    style={message.sender_id === CURRENT_USER_ID ? styles.messageMe : styles.messageThem}
-                  >
-                    <p style={styles.messageText}>{message.content}</p>
-                    <div style={styles.messageTime}>{formatTime(message.created_at)}</div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
+              </div>
 
-            <form onSubmit={handleSubmit(handleSendMessage)} style={styles.messageInputContainer}>
+              <div style={styles.messagesContainer} ref={messagesContainerRef}>
+                {messagesLoading ? (
+                  <div style={styles.loadingContainer}>Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div style={styles.loadingContainer}>No messages yet. Start the conversation!</div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.message_id}
+                      style={{
+                        ...styles.messageWrapper,
+                        justifyContent: message.sender_id === currentUserId ? 'flex-end' : 'flex-start',
+                      }}
+                      data-testid={`message-${message.message_id}`}
+                    >
+                      <div
+                        style={{
+                          ...styles.messageBubble,
+                          backgroundColor: message.sender_id === currentUserId ? '#35006D' : '#f0f0f0',
+                          color: message.sender_id === currentUserId ? '#fff' : '#333',
+                        }}
+                      >
+                        {renderMedia(message)}
+                        {message.content && <p style={styles.messageText}>{message.content}</p>}
+                        <span style={{
+                          ...styles.messageTime,
+                          color: message.sender_id === currentUserId ? 'rgba(255,255,255,0.7)' : '#888',
+                        }}>
+                          {formatTime(message.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={handleSendMessage} style={styles.inputContainer}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={styles.attachButton}
+                  data-testid="button-attach-file"
+                >
+                  📎
+                </button>
+
+                {selectedFile && (
+                  <div style={styles.filePreview}>
+                    <span style={styles.fileName}>{selectedFile.name}</span>
+                    <button type="button" onClick={handleRemoveFile} style={styles.removeFileButton} data-testid="button-remove-file">×</button>
+                  </div>
+                )}
+
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  style={styles.messageInput}
+                  data-testid="input-message"
+                />
+                <button
+                  type="submit"
+                  disabled={isButtonDisabled}
+                  style={{
+                    ...styles.sendButton,
+                    opacity: isButtonDisabled ? 0.5 : 1,
+                    cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                  }}
+                  data-testid="button-send-message"
+                >
+                  ➤
+                </button>
+              </form>
+            </>
+          ) : (
+            <div style={styles.noChat}>Select a conversation to start messaging</div>
+          )}
+        </div>
+
+        {showNewChatModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowNewChatModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h3 style={styles.modalTitle}>Start New Chat</h3>
+                <button onClick={() => setShowNewChatModal(false)} style={styles.closeButton} data-testid="button-close-modal">×</button>
+              </div>
               <input
                 type="text"
-                placeholder="Type a message..."
-                style={styles.messageInput}
-                {...register("message")}
+                placeholder="Search users..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                style={styles.modalSearchInput}
+                data-testid="input-search-users"
               />
-              <button
-                type="submit"
-                style={!messageValue?.trim() || sending ? styles.sendButtonDisabled : styles.sendButton}
-                disabled={!messageValue?.trim() || sending}
-              >
-                &#10148;
-              </button>
-            </form>
-          </div>
-        ) : (
-          <div style={styles.noChatSelected}>
-            <div style={styles.noChatTitle}>Select a Conversation</div>
-            <p style={styles.noChatText}>Choose a conversation from the sidebar or click + to start a new chat</p>
+              <div style={styles.userList}>
+                {loadingUsers ? (
+                  <div style={styles.loadingContainer}>Loading users...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div style={styles.emptyState}>No users found</div>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => handleStartNewChat(user)}
+                      style={styles.userItem}
+                      data-testid={`user-item-${user.id}`}
+                    >
+                      <div style={styles.avatar}>{getInitials(user.name)}</div>
+                      <div style={styles.userInfo}>
+                        <h4 style={styles.userName}>{user.name}</h4>
+                        <p style={styles.userRole}>{user.role}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {showNewChatModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowNewChatModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3 style={styles.modalTitle}>Start New Chat</h3>
-              <button
-                style={styles.modalCloseButton}
-                onClick={() => setShowNewChatModal(false)}
-              >
-                &times;
-              </button>
-            </div>
-            <div style={styles.modalSearchContainer}>
-              <input
-                type="text"
-                placeholder="Search by name or email..."
-                style={styles.modalSearchInput}
-                value={userSearchTerm}
-                onChange={(e) => setUserSearchTerm(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div style={styles.modalUserList}>
-              {loadingUsers ? (
-                <div style={styles.loadingContainer}>Loading users...</div>
-              ) : filteredUsers.length === 0 ? (
-                <div style={styles.emptyUsers}>
-                  {userSearchTerm ? 'No users found' : 'No users available'}
-                </div>
-              ) : (
-                filteredUsers.map((user) => (
-                  <div
-                    key={user.id}
-                    style={styles.modalUserItem}
-                    onClick={() => handleStartNewChat(user)}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f0f8'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  >
-                    <div style={styles.modalUserAvatar}>
-                      {getInitials(user.name)}
-                    </div>
-                    <div style={styles.modalUserInfo}>
-                      <p style={styles.modalUserName}>{user.name}</p>
-                      <p style={styles.modalUserEmail}>{user.email}</p>
-                      <span style={styles.modalUserRole}>{user.role}</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
+};
+
+const styles = {
+  pageContainer: {
+    minHeight: '100vh',
+    backgroundColor: '#f5f5f5',
+  },
+  container: {
+    display: 'flex',
+    height: 'calc(100vh - 80px)',
+    maxWidth: '1400px',
+    margin: '20px auto',
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+  },
+  sidebar: {
+    width: '280px',
+    backgroundColor: '#35006D',
+    color: '#fff',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  sidebarHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid rgba(255,255,255,0.1)',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  backButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.2s',
+  },
+  sidebarTitle: {
+    margin: 0,
+    fontSize: '20px',
+  },
+  newChatButton: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    backgroundColor: '#FFCF01',
+    color: '#35006D',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  connectionStatus: {
+    padding: '5px 20px',
+    fontSize: '12px',
+    color: '#FFCF01',
+  },
+  userIdDisplay: {
+    padding: '0 20px 10px',
+    fontSize: '11px',
+    color: 'rgba(255,255,255,0.6)',
+  },
+  searchInput: {
+    margin: '10px 20px',
+    padding: '10px 15px',
+    borderRadius: '20px',
+    border: 'none',
+    fontSize: '14px',
+    outline: 'none',
+  },
+  conversationList: {
+    flex: 1,
+    overflowY: 'auto',
+  },
+  conversationItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '15px 20px',
+    cursor: 'pointer',
+    borderLeft: '4px solid transparent',
+  },
+  avatar: {
+    width: '45px',
+    height: '45px',
+    borderRadius: '50%',
+    backgroundColor: '#FFCF01',
+    color: '#35006D',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    marginRight: '12px',
+    fontSize: '14px',
+  },
+  conversationInfo: {
+    flex: 1,
+  },
+  conversationName: {
+    margin: 0,
+    fontSize: '15px',
+    fontWeight: '500',
+  },
+  conversationRole: {
+    margin: '4px 0 0',
+    fontSize: '12px',
+    opacity: 0.7,
+  },
+  chatArea: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#fff',
+  },
+  chatHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '15px 20px',
+    borderBottom: '1px solid #eee',
+    backgroundColor: '#fafafa',
+  },
+  chatAvatar: {
+    width: '45px',
+    height: '45px',
+    borderRadius: '50%',
+    backgroundColor: '#35006D',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    marginRight: '12px',
+    fontSize: '14px',
+  },
+  chatName: {
+    margin: 0,
+    fontSize: '16px',
+    color: '#333',
+  },
+  chatStatus: {
+    margin: '2px 0 0',
+    fontSize: '13px',
+    color: '#888',
+  },
+  messagesContainer: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '20px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  loadingContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    color: '#888',
+  },
+  messageWrapper: {
+    display: 'flex',
+    marginBottom: '12px',
+  },
+  messageBubble: {
+    maxWidth: '70%',
+    padding: '12px 16px',
+    borderRadius: '18px',
+  },
+  messageText: {
+    margin: 0,
+    fontSize: '14px',
+    lineHeight: '1.4',
+  },
+  messageTime: {
+    display: 'block',
+    fontSize: '11px',
+    marginTop: '5px',
+    textAlign: 'right',
+  },
+  mediaImage: {
+    maxWidth: '250px',
+    maxHeight: '200px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    marginBottom: '8px',
+  },
+  mediaVideo: {
+    maxWidth: '250px',
+    borderRadius: '8px',
+    marginBottom: '8px',
+  },
+  mediaAudio: {
+    maxWidth: '250px',
+    marginBottom: '8px',
+  },
+  fileLink: {
+    color: '#FFCF01',
+    textDecoration: 'underline',
+  },
+  inputContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '15px 20px',
+    borderTop: '1px solid #eee',
+    backgroundColor: '#fafafa',
+    gap: '10px',
+  },
+  attachButton: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    backgroundColor: '#f0f0f0',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filePreview: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#e8e8e8',
+    padding: '5px 10px',
+    borderRadius: '15px',
+    maxWidth: '200px',
+  },
+  fileName: {
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    marginRight: '8px',
+  },
+  removeFileButton: {
+    background: 'none',
+    border: 'none',
+    color: '#e74c3c',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: 0,
+  },
+  messageInput: {
+    flex: 1,
+    padding: '12px 20px',
+    borderRadius: '25px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    outline: 'none',
+  },
+  sendButton: {
+    width: '45px',
+    height: '45px',
+    borderRadius: '50%',
+    backgroundColor: '#35006D',
+    color: '#fff',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  noChat: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#888',
+    fontSize: '16px',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    width: '400px',
+    maxHeight: '500px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #eee',
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '18px',
+    color: '#35006D',
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#888',
+  },
+  modalSearchInput: {
+    margin: '15px 20px',
+    padding: '10px 15px',
+    borderRadius: '8px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    outline: 'none',
+  },
+  userList: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '0 10px 20px',
+  },
+  userItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '12px 15px',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    marginBottom: '5px',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#333',
+  },
+  userRole: {
+    margin: '2px 0 0',
+    fontSize: '12px',
+    color: '#888',
+  },
+  emptyState: {
+    textAlign: 'center',
+    padding: '20px',
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: '14px',
+  },
 };
 
 export default MessagesPage;

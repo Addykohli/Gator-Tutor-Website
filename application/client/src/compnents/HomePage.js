@@ -2464,8 +2464,27 @@ const HomePage = () => {
                       </button>
                     </div>
                   </div>
+                )} {/* Apply to be a Tutor - Only for students */}
+                {user && !user.isTutor && user.role !== 'admin' && (
+                  <div
+                    onClick={() => navigate('/apply-tutor')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      color: darkMode ? 'white' : '#35006D',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <i className="fas fa-graduation-cap"></i>
+                    <span>APPLY AS TUTOR</span>
+                  </div>
                 )}
-
+                
                 {/* Courses I Tutor Section - Only for tutors */}
                 {user?.isTutor && (
                   <div style={{

@@ -172,21 +172,42 @@ const CourseCoverageRequestPage = () => {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-  const onSubmit = (data) => {
-    console.log('Submitting coverage request:', data);
+  const onSubmit = async (data) => {
+    const apiBaseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
+      : '/api';
 
-    setShowSuccess(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          courseNumber: data.courseNumber,
+          topics: data.topics || '',
+          notes: data.notes || '',
+          email: data.email
+        })
+      });
 
-    // Reset form
-    reset();
+      if (!response.ok) {
+        throw new Error('Failed to submit request');
+      }
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      setShowSuccess(true);
+      reset();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
-    // Redirect after delay
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 2000);
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error submitting coverage request:', error);
+      alert('Failed to submit request. Please try again.');
+    }
   };
 
   return (

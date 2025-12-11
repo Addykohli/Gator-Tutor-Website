@@ -9,7 +9,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef(null);
-  const { isAuthenticated, user, logout, darkMode, toggleDarkMode } = useAuth();
+  const { isAuthenticated, user, logout, darkMode, toggleDarkMode, unreadMessageCount = 0 } = useAuth();
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
   const [isCompact, setIsCompact] = useState(window.innerWidth <= 768);
@@ -22,7 +22,12 @@ const Header = () => {
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-search', label: user?.role === 'admin' ? 'Tutors' : 'Find', path: '/search' },
-    { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
+    { 
+      icon: 'fas fa-envelope', 
+      label: 'Message', 
+      path: '/messages',
+      badge: unreadMessageCount > 0 ? unreadMessageCount : null 
+    },
     {
       icon: 'fas fa-book',
       label: 'Request Course Coverage',
@@ -34,6 +39,13 @@ const Header = () => {
       label: 'Sessions',
       path: '/sessions',
       hideForAdmin: true
+    },
+    // Student-only menu item - Apply as Tutor
+    {
+      icon: 'fas fa-graduation-cap',
+      label: 'Apply as Tutor',
+      path: '/apply-tutor',
+      studentOnly: true
     },
     // Tutor-only menu items
     {
@@ -146,6 +158,7 @@ const Header = () => {
   const filteredMenuItems = menuItems.filter(item => {
     // Hide items marked for admin users
     if (user?.role === 'admin' && item.hideForAdmin) return false;
+    if (item.studentOnly && (user?.isTutor || user?.role === 'admin')) return false;
     // Show all items that are not tutor-only
     if (!item.tutorOnly) return true;
     // Show tutor-only items only if user is authenticated and is a tutor
@@ -378,7 +391,7 @@ const Header = () => {
         {/* Menu items */}
         {filteredMenuItems.map((item, index) => {
           // Recalculate the visual index for dividers to account for filtered items
-          const visualIndex = menuItems.findIndex(i => i.path === item.path);
+          const visualIndex = index;
           return (
             <React.Fragment key={item.path}>
               <button
@@ -407,7 +420,24 @@ const Header = () => {
                 <div style={getIconContainerStyle(visualIndex)}>
                   <i className={item.icon} style={getIconStyle(visualIndex)} />
                 </div>
-                <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+                <span style={getLabelStyle(visualIndex)}>{item.label}</span> 
+                {item.badge && (
+                  <span style={{
+                    backgroundColor: '#FF4444',
+                    color: 'white',
+                    borderRadius: '50%',
+                    minWidth: '18px',
+                    height: '18px',
+                    fontSize: '10px',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginLeft: '4px'
+                  }}>
+                    {item.badge > 9 ? '9+' : item.badge}
+                  </span>
+                )}
               </button>
 
               {/* Only show divider if not the last item */}
