@@ -6,6 +6,8 @@ from search.routers.router import router as search_router
 from schedule.routers.router import router as schedule_router
 from admin.routers.admin_router import router as admin_router
 from registration.router import router as registration_router
+from tutors.router import router as tutors_router
+
 
 app = FastAPI(title="Team08 API", version="0.1.0")
 
@@ -29,6 +31,7 @@ app.include_router(auth_router)
 app.include_router(schedule_router)
 app.include_router(admin_router)
 app.include_router(registration_router)
+app.include_router(tutors_router)
 
 @app.get("/")
 def root():
