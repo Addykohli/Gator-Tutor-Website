@@ -19,6 +19,32 @@ const Header = () => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const logoutRef = useRef(null);
 
+  // Scroll detection state
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY > lastScrollY && currentScrollY > 70) {
+        // Scrolling down & past header height
+        setIsVisible(false);
+        // Close menu when header hides
+        setIsMenuOpen(false);
+        setIsLocked(false);
+      } else {
+        // Scrolling up
+        setIsVisible(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
+
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-search', label: user?.role === 'admin' ? 'Tutors' : 'Find', path: '/search' },
@@ -30,7 +56,7 @@ const Header = () => {
       hideForAdmin: true
     },
     {
-      icon: 'fas fa-user-check',
+      icon: 'fas fa-chalkboard',
       label: 'Sessions',
       path: '/sessions',
       hideForAdmin: true
@@ -345,305 +371,319 @@ const Header = () => {
 
 
   return (
-    <div className="header-container">
-      {/* Menu Container */}
-      <div ref={menuRef} style={menuWrapperStyle}>
-        {/* Invisible hover area */}
-        <div
-          style={hoverAreaStyle}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
-        />
+    <>
+      <div
+        className="header-container"
+        style={{
+          transform: isVisible ? 'translateY(0)' : 'translateY(-100%)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          transition: 'transform 0.3s ease-in-out'
+        }}
+      >
+        {/* Menu Container */}
+        <div ref={menuRef} style={menuWrapperStyle}>
+          {/* Invisible hover area */}
+          <div
+            style={hoverAreaStyle}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          />
 
-        {/* Expanding border */}
-        <div style={borderContainerStyle} />
+          {/* Expanding border */}
+          <div style={borderContainerStyle} />
 
-        {/* Divider between button and dropdown */}
-        <div style={headerDividerStyle} />
+          {/* Divider between button and dropdown */}
+          <div style={headerDividerStyle} />
 
-        {/* Menu Button */}
-        <button
-          style={menuButtonStyle}
-          onClick={handleButtonClick}
-          onMouseEnter={handleMouseEnter}
-        >
-          <div style={barsContainerStyle}>
-            <span style={getBarInButtonStyle(0)} />
-            <span style={getBarInButtonStyle(1)} />
-            <span style={getBarInButtonStyle(2)} />
-          </div>
-          Menu
-        </button>
+          {/* Menu Button */}
+          <button
+            style={menuButtonStyle}
+            onClick={handleButtonClick}
+            onMouseEnter={handleMouseEnter}
+          >
+            <div style={barsContainerStyle}>
+              <span style={getBarInButtonStyle(0)} />
+              <span style={getBarInButtonStyle(1)} />
+              <span style={getBarInButtonStyle(2)} />
+            </div>
+            Menu
+          </button>
 
-        {/* Menu items */}
-        {filteredMenuItems.map((item, index) => {
-          // Recalculate the visual index for dividers to account for filtered items
-          const visualIndex = menuItems.findIndex(i => i.path === item.path);
-          return (
-            <React.Fragment key={item.path}>
+          {/* Menu items */}
+          {filteredMenuItems.map((item, index) => {
+            // Recalculate the visual index for dividers to account for filtered items
+            const visualIndex = menuItems.findIndex(i => i.path === item.path);
+            return (
+              <React.Fragment key={item.path}>
+                <button
+                  style={getMenuItemStyle(visualIndex)}
+                  onMouseEnter={(e) => {
+                    if (isExpanded) {
+                      e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.1)';
+                      setIsMenuOpen(true);
+                      setHoveredIndex(visualIndex);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (isExpanded) {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                      setHoveredIndex(null);
+                    }
+                  }}
+                  onClick={() => {
+                    if (isExpanded) {
+                      navigate(item.path);
+                      setIsMenuOpen(false);
+                      setIsLocked(false);
+                    }
+                  }}
+                >
+                  <div style={getIconContainerStyle(visualIndex)}>
+                    <i className={item.icon} style={getIconStyle(visualIndex)} />
+                  </div>
+                  <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+                </button>
+
+                {/* Only show divider if not the last item */}
+                {index < filteredMenuItems.length - 1 && (
+                  <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        {/* Logo */}
+        <div style={{
+          flex: 1,
+          display: 'flex',
+          justifyContent: 'center',
+          position: 'absolute',
+          left: isMobile ? '50%' : '210px',
+          transform: 'translateX(-50%)',
+          zIndex: 99,
+        }}>
+          <button onClick={() => navigate('/')} style={classTitle}>
+            <img
+              src={require('../assets/gator icon logo.png')}
+              alt="Gator Tutor Logo"
+              style={{ height: '45px', width: 'auto' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.style.display = 'none';
+              }}
+            />
+          </button>
+        </div>
+
+        {/* Auth buttons */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          marginLeft: 'auto',
+          paddingRight: isMobile ? '0px' : '10px',
+          zIndex: 99,
+        }}>
+          {isMobile ? (
+            <>
               <button
-                style={getMenuItemStyle(visualIndex)}
-                onMouseEnter={(e) => {
-                  if (isExpanded) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.1)';
-                    setIsMenuOpen(true);
-                    setHoveredIndex(visualIndex);
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (isExpanded) {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                    setHoveredIndex(null);
-                  }
-                }}
-                onClick={() => {
-                  if (isExpanded) {
-                    navigate(item.path);
-                    setIsMenuOpen(false);
-                    setIsLocked(false);
-                  }
-                }}
+                onClick={() => setIsSettingsOpen(true)}
+                className="settings-btn"
               >
-                <div style={getIconContainerStyle(visualIndex)}>
-                  <i className={item.icon} style={getIconStyle(visualIndex)} />
-                </div>
-                <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+                <i className="fas fa-cog"></i>
               </button>
 
-              {/* Only show divider if not the last item */}
-              {index < filteredMenuItems.length - 1 && (
-                <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
-
-      {/* Logo */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        justifyContent: 'center',
-        position: 'absolute',
-        left: isMobile ? '50%' : '210px',
-        transform: 'translateX(-50%)',
-        zIndex: 99,
-      }}>
-        <button onClick={() => navigate('/')} style={classTitle}>
-          <img
-            src={require('../assets/gator icon logo.png')}
-            alt="Gator Tutor Logo"
-            style={{ height: '45px', width: 'auto' }}
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.style.display = 'none';
-            }}
-          />
-        </button>
-      </div>
-
-      {/* Auth buttons */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginLeft: 'auto',
-        paddingRight: isMobile ? '0px' : '10px',
-        zIndex: 99,
-      }}>
-        {isMobile ? (
-          <>
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className="settings-btn"
-            >
-              <i className="fas fa-cog"></i>
-            </button>
-
-            {isSettingsOpen && (
-              <div
-                style={{
-                  position: 'fixed',
-                  top: 0,
-                  left: 0,
-                  width: '100vw',
-                  height: '100vh',
-                  backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                  zIndex: 2000,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backdropFilter: 'blur(3px)'
-                }}
-                onClick={(e) => {
-                  if (e.target === e.currentTarget) setIsSettingsOpen(false);
-                }}
-              >
-                <div style={{
-                  backgroundColor: 'rgb(35, 17, 97)',
-                  padding: '30px',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '20px',
-                  alignItems: 'center',
-                  border: '1px solid rgb(255, 220, 112)',
-                  minWidth: '200px',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-                }}>
-                  {/* Dark Mode Toggle */}
-                  <div
-                    style={{ ...toggleContainerStyle, margin: 0 }}
-                    onClick={toggleDarkMode}
-                    title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                  >
-                    <div style={toggleCircleStyle}>
-                      <i
-                        className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
-                        style={{
-                          ...toggleIconStyle,
-                          left: darkMode ? '4px' : '4px'
-                        }}
-                      />
+              {isSettingsOpen && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    zIndex: 2000,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backdropFilter: 'blur(3px)'
+                  }}
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) setIsSettingsOpen(false);
+                  }}
+                >
+                  <div style={{
+                    backgroundColor: 'rgb(35, 17, 97)',
+                    padding: '30px',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '20px',
+                    alignItems: 'center',
+                    border: '1px solid rgb(255, 220, 112)',
+                    minWidth: '200px',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+                  }}>
+                    {/* Dark Mode Toggle */}
+                    <div
+                      style={{ ...toggleContainerStyle, margin: 0 }}
+                      onClick={toggleDarkMode}
+                      title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                    >
+                      <div style={toggleCircleStyle}>
+                        <i
+                          className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                          style={{
+                            ...toggleIconStyle,
+                            left: darkMode ? '4px' : '4px'
+                          }}
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {!isAuthenticated ? (
-                    <>
+                    {!isAuthenticated ? (
+                      <>
+                        <button
+                          className="header-btn auth-btn"
+                          style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigate('/login');
+                            setIsSettingsOpen(false);
+                          }}
+                        >
+                          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                          Login
+                        </button>
+                        <button
+                          className="header-btn auth-btn"
+                          style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigate('/register');
+                            setIsSettingsOpen(false);
+                          }}
+                        >
+                          <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                          Sign Up
+                        </button>
+                      </>
+                    ) : (
                       <button
-                        className="header-btn auth-btn"
+                        className="header-btn"
                         style={{ width: '100%', justifyContent: 'center', margin: 0 }}
                         onClick={(e) => {
                           e.preventDefault();
-                          navigate('/login');
+                          handleLogoutConfirm();
                           setIsSettingsOpen(false);
                         }}
                       >
-                        <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-                        Login
+                        <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                        Logout
                       </button>
-                      <button
-                        className="header-btn auth-btn"
-                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          navigate('/register');
-                          setIsSettingsOpen(false);
-                        }}
-                      >
-                        <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-                        Sign Up
-                      </button>
-                    </>
-                  ) : (
+                    )}
+
                     <button
-                      className="header-btn"
-                      style={{ width: '100%', justifyContent: 'center', margin: 0 }}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleLogoutConfirm();
-                        setIsSettingsOpen(false);
+                      onClick={() => setIsSettingsOpen(false)}
+                      style={{
+                        marginTop: '10px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'rgba(255, 220, 112, 0.7)',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        textDecoration: 'underline'
                       }}
                     >
-                      <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
-                      Logout
+                      Close
                     </button>
-                  )}
-
-                  <button
-                    onClick={() => setIsSettingsOpen(false)}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Dark Mode Toggle */}
+              <div
+                style={toggleContainerStyle}
+                onClick={toggleDarkMode}
+                title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              >
+                <div style={toggleCircleStyle}>
+                  <i
+                    className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
                     style={{
-                      marginTop: '10px',
-                      background: 'none',
-                      border: 'none',
-                      color: 'rgba(255, 220, 112, 0.7)',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      textDecoration: 'underline'
+                      ...toggleIconStyle,
+                      left: darkMode ? '4px' : '4px'
                     }}
-                  >
-                    Close
-                  </button>
+                  />
                 </div>
               </div>
-            )}
-          </>
-        ) : (
-          <>
-            {/* Dark Mode Toggle */}
-            <div
-              style={toggleContainerStyle}
-              onClick={toggleDarkMode}
-              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-            >
-              <div style={toggleCircleStyle}>
-                <i
-                  className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
-                  style={{
-                    ...toggleIconStyle,
-                    left: darkMode ? '4px' : '4px'
-                  }}
-                />
-              </div>
-            </div>
 
-            {!isAuthenticated ? (
-              <>
-                <button
-                  className="header-btn auth-btn"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate('/login');
-                  }}
-                >
-                  <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-                  Login
-                </button>
-                <button
-                  className="header-btn auth-btn"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate('/register');
-                  }}
-                >
-                  <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-                  Sign Up
-                </button>
-              </>
-            ) : (
-              <div className="logout-container" ref={logoutRef}>
-                <button
-                  className="header-btn"
-                  onClick={handleLogoutClick}
-                >
-                  <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
-                  Logout
-                </button>
+              {!isAuthenticated ? (
+                <>
+                  <button
+                    className="header-btn auth-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/login');
+                    }}
+                  >
+                    <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                    Login
+                  </button>
+                  <button
+                    className="header-btn auth-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      navigate('/register');
+                    }}
+                  >
+                    <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                    Sign Up
+                  </button>
+                </>
+              ) : (
+                <div className="logout-container" ref={logoutRef}>
+                  <button
+                    className="header-btn"
+                    onClick={handleLogoutClick}
+                  >
+                    <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                    Logout
+                  </button>
 
-                {showLogoutConfirm && (
-                  <div className="logout-confirm-dropdown">
-                    <p className="logout-confirm-text">Are you sure you want to logout?</p>
-                    <div className="logout-confirm-actions">
-                      <button
-                        onClick={handleLogoutConfirm}
-                        className="logout-confirm-yes"
-                      >
-                        Yes, Logout
-                      </button>
-                      <button
-                        onClick={handleLogoutCancel}
-                        className="logout-confirm-no"
-                      >
-                        Cancel
-                      </button>
+                  {showLogoutConfirm && (
+                    <div className="logout-confirm-dropdown">
+                      <p className="logout-confirm-text">Are you sure you want to logout?</p>
+                      <div className="logout-confirm-actions">
+                        <button
+                          onClick={handleLogoutConfirm}
+                          className="logout-confirm-yes"
+                        >
+                          Yes, Logout
+                        </button>
+                        <button
+                          onClick={handleLogoutCancel}
+                          className="logout-confirm-no"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
-        )}
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+      {/* Spacer to prevent content overlap */}
+      <div style={{ height: '60px' }} />
+    </>
   );
 };
 

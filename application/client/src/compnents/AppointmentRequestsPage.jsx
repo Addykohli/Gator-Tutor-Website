@@ -535,11 +535,28 @@ const AppointmentRequestsPage = () => {
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="pagination">
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    marginTop: '24px',
+                    paddingTop: '20px',
+                    borderTop: darkMode ? '1px solid #444' : '1px solid #eee'
+                  }}>
                     <button
-                      className={`page-button ${currentPage === 1 ? 'disabled-button' : ''}`}
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: darkMode ? '#fff' : '#333',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        opacity: currentPage === 1 ? 0.5 : 1,
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
                     >
                       Previous
                     </button>
@@ -547,17 +564,41 @@ const AppointmentRequestsPage = () => {
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
                         key={page}
-                        className={`page-button ${currentPage === page ? 'active-page-button' : ''}`}
                         onClick={() => handlePageChange(page)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          backgroundColor: currentPage === page
+                            ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+                            : (darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'),
+                          color: currentPage === page
+                            ? (darkMode ? '#333' : '#fff')
+                            : (darkMode ? '#fff' : '#333'),
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          minWidth: '32px'
+                        }}
                       >
                         {page}
                       </button>
                     ))}
 
                     <button
-                      className={`page-button ${currentPage === totalPages ? 'disabled-button' : ''}`}
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: darkMode ? '#fff' : '#333',
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                        opacity: currentPage === totalPages ? 0.5 : 1,
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
                     >
                       Next
                     </button>

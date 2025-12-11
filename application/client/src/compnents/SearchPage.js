@@ -182,7 +182,7 @@ export default function SearchPage() {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: '20px',
+      marginBottom: '5px',
       flexWrap: 'wrap',
       gap: '16px',
     },
@@ -213,7 +213,6 @@ export default function SearchPage() {
       display: 'grid',
       gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
       gap: "clamp(12px, 2vw, 24px)",
-      marginTop: "clamp(12px, 2vw, 16px)",
     },
     courseCard: {
       backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fafafa',
@@ -357,13 +356,9 @@ export default function SearchPage() {
       fontWeight: '600',
       color: darkMode ? '#fff' : '#2c3e50',
       margin: '0 0 20px 0',
-      paddingBottom: '8px',
+      paddingBottom: '3px',
       borderBottom: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
       transition: 'color 0.3s, border-color 0.3s'
-    },
-    tutorRating: {
-      color: "#FFCF01",
-      fontSize: "clamp(12px, 1.8vw, 14px)",
     },
     sectionLabel: {
       fontSize: "clamp(12px, 1.8vw, 14px)",
@@ -826,7 +821,7 @@ export default function SearchPage() {
       boxShadow: darkMode ? "0 2px 8px rgba(0, 0, 0, 0.3)" : "0 2px 8px rgba(0, 0, 0, 0.1)",
       boxSizing: 'border-box',
       width: '100%',
-      margin: '0 0 30px 0',
+      margin: '0 0 10px 0',
       position: 'relative',
       transition: 'background-color 0.3s, box-shadow 0.3s'
     },
@@ -934,6 +929,7 @@ export default function SearchPage() {
       padding: '8px 0',
       margin: '4px 0 0',
       backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#ffffff',
+      color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
       border: darkMode ? '1px solid rgb(50, 50, 50)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
@@ -1007,6 +1003,7 @@ export default function SearchPage() {
   const [searchCategory, setSearchCategory] = useState(isAdmin ? 'tutor' : (q.get('type') || 'default'));
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [tutorSortOrder, setTutorSortOrder] = useState(q.get('sort_order')); // null, 'asc', 'desc'
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
 
   // Update tutorSortOrder when q changes
   useEffect(() => {
@@ -1217,8 +1214,6 @@ export default function SearchPage() {
     );
   };
 
-  // Filter UI Components removed from here
-
   return (
     <div style={styles.container}>
       <Header />
@@ -1228,125 +1223,180 @@ export default function SearchPage() {
 
           {/* Filters Sidebar - Only show for tutors or all, hidden on mobile */}
           <div style={{
-            width: isMobile ? '100%' : '280px',
+            width: isMobile ? '100%' : (isFilterCollapsed ? '60px' : '280px'),
             flexShrink: 0,
             display: (isMobile || searchCategory === 'course') ? 'none' : 'block',
-            order: 1
+            order: 1,
+            transition: 'width 0.3s ease'
           }}>
             <div style={{
               backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
               borderRadius: '12px',
-              padding: '5px 20px',
+              padding: isFilterCollapsed ? '0' : '5px 20px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
               border: darkMode ? '1px solid #444' : '1px solid #e0e0e0',
               maxHeight: isMobile && !isFilterOpen ? '60px' : 'none',
-              overflow: 'hidden',
-              transition: 'max-height 0.3s ease',
-              cursor: isMobile && !isFilterOpen ? 'pointer' : 'default'
+              minHeight: isFilterCollapsed ? '500px' : 'auto',
+              overflow: isFilterCollapsed ? 'hidden' : (isMobile && !isFilterOpen ? 'hidden' : 'visible'),
+              transition: 'max-height 0.3s ease, overflow 0.3s ease, padding 0.3s ease',
+              cursor: isMobile && !isFilterOpen ? 'pointer' : 'default',
+              position: 'relative',
+              display: isFilterCollapsed ? 'flex' : 'block',
+              justifyContent: isFilterCollapsed ? 'center' : 'flex-start',
+              alignItems: isFilterCollapsed ? 'center' : 'flex-start'
             }}
               onClick={(e) => {
                 if (isMobile && !isFilterOpen) setIsFilterOpen(true);
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '12px 0', borderBottom: isFilterOpen ? '1px inset rgba(179, 179, 179, 0.62)' : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#fff' : '#333' }}>Filter Tutors</h3>
-                  {isMobile && (
-                    <i className={`fas fa-chevron-${isFilterOpen ? 'up' : 'down'}`}
-                      style={{ fontSize: '14px', color: darkMode ? '#fff' : '#333', cursor: 'pointer' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsFilterOpen(!isFilterOpen);
-                      }}
-                    ></i>
-                  )}
-                </div>
+              {/* Collapsed state - show only expand button centered */}
+              {isFilterCollapsed ? (
                 <button
-                  onClick={() => {
-                    // Clear all filters
-                    navigate(`/search?q=${q.get('q') || ''}&type=${q.get('type') || 'default'}`);
+                  onClick={() => setIsFilterCollapsed(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(35, 17, 97)',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    transition: 'transform 0.3s ease'
                   }}
-                  style={{ background: 'none', border: 'none', color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(35, 17, 97)', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+                  title="Expand Filters"
                 >
-                  Reset
+                  <i className="fas fa-chevron-right"></i>
                 </button>
-              </div>
-
-              {filterOptions ? (
-                <>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr',
-                    gap: isMobile ? '12px' : '24px',
-                    alignItems: 'start'
-                  }}>
-                    <FilterSection title="Price Range" darkMode={darkMode}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <input
-                          type="number"
-                          placeholder="Min"
-                          value={minPrice}
-                          onChange={(e) => setMinPrice(e.target.value)}
-                          onBlur={() => updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' });
-                            }
-                          }}
-                          style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
-                        />
-                        <span style={{ color: darkMode ? '#fff' : '#333', fontSize: '12px' }}>to</span>
-                        <input
-                          type="number"
-                          placeholder="Max"
-                          value={maxPrice}
-                          onChange={(e) => setMaxPrice(e.target.value)}
-                          onBlur={() => updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' });
-                            }
-                          }}
-                          style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
-                        />
-                      </div>
-                    </FilterSection>
-
-                    <FilterSection title="Departments" darkMode={darkMode}>
-                      <CheckboxGroup
-                        options={filterOptions.departments.map(d => ({ label: d.code, value: d.code, count: d.count }))}
-                        selected={q.get('departments') ? q.get('departments').split(',') : []}
-                        onChange={(val) => updateFilters({ departments: val })}
-                        darkMode={darkMode}
-                      />
-                    </FilterSection>
-
-                    <FilterSection title="Languages" darkMode={darkMode}>
-                      <CheckboxGroup
-                        options={filterOptions.languages.map(l => ({ label: l.name, value: l.name, count: l.count }))}
-                        selected={q.get('languages') ? q.get('languages').split(',') : []}
-                        onChange={(val) => updateFilters({ languages: val })}
-                        darkMode={darkMode}
-                      />
-                    </FilterSection>
-
-                    <FilterSection title="Availability" darkMode={darkMode}>
-                      <select
-                        value={q.get('weekday') || ''}
-                        onChange={(e) => updateFilters({ weekday: e.target.value })}
-                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '8px', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
-                      >
-                        <option value="">Any Day</option>
-                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
-                          <option key={idx} value={idx}>{day}</option>
-                        ))}
-                      </select>
-
-                    </FilterSection>
-                  </div>
-                </>
               ) : (
-                <div style={{ color: darkMode ? '#aaa' : '#666' }}>Loading filters...</div>
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '12px 0', borderBottom: isFilterOpen ? '1px inset rgba(179, 179, 179, 0.62)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#fff' : '#333' }}>Filter Tutors</h3>
+                      {isMobile && (
+                        <i className={`fas fa-chevron-${isFilterOpen ? 'up' : 'down'}`}
+                          style={{ fontSize: '14px', color: darkMode ? '#fff' : '#333', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsFilterOpen(!isFilterOpen);
+                          }}
+                        ></i>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          // Clear all filters
+                          navigate(`/search?q=${q.get('q') || ''}&type=${q.get('type') || 'default'}`);
+                        }}
+                        style={{ background: 'none', border: 'none', color: darkMode ? 'rgba(185, 185, 185, 1)' : 'rgb(35, 17, 97)', cursor: 'pointer', fontSize: '16px', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 8px' }}
+                        title="Reset Filters"
+                      >
+                        <i className="fas fa-sync-alt"></i>
+                      </button>
+                      {!isMobile && (
+                        <button
+                          onClick={() => setIsFilterCollapsed(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: darkMode ? 'rgba(185, 185, 185, 1)' : 'rgb(35, 17, 97)',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 8px',
+                            transition: 'transform 0.3s ease'
+                          }}
+                          title="Collapse Filters"
+                        >
+                          <i className="fas fa-chevron-left"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {filterOptions ? (
+                    <>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr',
+                        gap: isMobile ? '12px' : '24px',
+                        alignItems: 'start'
+                      }}>
+                        <FilterSection title="Price Range" darkMode={darkMode}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="number"
+                              placeholder="Min"
+                              value={minPrice}
+                              onChange={(e) => setMinPrice(e.target.value)}
+                              onBlur={() => updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' });
+                                }
+                              }}
+                              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                            />
+                            <span style={{ color: darkMode ? '#fff' : '#333', fontSize: '12px' }}>to</span>
+                            <input
+                              type="number"
+                              placeholder="Max"
+                              value={maxPrice}
+                              onChange={(e) => setMaxPrice(e.target.value)}
+                              onBlur={() => updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' });
+                                }
+                              }}
+                              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                            />
+                          </div>
+                        </FilterSection>
+
+                        <FilterSection title="Departments" darkMode={darkMode}>
+                          <CheckboxGroup
+                            options={filterOptions.departments.map(d => ({ label: d.code, value: d.code, count: d.count }))}
+                            selected={q.get('departments') ? q.get('departments').split(',') : []}
+                            onChange={(val) => updateFilters({ departments: val })}
+                            darkMode={darkMode}
+                          />
+                        </FilterSection>
+
+                        <FilterSection title="Languages" darkMode={darkMode}>
+                          <CheckboxGroup
+                            options={filterOptions.languages.map(l => ({ label: l.name, value: l.name, count: l.count }))}
+                            selected={q.get('languages') ? q.get('languages').split(',') : []}
+                            onChange={(val) => updateFilters({ languages: val })}
+                            darkMode={darkMode}
+                          />
+                        </FilterSection>
+
+                        <FilterSection title="Availability" darkMode={darkMode}>
+                          <select
+                            value={q.get('weekday') || ''}
+                            onChange={(e) => updateFilters({ weekday: e.target.value })}
+                            style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '8px', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                          >
+                            <option value="">Any Day</option>
+                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
+                              <option key={idx} value={idx}>{day}</option>
+                            ))}
+                          </select>
+
+                        </FilterSection>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: darkMode ? '#aaa' : '#666' }}>Loading filters...</div>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -1626,7 +1676,7 @@ export default function SearchPage() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '12px',
-                          marginBottom: '20px'
+                          marginBottom: '5px'
                         }}>
                           <h2 style={{ ...styles.sectionHeading, margin: 0 }}>{isAdmin ? 'Results' : 'Tutors'}</h2>
                           <button

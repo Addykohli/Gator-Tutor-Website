@@ -560,7 +560,7 @@ const HomePage = () => {
       borderRadius: '8px',
       boxSizing: 'border-box',
       minHeight: '200px',
-      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
       overflowX: 'visible',
       '--calendar-cell-bg': darkMode ? '#2d2d2d' : '#fff',
       '--calendar-cell-border': darkMode ? '#3d3d3d' : '#e9ecef',
@@ -745,7 +745,7 @@ const HomePage = () => {
         : "#fff",
       borderRadius: "clamp(16px, 3vw, 24px)",
       padding: "clamp(16px, 3vw, 32px)",
-      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
@@ -806,6 +806,7 @@ const HomePage = () => {
       padding: '8px 8px',
       margin: '4px 0 0',
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : 'white',
+      color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
@@ -2239,6 +2240,62 @@ const HomePage = () => {
                         </div>
                       )}
 
+                      {/* Sessions Button - Students only */}
+                      {!user?.isTutor && (
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <button
+                            onClick={() => navigate('/sessions')}
+                            style={{
+                              position: 'relative',
+                              padding: '4px 10px',
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(10px)',
+                              WebkitBackdropFilter: 'blur(10px)',
+                              color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                              border: '1px solid rgba(180, 180, 190, 0.4)',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.2s',
+                              zIndex: 1,
+                              minHeight: '28px',
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <i className="fas fa-chalkboard" style={{ fontSize: '0.85rem' }}></i>
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              height: '100%',
+                              lineHeight: '1.1',
+                              textAlign: 'left',
+                              fontSize: '0.6rem',
+                              fontWeight: '200',
+                              margin: '0 4px 0 0',
+                              padding: 0,
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Sessions</span>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Messages Button */}
                       <div style={{ position: 'relative', width: '100%' }}>
                         <button
@@ -2437,6 +2494,48 @@ const HomePage = () => {
                               {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
                             </div>
                           )}
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Sessions Button - Students only */}
+                    {!user?.isTutor && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <button
+                          onClick={() => navigate('/sessions')}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            gap: '10px',
+                            transition: 'all 0.2s',
+                            fontWeight: '600',
+                            fontSize: '0.95rem',
+                            position: 'relative',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                          }}
+                        >
+                          <i className="fas fa-chalkboard" style={{ fontSize: '1rem' }}></i>
+                          Sessions
                         </button>
                       </div>
                     )}
@@ -2713,19 +2812,19 @@ const HomePage = () => {
                         <li
                           onClick={() => selectCategory('default')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >All</li>
                         <li
                           onClick={() => selectCategory('tutor')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Tutors</li>
                         <li
                           onClick={() => selectCategory('course')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Courses</li>
                       </ul>
@@ -3244,7 +3343,7 @@ const HomePage = () => {
                         justifyContent: 'center',
                         gap: "clamp(4px, 1vw, 8px)",
                         fontWeight: '500',
-                        fontSize: "clamp(0.7rem, 1.2vw, 1rem)",
+                        fontSize: "clamp(0.6rem, 1.1vw, 1rem)",
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -3309,14 +3408,14 @@ const HomePage = () => {
                   {!user?.isTutor && (
                     <div style={{
                       position: 'relative',
-                      minHeight: '400px',
+                      minHeight: 'auto',
                       overflow: isAnimating ? 'hidden' : (isMobile ? 'auto' : 'visible')
                     }}>
                       <div style={{
                         ...styles.calendarGrid,
                         ...calendarAnimation[slideDirection],
                         height: 'auto',
-                        minHeight: '400px',
+                        minHeight: 'auto',
                         overflow: isAnimating ? 'hidden' : 'visible',
                         overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible')
                       }}>
@@ -3525,19 +3624,19 @@ const HomePage = () => {
                         <li
                           onClick={() => selectCategory('default')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >All</li>
                         <li
                           onClick={() => selectCategory('tutor')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Tutors</li>
                         <li
                           onClick={() => selectCategory('course')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Courses</li>
                       </ul>

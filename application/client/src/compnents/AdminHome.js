@@ -653,6 +653,7 @@ const AdminHome = () => {
                   <ul style={{
                     ...styles.categoryList,
                     backgroundColor: isDarkMode ? '#1f4068' : 'white',
+                    color: isDarkMode ? '#e6e6e6' : '#2c3e50',
                     border: isDarkMode ? '1px solid #2a2a4a' : '1px solid rgba(0,0,0,.15)',
                     boxShadow: isDarkMode ? '0 6px 12px rgba(0,0,0,0.3)' : '0 6px 12px rgba(0,0,0,.175)',
                     transition: 'all 0.3s ease'
