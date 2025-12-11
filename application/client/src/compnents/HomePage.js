@@ -2711,185 +2711,27 @@ const HomePage = () => {
                       </button>
                     </div>
                   </div>
-                )}
-
-                {/* Tutor Profile Section (Bio, Price, Languages) */}
-                {user?.isTutor && (
-                  <div style={{
-                    width: '100%',
-                    marginBottom: '20px',
-                    paddingBottom: '20px',
-                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                      <h4 style={{
-                        color: darkMode ? "#fff" : '#495057',
-                        fontSize: '0.95rem',
-                        margin: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        fontWeight: '600',
-                        letterSpacing: '0.3px'
-                      }}>
-                        <i className="fas fa-id-card" style={{
-                          color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
-                          width: '20px',
-                          textAlign: 'center'
-                        }}></i>
-                        Tutor Profile
-                      </h4>
-                      {!isEditingProfile && (
-                        <button
-                          onClick={() => setIsEditingProfile(true)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: darkMode ? 'rgb(255, 220, 100)' : '#9A2250',
-                            cursor: 'pointer',
-                            fontSize: '0.85rem'
-                          }}
-                          title="Edit Profile"
-                        >
-                          <i className="fas fa-edit"></i>
-                        </button>
-                      )}
-                    </div>
-
-                    {isEditingProfile ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Hourly Rate ($)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={editForm.hourly_rate}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === '' || parseFloat(val) >= 0) {
-                                setEditForm(prev => ({ ...prev, hourly_rate: val }));
-                              }
-                            }}
-                            style={{
-                              padding: '6px',
-                              borderRadius: '4px',
-                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
-                              backgroundColor: darkMode ? '#333' : '#fff',
-                              color: darkMode ? '#fff' : '#000'
-                            }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Languages (comma separated)</label>
-                          <input
-                            type="text"
-                            maxLength={250}
-                            value={editForm.languages}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, languages: e.target.value }))}
-                            style={{
-                              padding: '6px',
-                              borderRadius: '4px',
-                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
-                              backgroundColor: darkMode ? '#333' : '#fff',
-                              color: darkMode ? '#fff' : '#000'
-                            }}
-                          />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '0.8rem', color: darkMode ? '#aaa' : '#666' }}>Bio (max 250 chars)</label>
-                          <textarea
-                            maxLength={250}
-                            value={editForm.bio}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-                            rows={3}
-                            style={{
-                              padding: '6px',
-                              borderRadius: '4px',
-                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
-                              backgroundColor: darkMode ? '#333' : '#fff',
-                              color: darkMode ? '#fff' : '#000',
-                              resize: 'vertical'
-                            }}
-                          />
-                          <div style={{ textAlign: 'right', fontSize: '0.7rem', color: darkMode ? '#888' : '#666' }}>
-                            {editForm.bio.length}/250
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                          <button
-                            onClick={handleProfileUpdate}
-                            disabled={isSavingProfile}
-                            style={{
-                              flex: 1,
-                              padding: '6px',
-                              borderRadius: '4px',
-                              border: 'none',
-                              backgroundColor: '#28a745',
-                              color: '#fff',
-                              cursor: 'pointer',
-                              fontSize: '0.85rem'
-                            }}
-                          >
-                            {isSavingProfile ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsEditingProfile(false);
-                              setEditForm({
-                                bio: tutorProfile.bio,
-                                hourly_rate: tutorProfile.hourly_rate.toString(),
-                                languages: tutorProfile.languages.join(', ')
-                              });
-                            }}
-                            disabled={isSavingProfile}
-                            style={{
-                              flex: 1,
-                              padding: '6px',
-                              borderRadius: '4px',
-                              border: '1px solid ' + (darkMode ? '#444' : '#ccc'),
-                              backgroundColor: 'transparent',
-                              color: darkMode ? '#fff' : '#000',
-                              cursor: 'pointer',
-                              fontSize: '0.85rem'
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <div>
-                          <span style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555' }}>Hourly Rate: </span>
-                          <span style={{ color: darkMode ? '#fff' : '#000' }}>
-                            {tutorProfile.hourly_rate > 0 ? `$${tutorProfile.hourly_rate}/hr` : 'Not set'}
-                          </span>
-                        </div>
-                        <div>
-                          <span style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555' }}>Languages: </span>
-                          <span style={{ color: darkMode ? '#fff' : '#000' }}>
-                            {tutorProfile.languages.length > 0 ? tutorProfile.languages.join(', ') : 'None listed'}
-                          </span>
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: '600', color: darkMode ? '#ccc' : '#555', marginBottom: '4px' }}>Bio:</div>
-                          <div style={{
-                            color: darkMode ? '#ddd' : '#333',
-                            fontSize: '0.85rem',
-                            lineHeight: '1.4',
-                            whiteSpace: 'pre-wrap',
-                            maxHeight: '100px',
-                            overflowY: 'auto'
-                          }}>
-                            {tutorProfile.bio || 'No bio provided.'}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                )} {/* Apply to be a Tutor - Only for students */}
+                {user && !user.isTutor && user.role !== 'admin' && (
+                  <div
+                    onClick={() => navigate('/apply-tutor')}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      color: darkMode ? 'white' : '#35006D',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <i className="fas fa-graduation-cap"></i>
+                    <span>APPLY AS TUTOR</span>
                   </div>
                 )}
-
+                
                 {/* Courses I Tutor Section - Only for tutors */}
                 {user?.isTutor && (
                   <div style={{

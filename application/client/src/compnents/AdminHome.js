@@ -531,6 +531,12 @@ const AdminHome = () => {
                   customIcon: 'TCA',
                   path: '/admin/tutor-course-applications',
                   color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Course Coverage Requests',
+                  icon: 'clipboard-list',
+                  path: '/admin/coverage-requests',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
                 }
               ].map((item, index) => (
                 <a

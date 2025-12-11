@@ -15,6 +15,10 @@ import AppointmentRequestsPage from './compnents/AppointmentRequestsPage';
 import ReportsPage from './compnents/ReportsPage';
 import CourseCatalog from './compnents/CourseCatalog';
 import TutorCourseApplications from './compnents/TutorCourseApplications';
+import ApplyTutorPage from './compnents/ApplyTutorPage';
+import AdminTutorApplicationsPage from './compnents/AdminTutorApplicationsPage';
+import AdminCourseCoverageRequestsPage from './compnents/AdminCourseCoverageRequestsPage';
+
 // Protected Route component for admin access
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
@@ -169,6 +173,31 @@ function App() {
                 </ProtectedRoute>
               }
             />
+            <Route 
+              path="/apply-tutor" 
+              element={
+            <ProtectedContent 
+            blockAdmin={true} currentPath="/apply-tutor">
+              <ApplyTutorPage />
+            </ProtectedContent>
+              } 
+            />
+            <Route
+              path="/admin/tutor-applications"
+              element={
+                <ProtectedRoute>
+                  <AdminTutorApplicationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+            path="/admin/coverage-requests"
+            element={
+              <ProtectedRoute>
+                <AdminCourseCoverageRequestsPage />
+              </ProtectedRoute>
+            }
+          />
             <Route
               path="/reports"
               element={

@@ -9,7 +9,7 @@ const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const menuRef = useRef(null);
-  const { isAuthenticated, user, logout, darkMode, toggleDarkMode } = useAuth();
+  const { isAuthenticated, user, logout, darkMode, toggleDarkMode, unreadMessageCount = 0 } = useAuth();
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 1024);
   const [isCompact, setIsCompact] = useState(window.innerWidth <= 768);
@@ -63,7 +63,12 @@ const Header = () => {
   const menuItems = [
     { icon: 'fas fa-home', label: 'Dashboard', path: '/' },
     { icon: 'fas fa-search', label: user?.role === 'admin' ? 'Tutors' : 'Find', path: '/search' },
-    { icon: 'fas fa-envelope', label: 'Message', path: '/messages' },
+    {
+      icon: 'fas fa-envelope',
+      label: 'Message',
+      path: '/messages',
+      badge: unreadMessageCount > 0 ? unreadMessageCount : null
+    },
     {
       icon: 'fas fa-book',
       label: 'Request Course Coverage',
@@ -76,6 +81,13 @@ const Header = () => {
       path: '/sessions',
       hideForAdmin: true
     },
+    // Student-only menu item - Apply as Tutor
+    {
+      icon: 'fas fa-graduation-cap',
+      label: 'Apply as Tutor',
+      path: '/apply-tutor',
+      studentOnly: true
+    },
     // Tutor-only menu items
     {
       icon: 'fas fa-calendar-check',
@@ -87,6 +99,9 @@ const Header = () => {
 
   const isExpanded = isMenuOpen || isLocked;
 
+  // Track viewport width for gradient calculation
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+
   // Dynamic dimensions based on screen size
   const buttonWidth = isCompact ? 90 : 100;
   // Ensure the expanded menu touches the left edge by matching the container padding
@@ -96,11 +111,20 @@ const Header = () => {
 
   const expandedWidth = buttonWidth + (isCompact ? 45 : 55);
 
+  // Calculate the dropdown width ratio to viewport width
+  // This determines what portion of the header gradient should be used for the dropdown
+  const dropdownRatio = expandedWidth / viewportWidth;
+  // Scale the gradient to only show the first portion (e.g., if 15%, end color at 100% of dropdown = 15% of full gradient)
+  // We want the dropdown to show gradientStart (0%) to gradientEnd (ratio%)
+  // To achieve this, we stretch the background so that the visible portion matches the header's gradient
+  const gradientScale = 100 / (dropdownRatio * 100); // How much to scale the gradient
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024);
       setIsCompact(window.innerWidth <= 768);
       setIsSmallScreen(window.innerWidth < 430);
+      setViewportWidth(window.innerWidth);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -187,6 +211,7 @@ const Header = () => {
   const filteredMenuItems = menuItems.filter(item => {
     // Hide items marked for admin users
     if (user?.role === 'admin' && item.hideForAdmin) return false;
+    if (item.studentOnly && (user?.isTutor || user?.role === 'admin')) return false;
     // Show all items that are not tutor-only
     if (!item.tutorOnly) return true;
     // Show tutor-only items only if user is authenticated and is a tutor
@@ -206,7 +231,12 @@ const Header = () => {
     height: isExpanded ? `${dynamicHeight}px` : '40px',
     border: '1px solid rgb(255, 220, 112)',
     borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
+    // Use the same gradient as the header but scale it so only the first portion (matching the dropdown width ratio) is visible
+    // The header gradient goes from rgb(53, 0, 109) at 0% to rgb(45, 0, 84) at 100%
+    // We want to show what the header shows at this position (left side of screen)
     background: 'linear-gradient(90deg, rgb(53, 0, 109) 0%, rgb(45, 0, 84) 100%)',
+    backgroundSize: `${Math.round(gradientScale * 100)}% 100%`,
+    backgroundPosition: 'left top',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
     pointerEvents: 'none',
@@ -436,17 +466,15 @@ const Header = () => {
 
           {/* Menu items */}
           {filteredMenuItems.map((item, index) => {
-            // Recalculate the visual index for dividers to account for filtered items
-            const visualIndex = menuItems.findIndex(i => i.path === item.path);
             return (
               <React.Fragment key={item.path}>
                 <button
-                  style={getMenuItemStyle(visualIndex)}
+                  style={getMenuItemStyle(index)}
                   onMouseEnter={(e) => {
                     if (isExpanded) {
                       e.currentTarget.style.backgroundColor = 'rgba(255, 220, 112, 0.1)';
                       setIsMenuOpen(true);
-                      setHoveredIndex(visualIndex);
+                      setHoveredIndex(index);
                     }
                   }}
                   onMouseLeave={(e) => {
@@ -463,15 +491,33 @@ const Header = () => {
                     }
                   }}
                 >
-                  <div style={getIconContainerStyle(visualIndex)}>
-                    <i className={item.icon} style={getIconStyle(visualIndex)} />
+                  <div style={getIconContainerStyle(index)}>
+                    <i className={item.icon} style={getIconStyle(index)} />
                   </div>
-                  <span style={getLabelStyle(visualIndex)}>{item.label}</span>
+                  <span style={getLabelStyle(index)}>
+                    {item.label}
+                    {item.badge && (
+                      <span style={{
+                        marginLeft: '8px',
+                        backgroundColor: '#FFCF01',
+                        color: '#35006D',
+                        borderRadius: '50%',
+                        padding: '2px 6px',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        minWidth: '16px',
+                        textAlign: 'center',
+                        display: 'inline-block'
+                      }}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </span>
                 </button>
 
                 {/* Only show divider if not the last item */}
                 {index < filteredMenuItems.length - 1 && (
-                  <div key={`divider-${index}`} style={getDividerStyle(visualIndex)} />
+                  <div key={`divider-${index}`} style={getDividerStyle(index)} />
                 )}
               </React.Fragment>
             );

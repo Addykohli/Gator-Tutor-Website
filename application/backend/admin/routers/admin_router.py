@@ -22,100 +22,119 @@ from admin.services.admin_service import (
     reject_tutor_course_request,
     remove_tutor_course
 )
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-#----------------------------------------------------------
-# Admin Manage Tutors(& Tutor Courses) Endpiints
-#Todo: manage tutors endpoints/services needed:
-# X promote, student to tutor
-# x demote tutor to student
-# delete inactive user accounts
-#   -> this probably falls under  "drop a student" task
-# X list/approve/reject aditional courses for tutor to tutor_courses
-# remove courses from tutor_courses
 
+# In-memory storage for tutor applications (replace with database in production)
+tutor_applications_store = []
+application_id_counter = 0
 
-#promote student to tutor role, add student to tutor_profiles
-@router.post("/promote/{user_id}", response_model = TutorProfileResponse)
-def promotion_endpoint(user_id:int, db:Session=Depends(get_db)):
-    return promote_to_tutor(db, user_id)
-#change tutor user to student user only, removes tutor_profile
-@router.patch("/demote/{user_id}")
-def demote_tutor_endpoint(user_id:int, db: Session = Depends(get_db)):
-    return demote_to_student_only(db, user_id)
+class TutorApplicationCreate(BaseModel):
+    user_id: int
+    gpa: float
+    courses: str
+    bio: str
+    availability: Optional[str] = None
 
-# GET admin list all requests
-@router.get("/all-tutor-course-requests", response_model=list[TutorCourseRequestResponse])
-def list_all_requests(db: Session = Depends(get_db)):
-    return get_all_tutor_course_requests(db)
-   
-# tutor makes request to add course to tutor_courses
-@router.post("/tutor-course-request/{tutor_id}", response_model=TutorCourseRequestResponse)
-def tutor_create_request(tutor_id: int, data: TutorCourseRequestCreate, db: Session = Depends(get_db)):
-    return create_tutor_course_request(db, tutor_id, data)
+class TutorApplicationStatusUpdate(BaseModel):
+    status: str
 
-# changes approves request status, adds course to tutor_courses
-@router.patch("/tutor-course-request/{request_id}/approve", response_model=TutorCourseRequestResponse)
-def approve_request(request_id: int, db: Session = Depends(get_db)):
-    return approve_tutor_course_request(db, request_id)
-
-# admin changes request status to rejected
-@router.patch("/tutor-course-request/{request_id}/reject", response_model=TutorCourseRequestResponse)
-def reject_request(request_id: int, db: Session = Depends(get_db)):
-    return reject_tutor_course_request(db, request_id)
-
-#admin can remove a tutor_course
-@router.delete("/tutor/{tutor_id}/course/{course_id}")
-def admin_remove_tutor_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
-    return remove_tutor_course(db, tutor_id, course_id)
+# ... (keep all your existing endpoints) ...
 
 #----------------------------------------------------------
-# Admin Manage Courses Endpoints
-#note: only courses, not tutor_courses
+# Tutor Application Endpoints (for students/tutors applying)
 
-#get list of all DB courses for admin ease
-@router.get("/allcourses", response_model=list[CourseResponse])
-def list_courses_endpoint(db:Session=Depends(get_db)):
-    return get_all_courses(db)
+@router.post("/tutor-applications")
+def create_tutor_application(application: TutorApplicationCreate):
+    global application_id_counter
+    application_id_counter += 1
+    new_application = {
+        "id": application_id_counter,
+        "user_id": application.user_id,
+        "gpa": application.gpa,
+        "courses": application.courses,
+        "bio": application.bio,
+        "availability": application.availability,
+        "status": "pending",
+        "created_at": datetime.now().isoformat()
+    }
+    tutor_applications_store.append(new_application)
+    return new_application
 
-#add courses to DB by admin
-@router.post("/addcourse", response_model=CourseResponse)
-def add_course_endpoint(data: CourseCreate, db:Session=Depends(get_db)):
-    return create_course(db, data)
+@router.get("/tutor-applications")
+def get_tutor_applications():
+    return tutor_applications_store
 
-#change course status from active to inactive in DB
-@router.patch("/deactivate/{course_id}", response_model=CourseResponse)
-def deactivate_course_endpoint(course_id:int, db:Session= Depends(get_db)):
-    return deactivate_course(db, course_id)
+@router.patch("/tutor-applications/{application_id}/status")
+def update_tutor_application_status(application_id: int, update: TutorApplicationStatusUpdate):
+    for app in tutor_applications_store:
+        if app["id"] == application_id:
+            app["status"] = update.status
+            return app
+    raise HTTPException(status_code=404, detail="Application not found")
 
+# In-memory storage for coverage requests (replace with database in production)
+coverage_requests_store = []
 
-#----------------------------------------------------------
-# Report(complaints/issues) Enpoints
+@router.get("/coverage-requests")
+async def get_coverage_requests():
+    """Get all coverage requests for admin review"""
+    return {"requests": coverage_requests_store}
 
-#post report
-@router.post("/report", response_model=ReportResponse)
-def create_report_endpoint(data:ReportCreate, db:Session=Depends(get_db)):
-    return create_report(db,data)
-
-#GET reports
-@router.get("/allreports", response_model=list[ReportResponse])
-def get_reports_endpoint(db:Session = Depends(get_db)):
-    return get_all_reports(db)
-
-#get user specific report- post merge with addys changes
-@router.get("/userreports", response_model=list[ReportResponse])
-def get_user_reports_endpoint(user_id: int = Query(None), name: str = Query(None), db: Session = Depends(get_db)):
-    if name:
-        found_user_id = get_user_id_by_name(db, name)
-        if not found_user_id:
-            return [] 
-        return get_user_reports(db, found_user_id)
+@router.post("/coverage-requests")
+async def create_coverage_request(request: dict):
+    """Create a new coverage request (from students/tutors)"""
+    import uuid
+    from datetime import datetime
     
-    if user_id:
-        return get_user_reports(db, user_id)
-        
-    return get_all_reports(db)
+    new_request = {
+        "id": str(uuid.uuid4()),
+        "course_number": request.get("courseNumber", ""),
+        "topics": request.get("topics", ""),
+        "notes": request.get("notes", ""),
+        "email": request.get("email", ""),
+        "status": "pending",
+        "created_at": datetime.now().isoformat()
+    }
+    coverage_requests_store.append(new_request)
+    return {"message": "Coverage request submitted successfully", "request": new_request}
 
-#a way to update report status
-@router.patch("/report/{report_id}/status", response_model= ReportResponse)
-def update_report_endpoint(report_id:int, status:str, db:Session=Depends(get_db)):
-    return update_report_status(db, report_id, status)
+@router.patch("/coverage-requests/{request_id}/status")
+async def update_coverage_request_status(request_id: str, body: dict):
+    """Update coverage request status (approve/reject)"""
+    new_status = body.get("status")
+    if new_status not in ["pending", "approved", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    for req in coverage_requests_store:
+        if req["id"] == request_id:
+            req["status"] = new_status
+            return {"message": f"Request {new_status}", "request": req}
+    
+    raise HTTPException(status_code=404, detail="Request not found")
+
+#----------------------------------------------------------
+# Tutor Course Request Endpoints (Restored)
+
+@router.get("/all-tutor-course-requests", response_model=list[TutorCourseRequestResponse])
+def get_all_requests(db: Session = Depends(get_db)):
+    return get_all_tutor_course_requests(db)
+
+@router.post("/tutor-course-request", response_model=TutorCourseRequestResponse)
+def new_tutor_course_request(request: TutorCourseRequestCreate, db: Session = Depends(get_db)):
+    return create_tutor_course_request(db=db, tutor_id=request.tutor_id, data=request)
+
+@router.patch("/tutor-course-request/{request_id}/approve")
+def approve_request(request_id: int, db: Session = Depends(get_db)):
+    return approve_tutor_course_request(db=db, request_id=request_id)
+
+@router.patch("/tutor-course-request/{request_id}/reject")
+def reject_request(request_id: int, db: Session = Depends(get_db)):
+    return reject_tutor_course_request(db=db, request_id=request_id)
+
+@router.delete("/remove-tutor-course")
+def remove_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
+    return remove_tutor_course(db=db, tutor_id=tutor_id, course_id=course_id)
