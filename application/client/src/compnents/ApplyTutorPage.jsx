@@ -57,53 +57,51 @@ const ApplyTutorPage = () => {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
-
+  
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!validateForm()) return;
-
-  setIsSubmitting(true);
-
-  try {
-    const apiBaseUrl = window.location.hostname === 'localhost'
+    e.preventDefault();
+    if (!validateForm()) return;
+    setIsSubmitting(true);
+    try {
+      const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
       : '';
 
-    // Build payload with correct user fields
-    const payload = {
-      user_id: user.id,
-      full_name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      gpa: parseFloat(formData.gpa),
-      courses: formData.courses.trim(),
-      bio: formData.bio.trim(),
-    };
+      // Build payload with correct user fields
+      const payload = {
+        user_id: user.id,
+        full_name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        gpa: parseFloat(formData.gpa),
+        courses: formData.courses.trim(),
+        bio: formData.bio.trim(),
+      };
 
-    const response = await fetch(`${apiBaseUrl}/api/admin/tutor-applications`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    });
+      const response = await fetch(`${apiBaseUrl}/api/admin/tutor-applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
 
-    if (response.ok) {
-      setSubmitSuccess(true);
-      setErrors({});
-    } else {
-      const errorData = await response.json();
-      // Handle validation errors from backend
-      if (errorData.detail) {
-        setErrors({ submit: errorData.detail });
+      if (response.ok) {
+        setSubmitSuccess(true);
+        setErrors({});
       } else {
-        setErrors({ submit: 'Failed to submit application' });
+        const errorData = await response.json();
+        // Handle validation errors from backend
+        if (errorData.detail) {
+          setErrors({ submit: errorData.detail });
+        } else {
+          setErrors({ submit: 'Failed to submit application' });
+        }
       }
+    } catch (error) {
+      setErrors({ submit: 'Network error. Please try again.' });
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    setErrors({ submit: 'Network error. Please try again.' });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
 
   const styles = {

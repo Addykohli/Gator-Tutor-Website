@@ -43,7 +43,7 @@ const AdminTutorApplicationsPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/tutor-applications`, {
+      const response = await fetch(`${apiBaseUrl}/api/admin/all-tutor-applications`, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -74,10 +74,10 @@ const AdminTutorApplicationsPage = () => {
       if (response.ok) {
         setApplications(prev =>
           prev.map(app =>
-            app.id === applicationId ? { ...app, status: newStatus } : app
+            app.application_id === applicationId ? { ...app, status: newStatus } : app
           )
         );
-        if (selectedApplication?.id === applicationId) {
+        if (selectedApplication?.application_id === applicationId) {
           setSelectedApplication(prev => ({ ...prev, status: newStatus }));
         }
         // Refresh the list
@@ -436,14 +436,14 @@ const AdminTutorApplicationsPage = () => {
               <div style={styles.applicationList}>
                 {filteredApplications.map((app) => (
                   <div
-                    key={app.id}
+                    key={app.application_id}
                     onClick={() => setSelectedApplication(app)}
                     style={
-                      selectedApplication?.id === app.id
+                      selectedApplication?.application_id === app.application_id
                         ? styles.applicationItemSelected
                         : styles.applicationItem
                     }
-                    data-testid={`application-item-${app.id}`}
+                    data-testid={`application-item-${app.application_id}`}
                   >
                     <div style={styles.applicationName}>
                       {app.user_name || app.full_name || `User #${app.user_id}`}
@@ -518,7 +518,7 @@ const AdminTutorApplicationsPage = () => {
 
                 <div style={styles.actionButtons}>
                   <button
-                    onClick={() => handleUpdateStatus(selectedApplication.id, 'approved')}
+                    onClick={() => handleUpdateStatus(selectedApplication.application_id, 'approved')}
                     disabled={processing || selectedApplication.status === 'approved'}
                     style={{
                       ...styles.approveButton,
@@ -528,7 +528,7 @@ const AdminTutorApplicationsPage = () => {
                     {processing ? 'Processing...' : 'Approve'}
                   </button>
                   <button
-                    onClick={() => handleUpdateStatus(selectedApplication.id, 'rejected')}
+                    onClick={() => handleUpdateStatus(selectedApplication.application_id, 'rejected')}
                     disabled={processing || selectedApplication.status === 'rejected'}
                     style={{
                       ...styles.rejectButton,
