@@ -59,42 +59,52 @@ const ApplyTutorPage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  e.preventDefault();
+  if (!validateForm()) return;
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      const apiBaseUrl = window.location.hostname === 'localhost'
-        ? 'http://localhost:8000'
-        : '';
+  try {
+    const apiBaseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
+      : '';
 
-      const response = await fetch(`${apiBaseUrl}/api/admin/tutor-applications`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          user_id: user?.userId || user?.id || 0,
-          email: user.email,  
-          full_name: user.name || user.fullName,
-          gpa: parseFloat(formData.gpa),
-          courses: formData.courses,
-          bio: formData.bio,
-        })
-      });
+    // Build payload with correct user fields
+    const payload = {
+      user_id: user.id,
+      full_name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      gpa: parseFloat(formData.gpa),
+      courses: formData.courses.trim(),
+      bio: formData.bio.trim(),
+    };
 
-      if (response.ok) {
-        setSubmitSuccess(true);
+    const response = await fetch(`${apiBaseUrl}/api/admin/tutor-applications`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    if (response.ok) {
+      setSubmitSuccess(true);
+      setErrors({});
+    } else {
+      const errorData = await response.json();
+      // Handle validation errors from backend
+      if (errorData.detail) {
+        setErrors({ submit: errorData.detail });
       } else {
-        const errorData = await response.json();
-        setErrors({ submit: errorData.detail || 'Failed to submit application' });
+        setErrors({ submit: 'Failed to submit application' });
       }
-    } catch (error) {
-      setErrors({ submit: 'Network error. Please try again.' });
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  } catch (error) {
+    setErrors({ submit: 'Network error. Please try again.' });
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const styles = {
     pageContainer: {
@@ -296,9 +306,9 @@ const ApplyTutorPage = () => {
 
             {errors.submit && (
               <div style={{ ...styles.errorText, padding: '12px', backgroundColor: 'rgba(220,53,69,0.1)', borderRadius: '8px', marginBottom: '20px' }}>
-                {errors.submit}
+                {Array.isArray(errors.submit) ? errors.submit.map((msg, i) => <p key={i}>{msg}</p>): errors.submit}
               </div>
-            )}
+)}
 
             <button type="submit" disabled={isSubmitting} style={{ ...styles.submitButton, opacity: isSubmitting ? 0.7 : 1 }}>
               {isSubmitting ? (
