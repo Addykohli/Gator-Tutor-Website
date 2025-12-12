@@ -1,10 +1,12 @@
 from admin.schemas.report_schema import ReportCreate, ReportResponse
 from admin.schemas.course_schema import CourseCreate, CourseResponse
+from admin.schemas.course_request_schema import CourseRequestCreate, CourseRequestResponse, CourseUpdate
 from admin.schemas.tutor_schema import TutorProfileResponse
 from admin.models.tutor_application import TutorApplication
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from search.database import get_db
+from auth.services.auth_service import get_user
 from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse
 from admin.schemas.tutor_application_schema import TutorApplicationCreate, TutorApplicationResponse, TutorApplicationUpdateStatus
 from admin.services.admin_service import (
@@ -15,7 +17,10 @@ from admin.services.admin_service import (
     remove_tutor_course,
     create_application,
     approve_application,
-    reject_application
+    reject_application,
+    create_course_request,
+    get_all_course_requests,
+    update_course_request_status
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -49,99 +54,24 @@ def update_status(application_id: int, body: TutorApplicationUpdateStatus, db: S
     
     return updated
 
-#------------------------------------------------------------
-# ADMIN: Course Coverage Requests (NOT FIXED YET- WILL DO Soon)
-"""@router.get("/coverage-requests")
-async def get_coverage_requests(db: Session = Depends(get_db)):
-    #Get all coverage requests for admin review
-    from search.models.user import User
-    
-    enriched_requests = []
-    for req in coverage_requests_store:
-        # Look up the submitter's email
-        user_id = req.get("user_id")
-        email = req.get("email", "")  # Use existing email if present
-        
-        if user_id and not email:
-            user = db.query(User).filter(User.user_id == user_id).first()
-            email = user.email if user else "Unknown"
-        
-        enriched_req = {**req, "email": email}
-        enriched_requests.append(enriched_req)
-    
-    return enriched_requests  # Return list directly, not wrapped in {"requests...}
+#-------------------------------------------------------------------
+# ADMIN: Course Coverage Requests
 
-@router.post("/coverage-requests")
-async def create_coverage_request(request: dict):
-    #Create a new coverage request (from students/tutors)
-    import uuid
-    from datetime import datetime
-    
-    new_request = {
-        "id": str(uuid.uuid4()),
-        "course_number": request.get("courseNumber", ""),
-        "topics": request.get("topics", ""),
-        "notes": request.get("notes", ""),
-        "email": request.get("email", ""),  # ADD THIS - get email from request
-        "user_id": request.get("user_id"),   
-        "status": "pending",
-        "created_at": datetime.now().isoformat()
-    }
-    
-    coverage_requests_store.append(new_request)
-    return {"message": "Coverage request submitted", "id": new_request["id"]}
+# for admin to see all course_coverage_requests
+@router.get("/all-coverage-requests", response_model=list[CourseRequestResponse])
+def list_course_requests(db: Session = Depends(get_db)):
+    return get_all_course_requests(db)
 
-@router.patch("/coverage-requests/{request_id}/status")
-async def update_coverage_request_status(
-    request_id: str, 
-    body: dict,
-    db: Session = Depends(get_db)
-):
-    #Update coverage request status
-    from search.models.course import Course
-    
-    new_status = body.get("status")
-    if new_status not in ["pending", "approved", "rejected", "assigned", "no_tutor", "closed"]:
-        raise HTTPException(status_code=400, detail="Invalid status")
-    
-    for req in coverage_requests_store:
-        if req["id"] == request_id:
-            req["status"] = new_status
-            
-            # When approved, add course to database
-            if new_status == "approved":
-                course_number = req.get("course_number", "")
-                if course_number:
-                    parts = course_number.split()
-                    dept_code = parts[0].upper() if parts else "GEN"
-                    num = parts[1] if len(parts) > 1 else course_number
-                    
-                    try:
-                        existing = db.query(Course).filter(
-                            Course.department_code == dept_code,
-                            Course.course_number == num
-                        ).first()
-                        
-                        if not existing:
-                            new_course = Course(
-                                department_code=dept_code,
-                                course_number=num,
-                                title=course_number,
-                                is_active=True
-                            )
-                            db.add(new_course)
-                            db.commit()
-                            print(f"Added course: {course_number}")
-                    except Exception as e:
-                        print(f"Error creating course {course_number}: {e}")
-            
-            return {"message": f"Request {new_status}", "request": req}
-    
-    raise HTTPException(status_code=404, detail="Request not found")
+#submit a course_coverage_request and add entry to table
+@router.post("/submit-coverage-request")
+def submit_create_course_request(data: CourseRequestCreate, db: Session = Depends(get_db)):
+    return create_course_request(db, data)
 
-"""
-
-
+    #return create_course_request(db, user_id, data)
+#updates the status to the course request table, and adds an entry to courses
+@router.patch("/coverage-request/{request_id}/status", response_model=CourseRequestResponse)
+def update_status(request_id: int, data: CourseUpdate, db: Session = Depends(get_db)):
+    return update_course_request_status(db, request_id, data.status)
 
 
 

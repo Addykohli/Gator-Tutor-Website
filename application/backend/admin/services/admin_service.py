@@ -2,6 +2,8 @@ from admin.models.reports import Reports
 from admin.schemas.report_schema import ReportInfo
 from admin.models.tutor_course_request import TutorCourseRequest
 from admin.models.tutor_application import TutorApplication
+from admin.models.course_request import CourseRequest
+from admin.schemas.course_request_schema import CourseRequestCreate
 from admin.schemas.tutor_application_schema import TutorApplicationCreate
 from search.models.course import Course
 from search.models.user import User
@@ -10,6 +12,7 @@ from search.models.tutor_course import TutorCourse
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from sqlalchemy import or_, func
+import re
 #----------------------------------------------------------
 # Admin: Manage tutors
 
@@ -162,30 +165,72 @@ def remove_tutor_course(db: Session, tutor_id: int, course_id: int):
 #----------------------------------------------------------
 # Admin: Manage Courses
 # only courses, not tutor_courses
+
 #for admin viewing of all courses
 def get_all_courses(db:Session):
     return db.query(Course).order_by(Course.department_code, Course.course_number).all()
 
-#for admin adding more courses to db(related to course request management)
-def create_course(db:Session, data):
-    #check if course being attempted is already a course listing 
-    course_listing = db.query(Course).filter(
-        Course.department_code == data.department_code,
-        Course.course_number == data.course_number,
-    ).first() 
+#for admin to easily view all course requests
+def get_all_course_requests(db: Session):
+    return db.query(CourseRequest).all()
 
-    if course_listing:
-        raise HTTPException(400, "Already a course listing.")
-    
-    new_course = Course(
-        department_code= data.department_code,
-        course_number= data.course_number,
-        title= data.title
+#adding course_request entry to db table
+def create_course_request(db: Session, data: CourseRequestCreate):
+    # get user by email
+    user = db.query(User).filter(User.sfsu_email == data.email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    course_request = CourseRequest(
+        course_number=data.course_number,
+        title=data.title,
+        notes=data.notes,
+        user_id=user.user_id
     )
-    db.add(new_course)
+
+    db.add(course_request)
     db.commit()
-    db.refresh(new_course)
-    return new_course
+    db.refresh(course_request)
+    return course_request
+
+
+#for admin adding more courses to db(related to course request management)
+def update_course_request_status(db: Session, request_id: int, status: str):
+    course_req = db.query(CourseRequest).filter(
+        CourseRequest.course_req_id == request_id
+    ).first()
+
+    if not course_req:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if course_req.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request already {course_req.status}")
+
+    course_req.status = status
+    # Add to courses table if approved, update status in course_req
+    if status == "approved":
+        import re
+        match = re.match(r"([A-Za-z]+)\s*[-]?\s*(\d+)", course_req.course_number)
+
+        if not match:
+            raise HTTPException(status_code=400, detail="Invalid course_number format")
+
+        dept_code, course_num = match.groups()
+        existing_course = db.query(Course).filter(Course.department_code == dept_code, Course.course_number == course_num).first()
+        if not existing_course:
+            new_course = Course(
+                department_code=dept_code,
+                course_number=course_num,
+                title=course_req.title or "TBD",
+                is_active=True
+            )
+            db.add(new_course)
+
+    db.commit()
+    db.refresh(course_req)
+    return course_req
+
+
 
 #update course status to active/inactive (some SFSU courses are based on semester)
 def deactivate_course(db:Session, course_id:int):

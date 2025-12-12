@@ -10,12 +10,11 @@ class CourseRequest(Base):
 
     course_req_id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False, index=True)
-    course_id = Column(Integer, ForeignKey("courses.course_id"), nullable=False, index=True)
-    course_number = Column(String(50), nullable=False, index=True)
-    title = Column(Text, nullable=True)
 
+    course_number = Column(String(50), nullable=False, index=True)  
+    title = Column(Text, nullable=True)
     notes = Column(String(2000), nullable=True)
+
     status = Column(Enum("pending", "approved", "rejected", name="coverage_status"), nullable=False, default="pending", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
