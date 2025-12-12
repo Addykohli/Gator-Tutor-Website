@@ -15,9 +15,20 @@ const AdminTutorApplicationsPage = () => {
   const [processing, setProcessing] = useState(false);
   const [actionError, setActionError] = useState(null);
 
+  // Mobile detection
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
+
   const apiBaseUrl = window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
     : '/api';
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     // Check if user is admin
@@ -178,8 +189,9 @@ const AdminTutorApplicationsPage = () => {
       cursor: "pointer",
     },
     mainContent: {
-      display: "grid",
-      gridTemplateColumns: selectedApplication ? "1fr 1fr" : "1fr",
+      display: isMobile ? "flex" : "grid",
+      flexDirection: isMobile ? "column-reverse" : undefined,
+      gridTemplateColumns: !isMobile && selectedApplication ? "1fr 1fr" : "1fr",
       gap: "20px",
     },
     listSection: {
@@ -476,9 +488,9 @@ const AdminTutorApplicationsPage = () => {
                     {selectedApplication.email && (
                       <div style={{ fontSize: '13px', color: '#666', marginTop: '4px' }}>
                         {selectedApplication.email}
-                        </div>
-                      )}
                       </div>
+                    )}
+                  </div>
                 </div>
 
                 <div style={styles.detailRow}>

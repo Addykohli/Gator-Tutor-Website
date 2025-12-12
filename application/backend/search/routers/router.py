@@ -52,7 +52,7 @@ def search_tutors_endpoint(
     available_before: Optional[time] = Query(None, description="Filter tutors available before this time (HH:MM:SS)"),
     location_modes: Optional[str] = Query(None, max_length=100, description="Location modes, comma-separated (e.g., 'online,campus')"),
     has_availability: Optional[bool] = Query(None, description="Filter tutors that have availability slots"),
-    limit: int = Query(20, ge=1, le=50),
+    limit: int = Query(20, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
@@ -166,7 +166,7 @@ def search_courses_endpoint(
     department: Optional[str] = Query(None, max_length=10, description="Filter by department code (e.g., 'CSC')"),
     departments: Optional[str] = Query(None, max_length=100, description="Filter by multiple department codes, comma-separated"),
     course_number: Optional[str] = Query(None, max_length=10, description="Filter by course number (e.g., '210')"),
-    limit: int = Query(20, ge=1, le=50),
+    limit: int = Query(20, ge=1, le=500),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):
@@ -263,7 +263,7 @@ def search_all_endpoint(
     available_before: Optional[time] = Query(None, description="Filter tutors available before"),
     location_modes: Optional[str] = Query(None, max_length=100, description="Location modes"),
     has_availability: Optional[bool] = Query(None, description="Filter tutors that have availability"),
-    limit: int = Query(20, ge=1, le=50, description="Total limit - will be split between tutors and courses"),
+    limit: int = Query(20, ge=1, le=500, description="Total limit - will be split between tutors and courses"),
     offset: int = Query(0, ge=0),
     db: Session = Depends(get_db)
 ):

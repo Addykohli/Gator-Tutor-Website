@@ -67,8 +67,26 @@ def create_tutor_application(application: TutorApplicationCreate):
     return new_application
 
 @router.get("/tutor-applications")
-def get_tutor_applications():
-    return tutor_applications_store
+def get_tutor_applications(db: Session = Depends(get_db)):
+    from search.models.user import User
+    
+    enriched_applications = []
+    for app in tutor_applications_store:
+        user_id = app.get("user_id")
+        full_name = app.get("full_name", "")
+        
+        # If full_name is missing or is the default "User #id" format, look up the user
+        if not full_name or full_name.startswith("User #"):
+            user = db.query(User).filter(User.user_id == user_id).first()
+            if user:
+                full_name = f"{user.first_name} {user.last_name}".strip()
+                if not full_name:
+                    full_name = user.sfsu_email.split("@")[0] if user.sfsu_email else f"User #{user_id}"
+        
+        enriched_app = {**app, "full_name": full_name}
+        enriched_applications.append(enriched_app)
+    
+    return enriched_applications
 
 @router.patch("/tutor-applications/{application_id}/status")
 def update_tutor_application_status(
@@ -204,6 +222,22 @@ async def list_all_courses(db: Session = Depends(get_db)):
         return [{"code": c.code, "name": c.name, "department": c.department} for c in courses]
     except Exception as e:
         return {"error": str(e)}
+
+@router.get("/allcourses")
+async def get_all_courses(db: Session = Depends(get_db)):
+    """Get all courses for the course catalog"""
+    from search.models.course import Course
+    try:
+        courses = db.query(Course).all()
+        return [{
+            "course_id": c.course_id,
+            "department_code": c.department_code,
+            "course_number": c.course_number,
+            "title": c.title,
+            "is_active": c.is_active if hasattr(c, 'is_active') else True
+        } for c in courses]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch courses: {str(e)}")
 #----------------------------------------------------------
 # Tutor Course Request Endpoints (Restored)
 
@@ -226,3 +260,44 @@ def reject_request(request_id: int, db: Session = Depends(get_db)):
 @router.delete("/remove-tutor-course")
 def remove_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
     return remove_tutor_course(db=db, tutor_id=tutor_id, course_id=course_id)
+
+#----------------------------------------------------------
+# Reports Endpoints
+
+@router.get("/allreports")
+def get_all_reports(db: Session = Depends(get_db)):
+    """Get all reports with user information"""
+    from admin.models.reports import Reports
+    from search.models.user import User
+    
+    try:
+        reports = db.query(Reports).order_by(Reports.created_at.desc()).all()
+        
+        enriched_reports = []
+        for report in reports:
+            # Get reporter info
+            reporter = db.query(User).filter(User.user_id == report.reporter_id).first()
+            reporter_name = f"{reporter.first_name} {reporter.last_name}".strip() if reporter else f"User #{report.reporter_id}"
+            reporter_email = reporter.sfsu_email if reporter else ""
+            
+            # Get reported user info
+            reported_user = db.query(User).filter(User.user_id == report.reported_user_id).first()
+            reported_user_name = f"{reported_user.first_name} {reported_user.last_name}".strip() if reported_user else f"User #{report.reported_user_id}"
+            reported_user_email = reported_user.sfsu_email if reported_user else ""
+            
+            enriched_reports.append({
+                "report_id": report.report_id,
+                "reporter_id": report.reporter_id,
+                "reporter_name": reporter_name,
+                "reporter_email": reporter_email,
+                "reported_user_id": report.reported_user_id,
+                "reported_user_name": reported_user_name,
+                "reported_user_email": reported_user_email,
+                "reason": report.reason,
+                "status": report.status,
+                "created_at": report.created_at.isoformat() if report.created_at else None
+            })
+        
+        return enriched_reports
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch reports: {str(e)}")

@@ -99,9 +99,6 @@ const Header = () => {
 
   const isExpanded = isMenuOpen || isLocked;
 
-  // Track viewport width for gradient calculation
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
-
   // Dynamic dimensions based on screen size
   const buttonWidth = isCompact ? 90 : 100;
   // Ensure the expanded menu touches the left edge by matching the container padding
@@ -111,20 +108,11 @@ const Header = () => {
 
   const expandedWidth = buttonWidth + (isCompact ? 45 : 55);
 
-  // Calculate the dropdown width ratio to viewport width
-  // This determines what portion of the header gradient should be used for the dropdown
-  const dropdownRatio = expandedWidth / viewportWidth;
-  // Scale the gradient to only show the first portion (e.g., if 15%, end color at 100% of dropdown = 15% of full gradient)
-  // We want the dropdown to show gradientStart (0%) to gradientEnd (ratio%)
-  // To achieve this, we stretch the background so that the visible portion matches the header's gradient
-  const gradientScale = 100 / (dropdownRatio * 100); // How much to scale the gradient
-
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 1024);
       setIsCompact(window.innerWidth <= 768);
       setIsSmallScreen(window.innerWidth < 430);
-      setViewportWidth(window.innerWidth);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -231,12 +219,7 @@ const Header = () => {
     height: isExpanded ? `${dynamicHeight}px` : '40px',
     border: '1px solid rgb(255, 220, 112)',
     borderRadius: isExpanded ? '0px 0px 8px 8px' : '4px',
-    // Use the same gradient as the header but scale it so only the first portion (matching the dropdown width ratio) is visible
-    // The header gradient goes from rgb(53, 0, 109) at 0% to rgb(45, 0, 84) at 100%
-    // We want to show what the header shows at this position (left side of screen)
     background: 'linear-gradient(90deg, rgb(53, 0, 109) 0%, rgb(45, 0, 84) 100%)',
-    backgroundSize: `${Math.round(gradientScale * 100)}% 100%`,
-    backgroundPosition: 'left top',
     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     transformOrigin: 'top left',
     pointerEvents: 'none',

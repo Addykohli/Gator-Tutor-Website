@@ -2713,25 +2713,46 @@ const HomePage = () => {
                   </div>
                 )} {/* Apply to be a Tutor - Only for students */}
                 {user && !user.isTutor && user.role !== 'admin' && (
-                  <div
-                    onClick={() => navigate('/apply-tutor')}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px',
-                      padding: '12px 16px',
-                      cursor: 'pointer',
-                      color: darkMode ? 'white' : '#35006D',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <i className="fas fa-graduation-cap"></i>
-                    <span>APPLY AS TUTOR</span>
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      onClick={() => navigate('/apply-tutor')}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                        border: '1px solid rgba(180, 180, 190, 0.4)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        gap: '10px',
+                        transition: 'all 0.2s',
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        position: 'relative',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                      }}
+                    >
+                      <i className="fas fa-graduation-cap" style={{ fontSize: '1rem' }}></i>
+                      Apply as Tutor
+                    </button>
                   </div>
                 )}
-                
+
                 {/* Courses I Tutor Section - Only for tutors */}
                 {user?.isTutor && (
                   <div style={{
@@ -2926,6 +2947,186 @@ const HomePage = () => {
                         <i className="fas fa-plus"></i>
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Tutor Profile Section */}
+                {user?.isTutor && (
+                  <div style={{
+                    width: '100%',
+                    marginBottom: '20px',
+                    paddingTop: '20px',
+                    borderTop: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '12px'
+                    }}>
+                      <h4 style={{
+                        color: darkMode ? "#fff" : '#495057',
+                        fontSize: '0.95rem',
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600',
+                        letterSpacing: '0.3px'
+                      }}>
+                        <i className="fas fa-user-circle" style={{ color: darkMode ? '#fff' : '#35006D' }}></i>
+                        My Profile
+                      </h4>
+                      <button
+                        onClick={() => setIsEditingProfile(!isEditingProfile)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid ' + (darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(53,0,109,0.3)'),
+                          color: darkMode ? '#fff' : '#35006D',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {isEditingProfile ? 'Cancel' : 'Edit Profile'}
+                      </button>
+                    </div>
+
+                    {isEditingProfile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Bio</label>
+                          <textarea
+                            value={editForm.bio}
+                            onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                            placeholder="Tell students about yourself..."
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              minHeight: '60px',
+                              resize: 'vertical',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Hourly Rate ($)</label>
+                          <input
+                            type="number"
+                            value={editForm.hourly_rate}
+                            onChange={(e) => setEditForm({ ...editForm, hourly_rate: e.target.value })}
+                            placeholder="25.00"
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Languages (comma-separated)</label>
+                          <input
+                            type="text"
+                            value={editForm.languages}
+                            onChange={(e) => setEditForm({ ...editForm, languages: e.target.value })}
+                            placeholder="English, Spanish, etc."
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={handleProfileUpdate}
+                          disabled={isSavingProfile}
+                          style={{
+                            padding: '10px 16px',
+                            background: '#35006D',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: isSavingProfile ? 'wait' : 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            opacity: isSavingProfile ? 0.7 : 1
+                          }}
+                        >
+                          {isSavingProfile ? 'Saving...' : 'Save Profile'}
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{
+                          padding: '10px',
+                          background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                          borderRadius: '6px'
+                        }}>
+                          <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Bio</div>
+                          <div style={{ fontSize: '0.85rem', color: darkMode ? '#fff' : '#333' }}>
+                            {tutorProfile.bio || <span style={{ fontStyle: 'italic', color: '#999' }}>No bio set</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{
+                            flex: 1,
+                            padding: '10px',
+                            background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            borderRadius: '6px'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Hourly Rate</div>
+                            <div style={{ fontSize: '0.9rem', color: darkMode ? '#fff' : '#333', fontWeight: '600' }}>
+                              ${tutorProfile.hourly_rate?.toFixed(2) || '0.00'}
+                            </div>
+                          </div>
+                          <div style={{
+                            flex: 1,
+                            padding: '10px',
+                            background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            borderRadius: '6px'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Languages</div>
+                            <div style={{ fontSize: '0.85rem', color: darkMode ? '#fff' : '#333' }}>
+                              {tutorProfile.languages?.length > 0
+                                ? tutorProfile.languages.join(', ')
+                                : <span style={{ fontStyle: 'italic', color: '#999' }}>Not set</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

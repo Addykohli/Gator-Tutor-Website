@@ -91,28 +91,6 @@ const MessagesPage = () => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
-  // Handle window resize for mobile detection
-  useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth <= 768;
-      setIsMobile(mobile);
-      // Auto-show sidebar on desktop, hide on mobile when a chat is selected
-      if (!mobile) {
-        setSidebarVisible(true);
-      }
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  // Hide sidebar when selecting a partner on mobile
-  const handleSelectPartnerMobile = (partner) => {
-    handleSelectPartner(partner);
-    if (isMobile) {
-      setSidebarVisible(false);
-    }
-  };
-
   const wsRef = useRef(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -127,6 +105,20 @@ const MessagesPage = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Auto-show sidebar on desktop, hide on mobile when a chat is selected
+      if (!mobile) {
+        setSidebarVisible(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const checkUserChange = () => {
@@ -476,196 +468,404 @@ const MessagesPage = () => {
     }
   };
 
+  // Hide sidebar when selecting a partner on mobile
+  const handleSelectPartnerMobile = (partner) => {
+    handleSelectPartner(partner);
+    if (isMobile) {
+      setSidebarVisible(false);
+    }
+  };
+
   const isButtonDisabled = (!newMessage.trim() && !selectedFile) || !selectedPartnerId || sending || uploadingFile;
 
-  return (
-    <div style={{
+  const styles = {
+    container: {
+      display: 'flex',
+      height: isMobile ? 'calc(100vh - 60px)' : 'calc(100vh - 60px)',
+      maxWidth: '1400px',
+      margin: isMobile ? '0' : '0 auto',
+      width: '100%',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+      overflow: 'hidden',
+      boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.1)',
+      position: 'relative',
+    },
+    sidebar: {
+      width: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
+      minWidth: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
+      backgroundColor: darkMode ? '#2d2d2d' : '#35006D',
+      color: '#fff',
       display: 'flex',
       flexDirection: 'column',
-      minHeight: '100vh',
-      background: darkMode
-        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%)'
-        : '#f5f5f5'
-    }}>
-      <Header />
-      <div style={{
-        display: 'flex',
-        height: isMobile ? 'calc(100vh - 60px)' : 'calc(100vh - 60px)',
-        minHeight: isMobile ? 'calc(100vh - 60px)' : 'calc(100vh - 60px)',
-        maxWidth: '1400px',
-        margin: isMobile ? '0' : '0 auto',
-        width: '100%',
-        backgroundColor: darkMode ? '#1a1a1a' : '#fff',
-        overflow: 'hidden',
-        boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.1)',
-        position: 'relative',
-      }}>
-        {/* Mobile Menu Toggle Button */}
-        {isMobile && !sidebarVisible && (
-          <button
-            onClick={() => setSidebarVisible(true)}
-            style={{
-              position: 'absolute',
-              top: '10px',
-              left: '10px',
-              zIndex: 100,
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              backgroundColor: '#35006D',
-              color: '#fff',
-              border: 'none',
-              fontSize: '20px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-            }}
-            data-testid="button-show-sidebar"
-          >
-            ☰
-          </button>
-        )}
+      overflow: 'hidden',
+      transition: 'all 0.3s ease',
+      position: isMobile ? 'absolute' : 'relative',
+      top: 0,
+      left: 0,
+      height: '100%',
+      zIndex: isMobile ? 50 : 1,
+    },
+    sidebarHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '20px',
+      borderBottom: '1px solid rgba(255,255,255,0.1)',
+    },
+    headerLeft: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+    },
+    sidebarTitle: {
+      margin: 0,
+      fontSize: '20px',
+    },
+    newChatButton: {
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      backgroundColor: '#FFCF01',
+      color: '#35006D',
+      border: 'none',
+      fontSize: '24px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchInput: {
+      margin: '10px 20px',
+      padding: '10px 15px',
+      borderRadius: '20px',
+      border: 'none',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+    },
+    conversationList: {
+      flex: 1,
+      overflowY: 'auto',
+    },
+    loadingContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      color: darkMode ? '#888' : '#888',
+    },
+    emptyState: {
+      textAlign: 'center',
+      padding: '20px',
+      color: 'rgba(255,255,255,0.6)',
+      fontSize: '14px',
+    },
+    conversationItem: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '15px 20px',
+      cursor: 'pointer',
+      borderLeft: '4px solid transparent',
+      transition: 'background-color 0.2s',
+    },
+    avatar: {
+      width: '45px',
+      height: '45px',
+      borderRadius: '50%',
+      backgroundColor: '#FFCF01',
+      color: '#35006D',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      marginRight: '12px',
+      fontSize: '14px',
+      flexShrink: 0,
+    },
+    conversationInfo: {
+      flex: 1,
+    },
+    conversationName: {
+      margin: 0,
+      fontSize: '15px',
+    },
+    conversationRole: {
+      margin: '4px 0 0',
+      fontSize: '12px',
+      opacity: 0.7,
+    },
+    chatArea: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+    },
+    chatHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: isMobile ? '10px 15px' : '15px 20px',
+      borderBottom: darkMode ? '1px solid #333' : '1px solid #eee',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
+    },
+    chatAvatar: {
+      width: '45px',
+      height: '45px',
+      borderRadius: '50%',
+      backgroundColor: '#35006D',
+      color: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      marginRight: '12px',
+      fontSize: '14px',
+    },
+    chatName: {
+      margin: 0,
+      fontSize: '16px',
+      color: darkMode ? '#fff' : '#333',
+    },
+    chatStatus: {
+      margin: '2px 0 0',
+      fontSize: '13px',
+      color: darkMode ? '#aaa' : '#888',
+    },
+    messagesContainer: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: isMobile ? '15px' : '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+    },
+    messageWrapper: {
+      display: 'flex',
+      marginBottom: '12px',
+    },
+    messageBubble: {
+      maxWidth: isMobile ? '85%' : '70%',
+      padding: '12px 16px',
+      borderRadius: '18px',
+    },
+    messageText: {
+      margin: 0,
+      fontSize: '14px',
+      lineHeight: '1.4',
+    },
+    messageTime: {
+      display: 'block',
+      fontSize: '11px',
+      marginTop: '5px',
+      textAlign: 'right',
+    },
+    inputContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: isMobile ? '10px 15px' : '15px 20px',
+      borderTop: darkMode ? '1px solid #333' : '1px solid #eee',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
+      gap: '10px',
+    },
+    attachButton: {
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      backgroundColor: darkMode ? '#3d3d3d' : '#f0f0f0',
+      border: 'none',
+      fontSize: '18px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    filePreview: {
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: darkMode ? '#3d3d3d' : '#e8e8e8',
+      padding: '5px 10px',
+      borderRadius: '15px',
+      maxWidth: '200px',
+    },
+    fileName: {
+      fontSize: '12px',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      marginRight: '8px',
+      color: darkMode ? '#fff' : '#333',
+    },
+    removeFileButton: {
+      background: 'none',
+      border: 'none',
+      color: '#e74c3c',
+      fontSize: '18px',
+      cursor: 'pointer',
+      padding: 0,
+    },
+    messageInput: {
+      flex: 1,
+      padding: '12px 20px',
+      borderRadius: '25px',
+      border: darkMode ? '1px solid #444' : '1px solid #ddd',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+      minWidth: 0,
+    },
+    noChat: {
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: darkMode ? '#888' : '#888',
+      fontSize: '16px',
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+    },
+    modal: {
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      borderRadius: '12px',
+      width: isMobile ? '95%' : '400px',
+      maxHeight: '500px',
+      display: 'flex',
+      flexDirection: 'column',
+    },
+    modalHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '20px',
+      borderBottom: darkMode ? '1px solid #444' : '1px solid #eee',
+    },
+    modalTitle: {
+      margin: 0,
+      fontSize: '18px',
+      color: darkMode ? '#fff' : '#35006D',
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      fontSize: '24px',
+      cursor: 'pointer',
+      color: darkMode ? '#888' : '#888',
+    },
+    modalSearchInput: {
+      margin: '15px 20px',
+      padding: '10px 15px',
+      borderRadius: '8px',
+      border: darkMode ? '1px solid #444' : '1px solid #ddd',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+    },
+    userList: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: '0 10px 20px',
+    },
+    userItem: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '12px 15px',
+      cursor: 'pointer',
+      borderRadius: '8px',
+      marginBottom: '5px',
+      transition: 'background-color 0.2s',
+      backgroundColor: 'transparent',
+    },
+    userInfo: {
+      flex: 1,
+    },
+    userName: {
+      margin: 0,
+      fontSize: '14px',
+      fontWeight: '500',
+      color: darkMode ? '#fff' : '#333',
+    },
+    userRole: {
+      margin: '2px 0 0',
+      fontSize: '12px',
+      color: darkMode ? '#aaa' : '#888',
+    },
+    mediaImage: {
+      maxWidth: '100%',
+      borderRadius: '8px',
+      marginTop: '8px',
+      cursor: 'pointer',
+    },
+    mediaVideo: {
+      maxWidth: '100%',
+      borderRadius: '8px',
+      marginTop: '8px',
+    },
+    mediaAudio: {
+      width: '100%',
+      marginTop: '8px',
+    },
+    fileLink: {
+      color: '#35006D',
+      textDecoration: 'underline',
+      marginTop: '8px',
+      display: 'inline-block',
+    },
+  };
 
-        {/* Sidebar */}
-        <div style={{
-          width: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
-          minWidth: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
-          backgroundColor: darkMode ? '#2d2d2d' : '#35006D',
-          color: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          transition: 'all 0.3s ease',
-          position: isMobile ? 'absolute' : 'relative',
-          top: 0,
-          left: 0,
-          height: '100%',
-          zIndex: isMobile ? 50 : 1,
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '20px',
-            borderBottom: '1px solid rgba(255,255,255,0.1)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ margin: 0, fontSize: '20px' }}>Messages</h2>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <div style={styles.container}>
+        <div style={styles.sidebar}>
+          <div style={styles.sidebarHeader}>
+            <div style={styles.headerLeft}>
+              <h2 style={styles.sidebarTitle}>Messages</h2>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <button onClick={handleOpenNewChatModal} style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                backgroundColor: '#FFCF01',
-                color: '#35006D',
-                border: 'none',
-                fontSize: '24px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }} data-testid="button-new-chat">+</button>
-              {isMobile && (
-                <button
-                  onClick={() => setSidebarVisible(false)}
-                  style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(255,255,255,0.1)',
-                    color: '#fff',
-                    border: 'none',
-                    fontSize: '20px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  data-testid="button-hide-sidebar"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+            <button onClick={handleOpenNewChatModal} style={styles.newChatButton} data-testid="button-new-chat">+</button>
           </div>
           <input
             type="text"
             placeholder="Search conversations..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              margin: '10px 20px',
-              padding: '10px 15px',
-              borderRadius: '20px',
-              border: 'none',
-              fontSize: '14px',
-              outline: 'none',
-              backgroundColor: darkMode ? '#3d3d3d' : '#fff',
-              color: darkMode ? '#fff' : '#333',
-            }}
+            style={styles.searchInput}
             data-testid="input-search-conversations"
           />
 
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div style={styles.conversationList}>
             {loading ? (
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: 'rgba(255,255,255,0.7)',
-              }}>Loading...</div>
+              <div style={styles.loadingContainer}>Loading...</div>
             ) : filteredPartners.length === 0 ? (
-              <div style={{
-                textAlign: 'center',
-                padding: '20px',
-                color: 'rgba(255,255,255,0.6)',
-                fontSize: '14px',
-              }}>No conversations yet</div>
+              <div style={styles.emptyState}>No conversations yet</div>
             ) : (
               filteredPartners.map((partner) => (
                 <div
                   key={partner.id}
-                  onClick={() => {
-                    handleSelectPartner(partner);
-                    if (isMobile) setSidebarVisible(false);
-                  }}
+                  onClick={() => handleSelectPartnerMobile(partner)}
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '15px 20px',
-                    cursor: 'pointer',
-                    borderLeft: '4px solid transparent',
-                    backgroundColor: selectedPartnerId === partner.id
-                      ? (darkMode ? '#4a4a4a' : '#35006D')
-                      : 'transparent',
-                    transition: 'background-color 0.2s',
+                    ...styles.conversationItem,
+                    backgroundColor: selectedPartnerId === partner.id ? '#35006D' : 'transparent',
                   }}
                   data-testid={`conversation-item-${partner.id}`}
                 >
-                  <div style={{
-                    width: '45px',
-                    height: '45px',
-                    borderRadius: '50%',
-                    backgroundColor: '#FFCF01',
-                    color: '#35006D',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    marginRight: '12px',
-                    fontSize: '14px',
-                    flexShrink: 0,
-                  }}>{getInitials(partner.name)}</div>
-                  <div style={{ flex: 1 }}>
+                  <div style={styles.avatar}>{getInitials(partner.name)}</div>
+                  <div style={styles.conversationInfo}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <h3 style={{
-                        margin: 0,
-                        fontSize: '15px',
-                        fontWeight: hasUnreadMessages(partner.id) ? '700' : '500',
+                        ...styles.conversationName,
+                        fontWeight: hasUnreadMessages(partner.id) ? '700' : '500'
                       }}>
                         {partner.name}
                       </h3>
@@ -679,11 +879,7 @@ const MessagesPage = () => {
                         }} />
                       )}
                     </div>
-                    <p style={{
-                      margin: '4px 0 0',
-                      fontSize: '12px',
-                      opacity: 0.7,
-                    }}>{partner.role}</p>
+                    <p style={styles.conversationRole}>{partner.role}</p>
                   </div>
                 </div>
               ))
@@ -691,112 +887,60 @@ const MessagesPage = () => {
           </div>
         </div>
 
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: darkMode ? '#1a1a1a' : '#fff',
-          marginLeft: isMobile && !sidebarVisible ? '0' : '0',
-        }}>
+        <div style={styles.chatArea}>
           {selectedPartner ? (
             <>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: isMobile ? '10px 15px' : '15px 20px',
-                paddingLeft: isMobile && !sidebarVisible ? '60px' : (isMobile ? '15px' : '20px'),
-                borderBottom: darkMode ? '1px solid #333' : '1px solid #eee',
-                backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
-              }}>
-                <div style={{
-                  width: '45px',
-                  height: '45px',
-                  borderRadius: '50%',
-                  backgroundColor: '#35006D',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 'bold',
-                  marginRight: '12px',
-                  fontSize: '14px',
-                }}>{getInitials(selectedPartner.name)}</div>
+              <div style={styles.chatHeader}>
+                {isMobile && (
+                  <button
+                    onClick={() => setSidebarVisible(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      color: darkMode ? '#fff' : '#333',
+                      marginRight: '10px',
+                      padding: '5px'
+                    }}
+                  >
+                    ☰
+                  </button>
+                )}
+                <div style={styles.chatAvatar}>{getInitials(selectedPartner.name)}</div>
                 <div>
-                  <h2 style={{
-                    margin: 0,
-                    fontSize: '16px',
-                    color: darkMode ? '#fff' : '#333',
-                  }}>{selectedPartner.name}</h2>
-                  <p style={{
-                    margin: '2px 0 0',
-                    fontSize: '13px',
-                    color: darkMode ? '#aaa' : '#888',
-                  }}>{selectedPartner.role}</p>
+                  <h2 style={styles.chatName}>{selectedPartner.name}</h2>
+                  <p style={styles.chatStatus}>{selectedPartner.role}</p>
                 </div>
               </div>
 
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: isMobile ? '15px' : '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                backgroundColor: darkMode ? '#1a1a1a' : '#fff',
-              }} ref={messagesContainerRef}>
+              <div style={styles.messagesContainer} ref={messagesContainerRef}>
                 {messagesLoading ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: darkMode ? '#888' : '#888',
-                  }}>Loading messages...</div>
+                  <div style={styles.loadingContainer}>Loading messages...</div>
                 ) : messages.length === 0 ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: darkMode ? '#888' : '#888',
-                  }}>No messages yet. Start the conversation!</div>
+                  <div style={styles.loadingContainer}>No messages yet. Start the conversation!</div>
                 ) : (
                   messages.map((message) => (
                     <div
                       key={message.message_id}
                       style={{
-                        display: 'flex',
-                        marginBottom: '12px',
+                        ...styles.messageWrapper,
                         justifyContent: message.sender_id === currentUserId ? 'flex-end' : 'flex-start',
                       }}
                       data-testid={`message-${message.message_id}`}
                     >
                       <div
                         style={{
-                          maxWidth: isMobile ? '85%' : '70%',
-                          padding: '12px 16px',
-                          borderRadius: '18px',
-                          backgroundColor: message.sender_id === currentUserId
-                            ? '#35006D'
-                            : (darkMode ? '#3d3d3d' : '#f0f0f0'),
-                          color: message.sender_id === currentUserId
-                            ? '#fff'
-                            : (darkMode ? '#fff' : '#333'),
+                          ...styles.messageBubble,
+                          backgroundColor: message.sender_id === currentUserId ? '#35006D' : '#f0f0f0',
+                          color: message.sender_id === currentUserId ? '#fff' : '#333',
                         }}
                       >
                         {renderMedia(message)}
-                        {message.content && <p style={{
-                          margin: 0,
-                          fontSize: '14px',
-                          lineHeight: '1.4',
-                        }}>{message.content}</p>}
+                        {message.content && <p style={styles.messageText}>{message.content}</p>}
                         <span style={{
-                          display: 'block',
-                          fontSize: '11px',
-                          marginTop: '5px',
-                          textAlign: 'right',
-                          color: message.sender_id === currentUserId
-                            ? 'rgba(255,255,255,0.7)'
-                            : (darkMode ? 'rgba(255,255,255,0.5)' : '#888'),
+                          ...styles.messageTime,
+                          color: message.sender_id === currentUserId ? 'rgba(255,255,255,0.7)' : '#888',
                         }}>
                           {formatTime(message.created_at)}
                         </span>
@@ -807,14 +951,7 @@ const MessagesPage = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSendMessage} style={{
-                display: 'flex',
-                alignItems: 'center',
-                padding: isMobile ? '10px 15px' : '15px 20px',
-                borderTop: darkMode ? '1px solid #333' : '1px solid #eee',
-                backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
-                gap: '10px',
-              }}>
+              <form onSubmit={handleSendMessage} style={styles.inputContainer}>
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -825,49 +962,16 @@ const MessagesPage = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '50%',
-                    backgroundColor: darkMode ? '#3d3d3d' : '#f0f0f0',
-                    border: 'none',
-                    fontSize: '18px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
+                  style={styles.attachButton}
                   data-testid="button-attach-file"
                 >
                   📎
                 </button>
 
                 {selectedFile && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: darkMode ? '#3d3d3d' : '#e8e8e8',
-                    padding: '5px 10px',
-                    borderRadius: '15px',
-                    maxWidth: '200px',
-                  }}>
-                    <span style={{
-                      fontSize: '12px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      marginRight: '8px',
-                      color: darkMode ? '#fff' : '#333',
-                    }}>{selectedFile.name}</span>
-                    <button type="button" onClick={handleRemoveFile} style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#e74c3c',
-                      fontSize: '18px',
-                      cursor: 'pointer',
-                      padding: 0,
-                    }} data-testid="button-remove-file">×</button>
+                  <div style={styles.filePreview}>
+                    <span style={styles.fileName}>{selectedFile.name}</span>
+                    <button type="button" onClick={handleRemoveFile} style={styles.removeFileButton} data-testid="button-remove-file">×</button>
                   </div>
                 )}
 
@@ -876,17 +980,7 @@ const MessagesPage = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
-                  style={{
-                    flex: 1,
-                    padding: '12px 20px',
-                    borderRadius: '25px',
-                    border: darkMode ? '1px solid #444' : '1px solid #ddd',
-                    fontSize: '14px',
-                    outline: 'none',
-                    backgroundColor: darkMode ? '#3d3d3d' : '#fff',
-                    color: darkMode ? '#fff' : '#333',
-                    minWidth: 0,
-                  }}
+                  style={styles.messageInput}
                   data-testid="input-message"
                 />
                 <button
@@ -904,146 +998,42 @@ const MessagesPage = () => {
               </form>
             </>
           ) : (
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: darkMode ? '#888' : '#888',
-              fontSize: '16px',
-              paddingLeft: isMobile && !sidebarVisible ? '50px' : '0',
-            }}>
-              {isMobile && !sidebarVisible ? (
-                <span>Tap ☰ to select a conversation</span>
-              ) : (
-                <span>Select a conversation to start messaging</span>
-              )}
-            </div>
+            <div style={styles.noChat}>Select a conversation to start messaging</div>
           )}
         </div>
 
         {showNewChatModal && (
-          <div style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-          }} onClick={() => setShowNewChatModal(false)}>
-            <div style={{
-              backgroundColor: darkMode ? '#2d2d2d' : '#fff',
-              borderRadius: '12px',
-              width: isMobile ? '95%' : '400px',
-              maxHeight: '500px',
-              display: 'flex',
-              flexDirection: 'column',
-            }} onClick={(e) => e.stopPropagation()}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '20px',
-                borderBottom: darkMode ? '1px solid #444' : '1px solid #eee',
-              }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '18px',
-                  color: darkMode ? '#fff' : '#35006D',
-                }}>Start New Chat</h3>
-                <button onClick={() => setShowNewChatModal(false)} style={{
-                  background: 'none',
-                  border: 'none',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  color: darkMode ? '#888' : '#888',
-                }} data-testid="button-close-modal">×</button>
+          <div style={styles.modalOverlay} onClick={() => setShowNewChatModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h3 style={styles.modalTitle}>Start New Chat</h3>
+                <button onClick={() => setShowNewChatModal(false)} style={styles.closeButton} data-testid="button-close-modal">×</button>
               </div>
               <input
                 type="text"
                 placeholder="Search users..."
                 value={userSearchTerm}
                 onChange={(e) => setUserSearchTerm(e.target.value)}
-                style={{
-                  margin: '15px 20px',
-                  padding: '10px 15px',
-                  borderRadius: '8px',
-                  border: darkMode ? '1px solid #444' : '1px solid #ddd',
-                  fontSize: '14px',
-                  outline: 'none',
-                  backgroundColor: darkMode ? '#3d3d3d' : '#fff',
-                  color: darkMode ? '#fff' : '#333',
-                }}
+                style={styles.modalSearchInput}
                 data-testid="input-search-users"
               />
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '0 10px 20px',
-              }}>
+              <div style={styles.userList}>
                 {loadingUsers ? (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    height: '100%',
-                    color: darkMode ? '#888' : '#888',
-                  }}>Loading users...</div>
+                  <div style={styles.loadingContainer}>Loading users...</div>
                 ) : filteredUsers.length === 0 ? (
-                  <div style={{
-                    textAlign: 'center',
-                    padding: '20px',
-                    color: darkMode ? 'rgba(255,255,255,0.6)' : '#888',
-                    fontSize: '14px',
-                  }}>No users found</div>
+                  <div style={styles.emptyState}>No users found</div>
                 ) : (
                   filteredUsers.map((user) => (
                     <div
                       key={user.id}
                       onClick={() => handleStartNewChat(user)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        padding: '12px 15px',
-                        cursor: 'pointer',
-                        borderRadius: '8px',
-                        marginBottom: '5px',
-                        transition: 'background-color 0.2s',
-                        backgroundColor: 'transparent',
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#3d3d3d' : '#f5f5f5'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      style={styles.userItem}
                       data-testid={`user-item-${user.id}`}
                     >
-                      <div style={{
-                        width: '45px',
-                        height: '45px',
-                        borderRadius: '50%',
-                        backgroundColor: '#FFCF01',
-                        color: '#35006D',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 'bold',
-                        marginRight: '12px',
-                        fontSize: '14px',
-                      }}>{getInitials(user.name)}</div>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{
-                          margin: 0,
-                          fontSize: '14px',
-                          fontWeight: '500',
-                          color: darkMode ? '#fff' : '#333',
-                        }}>{user.name}</h4>
-                        <p style={{
-                          margin: '2px 0 0',
-                          fontSize: '12px',
-                          color: darkMode ? '#aaa' : '#888',
-                        }}>{user.role}</p>
+                      <div style={styles.avatar}>{getInitials(user.name)}</div>
+                      <div style={styles.userInfo}>
+                        <h4 style={styles.userName}>{user.name}</h4>
+                        <p style={styles.userRole}>{user.role}</p>
                       </div>
                     </div>
                   ))

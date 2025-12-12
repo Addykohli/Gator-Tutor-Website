@@ -11,6 +11,14 @@ const TutorCourseApplications = () => {
     const [sortOrder, setSortOrder] = useState('desc');
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
 
+    // Filter state
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Pagination state
+    const ITEMS_PER_PAGE = 10;
+    const [currentPage, setCurrentPage] = useState(1);
+
     useEffect(() => {
         const handleResize = () => setWindowWidth(window.innerWidth);
         window.addEventListener('resize', handleResize);
@@ -94,7 +102,28 @@ const TutorCourseApplications = () => {
         );
     };
 
-    const sortedRequests = [...requests].sort((a, b) => {
+    // Filter and sort requests
+    const filteredRequests = requests.filter(req => {
+        // Status filter
+        if (statusFilter !== 'all' && req.status?.toLowerCase() !== statusFilter) {
+            return false;
+        }
+
+        // Search filter (tutor name or course)
+        if (searchQuery.trim()) {
+            const query = searchQuery.toLowerCase();
+            const tutorName = `${req.tutor?.user?.first_name || ''} ${req.tutor?.user?.last_name || ''}`.toLowerCase();
+            const courseName = `${req.course?.department_code || ''} ${req.course?.course_number || ''} ${req.course?.title || ''}`.toLowerCase();
+
+            if (!tutorName.includes(query) && !courseName.includes(query)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    const sortedRequests = [...filteredRequests].sort((a, b) => {
         // Sort by Pending first, then by date
         if (a.status === 'pending' && b.status !== 'pending') return -1;
         if (a.status !== 'pending' && b.status === 'pending') return 1;
@@ -103,6 +132,22 @@ const TutorCourseApplications = () => {
         const dateB = new Date(b.created_at);
         return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
     });
+
+    // Pagination calculations
+    const totalPages = Math.ceil(sortedRequests.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedRequests = sortedRequests.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    // Reset to page 1 when filters change
+    const handleStatusFilterChange = (newStatus) => {
+        setStatusFilter(newStatus);
+        setCurrentPage(1);
+    };
+
+    const handleSearchChange = (e) => {
+        setSearchQuery(e.target.value);
+        setCurrentPage(1);
+    };
 
     const styles = {
         container: {
@@ -205,7 +250,77 @@ const TutorCourseApplications = () => {
             color: darkMode ? '#fff' : '#333',
             fontSize: '14px',
             textAlign: 'right'
-        }
+        },
+        // Filter and Pagination styles
+        filterContainer: {
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: '16px',
+            marginBottom: '24px',
+            alignItems: isMobile ? 'stretch' : 'center',
+            flexWrap: 'wrap'
+        },
+        searchInput: {
+            padding: '10px 16px',
+            borderRadius: '8px',
+            border: darkMode ? '1px solid #444' : '1px solid #ddd',
+            backgroundColor: darkMode ? '#333' : '#fff',
+            color: darkMode ? '#fff' : '#333',
+            fontSize: '14px',
+            minWidth: isMobile ? '100%' : '250px',
+            outline: 'none'
+        },
+        filterButton: (isActive) => ({
+            padding: '8px 16px',
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: isActive
+                ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+                : (darkMode ? '#444' : '#f0f0f0'),
+            color: isActive
+                ? (darkMode ? '#333' : '#fff')
+                : (darkMode ? '#ccc' : '#666'),
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+        }),
+        filterButtons: {
+            display: 'flex',
+            gap: '8px',
+            flexWrap: 'wrap'
+        },
+        resultsInfo: {
+            fontSize: '14px',
+            color: darkMode ? '#aaa' : '#666',
+            marginLeft: 'auto'
+        },
+        pagination: {
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '24px',
+            paddingTop: '16px',
+            borderTop: darkMode ? '1px solid #444' : '1px solid #eee'
+        },
+        pageButton: (isActive, isDisabled) => ({
+            padding: '8px 14px',
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: isActive
+                ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+                : (darkMode ? '#444' : '#f0f0f0'),
+            color: isActive
+                ? (darkMode ? '#333' : '#fff')
+                : (darkMode ? '#ccc' : '#666'),
+            fontSize: '14px',
+            fontWeight: isActive ? '600' : '400',
+            cursor: isDisabled ? 'not-allowed' : 'pointer',
+            opacity: isDisabled ? 0.5 : 1,
+            transition: 'all 0.2s',
+            minWidth: '40px'
+        })
     };
 
     const renderActions = (req) => {
@@ -279,49 +394,125 @@ const TutorCourseApplications = () => {
                 {loading && <div style={styles.emptyState}>Loading requests...</div>}
                 {error && <div style={{ ...styles.emptyState, color: 'red' }}>Error: {error}</div>}
 
-                {!loading && !error && requests.length === 0 && (
-                    <div style={styles.emptyState}>No course requests found.</div>
-                )}
+                {!loading && !error && (
+                    <>
+                        {/* Filter Controls */}
+                        <div style={styles.filterContainer}>
+                            <input
+                                type="text"
+                                placeholder="Search tutor or course..."
+                                value={searchQuery}
+                                onChange={handleSearchChange}
+                                style={styles.searchInput}
+                            />
+                            <div style={styles.filterButtons}>
+                                {['all', 'pending', 'approved', 'rejected'].map(status => (
+                                    <button
+                                        key={status}
+                                        onClick={() => handleStatusFilterChange(status)}
+                                        style={styles.filterButton(statusFilter === status)}
+                                    >
+                                        {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </button>
+                                ))}
+                            </div>
+                            <span style={styles.resultsInfo}>
+                                Showing {paginatedRequests.length} of {sortedRequests.length} results
+                            </span>
+                        </div>
 
-                {!loading && !error && requests.length > 0 && (
-                    isMobile ? (
-                        <div>
-                            {sortedRequests.map(req => <MobileCard key={req.request_id} req={req} />)}
-                        </div>
-                    ) : (
-                        <div style={styles.tableContainer}>
-                            <table style={styles.table}>
-                                <thead>
-                                    <tr>
-                                        <th style={styles.th}>TCA ID</th>
-                                        <th style={styles.th}>Tutor</th>
-                                        <th style={styles.th}>Course</th>
-                                        <th style={styles.th}>Status</th>
-                                        <th style={styles.th}>Date</th>
-                                        <th style={styles.th}>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedRequests.map(req => (
-                                        <tr key={req.request_id}>
-                                            <td style={styles.td}>#{req.request_id}</td>
-                                            <td style={styles.td}>
-                                                {req.tutor?.user?.first_name} {req.tutor?.user?.last_name}
-                                                <div style={{ fontSize: '11px', color: darkMode ? '#888' : '#666' }}>ID: {req.tutor_id}</div>
-                                            </td>
-                                            <td style={styles.td}>
-                                                <strong>{req.course?.department_code} {req.course?.course_number}</strong>
-                                                <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666' }}>{req.course?.title}</div>
-                                            </td>
-                                            <td style={styles.td}>{getStatusBadge(req.status)}</td>
-                                            <td style={styles.td}>{new Date(req.created_at).toLocaleDateString()}</td>
-                                            <td style={styles.td}>{renderActions(req)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )
+                        {sortedRequests.length === 0 ? (
+                            <div style={styles.emptyState}>
+                                {requests.length === 0
+                                    ? 'No course requests found.'
+                                    : 'No requests match your filters.'}
+                            </div>
+                        ) : (
+                            <>
+                                {isMobile ? (
+                                    <div>
+                                        {paginatedRequests.map(req => <MobileCard key={req.request_id} req={req} />)}
+                                    </div>
+                                ) : (
+                                    <div style={styles.tableContainer}>
+                                        <table style={styles.table}>
+                                            <thead>
+                                                <tr>
+                                                    <th style={styles.th}>TCA ID</th>
+                                                    <th style={styles.th}>Tutor</th>
+                                                    <th style={styles.th}>Course</th>
+                                                    <th style={styles.th}>Status</th>
+                                                    <th style={styles.th}>Date</th>
+                                                    <th style={styles.th}>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {paginatedRequests.map(req => (
+                                                    <tr key={req.request_id}>
+                                                        <td style={styles.td}>#{req.request_id}</td>
+                                                        <td style={styles.td}>
+                                                            {req.tutor?.user?.first_name} {req.tutor?.user?.last_name}
+                                                            <div style={{ fontSize: '11px', color: darkMode ? '#888' : '#666' }}>ID: {req.tutor_id}</div>
+                                                        </td>
+                                                        <td style={styles.td}>
+                                                            <strong>{req.course?.department_code} {req.course?.course_number}</strong>
+                                                            <div style={{ fontSize: '12px', color: darkMode ? '#aaa' : '#666' }}>{req.course?.title}</div>
+                                                        </td>
+                                                        <td style={styles.td}>{getStatusBadge(req.status)}</td>
+                                                        <td style={styles.td}>{new Date(req.created_at).toLocaleDateString()}</td>
+                                                        <td style={styles.td}>{renderActions(req)}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                )}
+
+                                {/* Pagination Controls */}
+                                {totalPages > 1 && (
+                                    <div style={styles.pagination}>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={currentPage === 1}
+                                            style={styles.pageButton(false, currentPage === 1)}
+                                        >
+                                            ← Prev
+                                        </button>
+
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let pageNum;
+                                            if (totalPages <= 5) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                pageNum = i + 1;
+                                            } else if (currentPage >= totalPages - 2) {
+                                                pageNum = totalPages - 4 + i;
+                                            } else {
+                                                pageNum = currentPage - 2 + i;
+                                            }
+                                            return (
+                                                <button
+                                                    key={pageNum}
+                                                    onClick={() => setCurrentPage(pageNum)}
+                                                    style={styles.pageButton(currentPage === pageNum, false)}
+                                                >
+                                                    {pageNum}
+                                                </button>
+                                            );
+                                        })}
+
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={currentPage === totalPages}
+                                            style={styles.pageButton(false, currentPage === totalPages)}
+                                        >
+                                            Next →
+                                        </button>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </>
                 )}
             </div>
             <Footer />

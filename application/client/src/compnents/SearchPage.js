@@ -44,6 +44,108 @@ const CheckboxGroup = ({ options, selected, onChange, darkMode }) => (
   </div>
 );
 
+const Pagination = ({ currentPage, totalPages, onPageChange, darkMode }) => {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const buttonStyle = (isActive) => ({
+    padding: '8px 14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: isActive ? '600' : '400',
+    backgroundColor: isActive
+      ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+      : (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f5f5f5'),
+    color: isActive
+      ? (darkMode ? '#333' : '#fff')
+      : (darkMode ? '#fff' : '#333'),
+    transition: 'all 0.2s',
+    minWidth: '40px'
+  });
+
+  const navButtonStyle = (disabled) => ({
+    padding: '8px 14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '14px',
+    backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f5f5f5',
+    color: disabled
+      ? (darkMode ? '#555' : '#ccc')
+      : (darkMode ? '#fff' : '#333'),
+    transition: 'all 0.2s',
+    opacity: disabled ? 0.5 : 1
+  });
+
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '8px',
+      marginTop: '24px',
+      padding: '16px 0'
+    }}>
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        style={navButtonStyle(currentPage === 1)}
+      >
+        ← Prev
+      </button>
+
+      {getPageNumbers()[0] > 1 && (
+        <>
+          <button onClick={() => onPageChange(1)} style={buttonStyle(false)}>1</button>
+          {getPageNumbers()[0] > 2 && <span style={{ color: darkMode ? '#fff' : '#333' }}>...</span>}
+        </>
+      )}
+
+      {getPageNumbers().map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          style={buttonStyle(page === currentPage)}
+        >
+          {page}
+        </button>
+      ))}
+
+      {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
+        <>
+          {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && <span style={{ color: darkMode ? '#fff' : '#333' }}>...</span>}
+          <button onClick={() => onPageChange(totalPages)} style={buttonStyle(false)}>{totalPages}</button>
+        </>
+      )}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        style={navButtonStyle(currentPage === totalPages)}
+      >
+        Next →
+      </button>
+    </div>
+  );
+};
+
 export default function SearchPage() {
   const navigate = useNavigate();
   const { darkMode, user } = useAuth();
@@ -459,6 +561,11 @@ export default function SearchPage() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
 
+  // Pagination state - separate for tutors and courses
+  const ITEMS_PER_PAGE = 12;
+  const [tutorPage, setTutorPage] = useState(1);
+  const [coursePage, setCoursePage] = useState(1);
+
   // Sync local price state with URL params
   useEffect(() => {
     const min = q.get('min_rate');
@@ -468,6 +575,12 @@ export default function SearchPage() {
 
     if (max) setMaxPrice((parseInt(max) / 100).toString());
     else setMaxPrice('');
+  }, [q]);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setTutorPage(1);
+    setCoursePage(1);
   }, [q]);
 
   // Fetch filter options on mount
@@ -524,8 +637,9 @@ export default function SearchPage() {
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
 
         // Build the appropriate endpoint and parameters
+        // Fetch a larger number for client-side pagination
         let endpoint, params = new URLSearchParams({
-          limit: 20,
+          limit: 500,
           offset: 0
         });
 
@@ -1721,16 +1835,30 @@ export default function SearchPage() {
                           </div>
                         </div>
 
-                        {getFilteredResults(results).some(item => item._kind === "tutor") ? (
-                          <div style={styles.tutorsGrid}>
-                            {getSortedTutors(getFilteredResults(results).filter(item => item._kind === "tutor"))
-                              .map((item, idx) => (
-                                <ResultCard key={`tutor-${item.id || idx}`} item={item} />
-                              ))}
-                          </div>
-                        ) : (
-                          <p style={styles.noItemsText}>No tutors found</p>
-                        )}
+                        {(() => {
+                          const allTutors = getSortedTutors(getFilteredResults(results).filter(item => item._kind === "tutor"));
+                          const totalTutorPages = Math.ceil(allTutors.length / ITEMS_PER_PAGE);
+                          const startIdx = (tutorPage - 1) * ITEMS_PER_PAGE;
+                          const paginatedTutors = allTutors.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+                          return allTutors.length > 0 ? (
+                            <>
+                              <div style={styles.tutorsGrid}>
+                                {paginatedTutors.map((item, idx) => (
+                                  <ResultCard key={`tutor-${item.id || idx}`} item={item} />
+                                ))}
+                              </div>
+                              <Pagination
+                                currentPage={tutorPage}
+                                totalPages={totalTutorPages}
+                                onPageChange={setTutorPage}
+                                darkMode={darkMode}
+                              />
+                            </>
+                          ) : (
+                            <p style={styles.noItemsText}>No tutors found</p>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -1748,17 +1876,30 @@ export default function SearchPage() {
                           </div>
                         </div>
 
-                        {getFilteredResults(results).some(item => item._kind === "course") ? (
-                          <div style={styles.coursesGrid}>
-                            {getFilteredResults(results)
-                              .filter(item => item._kind === "course")
-                              .map((item, idx) => (
-                                <ResultCard key={`course-${item.course_id || idx}`} item={item} />
-                              ))}
-                          </div>
-                        ) : (
-                          <p style={styles.noItemsText}>No courses found</p>
-                        )}
+                        {(() => {
+                          const allCourses = getFilteredResults(results).filter(item => item._kind === "course");
+                          const totalCoursePages = Math.ceil(allCourses.length / ITEMS_PER_PAGE);
+                          const startIdx = (coursePage - 1) * ITEMS_PER_PAGE;
+                          const paginatedCourses = allCourses.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+                          return allCourses.length > 0 ? (
+                            <>
+                              <div style={styles.coursesGrid}>
+                                {paginatedCourses.map((item, idx) => (
+                                  <ResultCard key={`course-${item.course_id || idx}`} item={item} />
+                                ))}
+                              </div>
+                              <Pagination
+                                currentPage={coursePage}
+                                totalPages={totalCoursePages}
+                                onPageChange={setCoursePage}
+                                darkMode={darkMode}
+                              />
+                            </>
+                          ) : (
+                            <p style={styles.noItemsText}>No courses found</p>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
