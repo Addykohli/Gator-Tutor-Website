@@ -1,26 +1,21 @@
 from admin.schemas.report_schema import ReportCreate, ReportResponse
 from admin.schemas.course_schema import CourseCreate, CourseResponse
 from admin.schemas.tutor_schema import TutorProfileResponse
-from fastapi import APIRouter, Depends, HTTPException, Query
+from admin.models.tutor_application import TutorApplication
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from search.database import get_db
-from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse, CourseInfo, UserInfo
+from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse
+from admin.schemas.tutor_application_schema import TutorApplicationCreate, TutorApplicationResponse, TutorApplicationUpdateStatus
 from admin.services.admin_service import (
-    get_all_reports, 
-    get_user_reports,
-    create_report, 
-    update_report_status,
-    get_all_courses,
-    create_course,
-    deactivate_course,
-    promote_to_tutor,
-    demote_to_student_only,
-    get_user_id_by_name,
     create_tutor_course_request,
     get_all_tutor_course_requests,
     approve_tutor_course_request,
     reject_tutor_course_request,
-    remove_tutor_course
+    remove_tutor_course,
+    create_application,
+    approve_application,
+    reject_application
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -28,107 +23,37 @@ from datetime import datetime
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-# In-memory storage for tutor applications (replace with database in production)
-tutor_applications_store = []
-application_id_counter = 0
-
-class TutorApplicationCreate(BaseModel):
-    user_id: int
-    email: str  # ADD THIS
-    full_name: Optional[str] = None
-    gpa: float
-    courses: str
-    bio: str
-
-class TutorApplicationStatusUpdate(BaseModel):
-    status: str
-
-# ... (keep all your existing endpoints) ...
-
 #----------------------------------------------------------
 # Tutor Application Endpoints (for students/tutors applying)
 
-@router.post("/tutor-applications")
-def create_tutor_application(application: TutorApplicationCreate):
-    global application_id_counter
-    application_id_counter += 1
-    new_application = {
-        "id": application_id_counter,
-        "user_id": application.user_id,
-        "email": application.email,  
-        "full_name": application.full_name or f"User #{application.user_id}", 
-        "gpa": application.gpa,
-        "courses": application.courses,
-        "bio": application.bio,
-        "status": "pending",
-        "created_at": datetime.now().isoformat()
-    }
-    tutor_applications_store.append(new_application)
-    return new_application
+# Submit a tutor application
+@router.post("/tutor-applications", response_model=TutorApplicationResponse)
+def submit_application(data: TutorApplicationCreate, db: Session = Depends(get_db)):
+    return create_application(db, data)
 
-@router.get("/tutor-applications")
-def get_tutor_applications(db: Session = Depends(get_db)):
-    from search.models.user import User
-    
-    enriched_applications = []
-    for app in tutor_applications_store:
-        user_id = app.get("user_id")
-        full_name = app.get("full_name", "")
-        
-        # If full_name is missing or is the default "User #id" format, look up the user
-        if not full_name or full_name.startswith("User #"):
-            user = db.query(User).filter(User.user_id == user_id).first()
-            if user:
-                full_name = f"{user.first_name} {user.last_name}".strip()
-                if not full_name:
-                    full_name = user.sfsu_email.split("@")[0] if user.sfsu_email else f"User #{user_id}"
-        
-        enriched_app = {**app, "full_name": full_name}
-        enriched_applications.append(enriched_app)
-    
-    return enriched_applications
+# gets all tutor applications for admin view
+@router.get("/all-tutor-applications")
+def get_all_tutor_applications(db: Session = Depends(get_db)):
+    apps = db.query(TutorApplication).order_by(TutorApplication.created_at.desc()).all()
+    return {"items": [TutorApplicationResponse.from_orm(app) for app in apps]}
 
-@router.patch("/tutor-applications/{application_id}/status")
-def update_tutor_application_status(
-    application_id: int, 
-    update: TutorApplicationStatusUpdate,
-    db: Session = Depends(get_db)
-):
-    for app in tutor_applications_store:
-        if app["id"] == application_id:
-            app["status"] = update.status
-            user_id = app.get("user_id")
-            
-            if user_id:
-                if update.status == "approved":
-                    # Promote user to tutor
-                    promote_to_tutor(db, user_id)
-                elif update.status in ["rejected", "pending"]:
-                    # Demote user back to student
-                    demote_to_student_only(db, user_id)
-            
-            return app
-    raise HTTPException(status_code=404, detail="Application not found")
-@router.patch("/fix-user/{user_id}/demote")
-def force_demote_user(user_id: int, db: Session = Depends(get_db)):
-    """Temporary endpoint to force demote a user to student"""
-    from search.models.user import User
-    from search.models.tutor_profile import TutorProfile
+#updates status of tutor_application entry(if approved, adds tutor_profile entry)
+@router.patch("/tutor-applications/{application_id}/status", response_model=TutorApplicationResponse)
+def update_status(application_id: int, body: TutorApplicationUpdateStatus, db: Session = Depends(get_db)):
+    if body.status == "approved":
+        updated = approve_application(db, application_id)
+    elif body.status == "rejected":
+        updated = reject_application(db, application_id)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid status")
     
-    user = db.query(User).filter(User.user_id == user_id).first()
-    if user:
-        user.role = "student"
-    profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == user_id).first()
-    if profile:
-        db.delete(profile)
-    db.commit()
-    return {"message": f"User {user_id} forced to student role"}
-# In-memory storage for coverage requests (replace with database in production)
-coverage_requests_store = []
+    return updated
 
-@router.get("/coverage-requests")
+#------------------------------------------------------------
+# ADMIN: Course Coverage Requests (NOT FIXED YET- WILL DO Soon)
+"""@router.get("/coverage-requests")
 async def get_coverage_requests(db: Session = Depends(get_db)):
-    """Get all coverage requests for admin review"""
+    #Get all coverage requests for admin review
     from search.models.user import User
     
     enriched_requests = []
@@ -148,7 +73,7 @@ async def get_coverage_requests(db: Session = Depends(get_db)):
 
 @router.post("/coverage-requests")
 async def create_coverage_request(request: dict):
-    """Create a new coverage request (from students/tutors)"""
+    #Create a new coverage request (from students/tutors)
     import uuid
     from datetime import datetime
     
@@ -172,7 +97,7 @@ async def update_coverage_request_status(
     body: dict,
     db: Session = Depends(get_db)
 ):
-    """Update coverage request status"""
+    #Update coverage request status
     from search.models.course import Course
     
     new_status = body.get("status")
@@ -213,6 +138,12 @@ async def update_coverage_request_status(
             return {"message": f"Request {new_status}", "request": req}
     
     raise HTTPException(status_code=404, detail="Request not found")
+
+"""
+
+
+
+
 
 @router.get("/debug/courses")
 async def list_all_courses(db: Session = Depends(get_db)):

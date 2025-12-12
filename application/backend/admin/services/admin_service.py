@@ -1,7 +1,8 @@
 from admin.models.reports import Reports
 from admin.schemas.report_schema import ReportInfo
 from admin.models.tutor_course_request import TutorCourseRequest
-
+from admin.models.tutor_application import TutorApplication
+from admin.schemas.tutor_application_schema import TutorApplicationCreate
 from search.models.course import Course
 from search.models.user import User
 from search.models.tutor_profile import TutorProfile
@@ -12,51 +13,54 @@ from sqlalchemy import or_, func
 #----------------------------------------------------------
 # Admin: Manage tutors
 
-#Promote:student to tutor
-#add to tutor_profile based on application inputs 
-def promote_to_tutor(db:Session, user_id:int):
-    user = db.query(User).filter(User.user_id ==user_id).first()
-    if not user:
-        raise HTTPException(404,"user not found")
-    
-    if user.role == "tutor":
-        raise HTTPException(400,"user is already a tutor")
-    
-    #update role in users db table
-    user.role="tutor"
+# Create a tutor application(submitted via student)
+def create_application(db: Session, data: TutorApplicationCreate):
+    application = TutorApplication(**data.dict())
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return application
 
-    #add to tutor_profile db table
-    profile = TutorProfile(
-        tutor_id = user.user_id,
-        bio=None,
-        hourly_rate_cents=0,
-        languages=None,
+# ADMIN: Approve a tutor application
+def approve_application(db: Session, application_id: int):
+    app = db.query(TutorApplication).filter(TutorApplication.application_id == application_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    if app.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Application already {app.status}")
+
+    # Update status in tutor_applications table
+    app.status = "approved"
+
+    # adds an entry to tutor_profile table
+    tutor_profile = TutorProfile(
+        tutor_id=app.user_id,
+        bio=app.bio,
         status="approved"
     )
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-    return profile
+    db.add(tutor_profile)
 
-#Demote: tutor to student only role
-def demote_to_student_only(db: Session, user_id:int):
-    user = db.query(User).filter(User.user_id==user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="user not found")
-    
-    # If user is already a student, just return - no error
-    if user.role != "tutor":
-        return {"message": f"user {user_id} is already a student"}
-    
-    #change role in user db table
-    user.role = "student"
-    profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == user_id).first()
-    #remove corresponding table entry from tutor_profile
-    if profile:
-        db.delete(profile)
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
 
+    db.refresh(app)
+    return app
+
+# Reject a tutor application
+def reject_application(db: Session, application_id: int):
+    app = db.query(TutorApplication).filter(TutorApplication.application_id == application_id).first()
+    if not app:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    if app.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Application already {app.status}")
+    app.status = "rejected"
     db.commit()
-    return {"message": f"user {user_id} demoted to student and tutor_profile removed."}
+    db.refresh(app)
+    return app
+
 
 
 #--------------------------------------------------------------------

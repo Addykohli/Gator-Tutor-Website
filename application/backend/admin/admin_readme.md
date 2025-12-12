@@ -160,40 +160,105 @@ PATCH /api/admin/deactivate/30
   "is_active": false
 }
 ````
+## ADMIN: Tutor Application Endpoints
 
-## ADMIN: Tutor Management Endpoints
+Admins can manage student applications to become tutors. They can view all applications, approve, or reject them. Approving an application automatically creates a tutor_profile for the student.
 
-### 
-Promote Student to Tutor in user roles.
-Demote Tutor to Student.
+### GET /api/admin/all-tutor-applications
 
-Still have to do: endpoints to change tutor_profile entries like bio, rate based on application values recieved
+List all tutor applications in the system.
 
-### POST /api/admin/tutors/promote/{user_id}
-Promote Student to Tutor in user roles, and adds a tutor_profile entry as well with status "approved".
-default tutoring rate is 0. Null for bio & languages.
+#### Response (200 OK)
+````json
+[
+  {
+    "application_id": 1,
+    "user_id": 2,
+    "full_name": "Erin Low",
+    "email": "erin.low@sfsu.edu",
+    "gpa": 3.0,
+    "courses": "BIO 100",
+    "bio": "I want to tutor",
+    "status": "pending",
+    "created_at": "2026-11-12T02:00:00"
+  },
+  {
+    "application_id": 2,
+    "user_id": 5,
+    "full_name": "Nina Pak",
+    "email": "nina.pak@sfsu.edu",
+    "gpa": 3.5,
+    "courses": "CHEM 100",
+    "bio": "CHEM Major.",
+    "status": "approved",
+    "created_at": "2026-11-10T15:23:00"
+  }
+]
+````
+### PATCH /api/admin/tutor-application/{application_id}/approve
 
-#### Response (201 Created)
+Approve a pending tutor application.
+This also automatically creates a tutor_profile entry for the student with status set to "approved" and default hourly_rate_cents of 0.
+
+#### Request
+PATCH /api/admin/tutor-application/1/approve
+
+##### Response (200 OK)
 ````json
 {
-  "tutor_id": 12,
-  "bio": null,
-  "hourly_rate_cents": 0,
-  "languages": null,
-  "status": "approved"
+  "application_id": 1,
+  "user_id": 2,
+  "full_name": "John Doe",
+  "email": "johndoe@example.com",
+  "gpa": 3.8,
+  "courses": "CSC210, MATH226",
+  "bio": "I love teaching programming.",
+  "status": "approved",
+  "created_at": "2026-11-12T02:00:00",
+  "tutor_profile": {
+    "tutor_id": 2,
+    "bio": "I love teaching programming.",
+    "hourly_rate_cents": 0,
+    "languages": null,
+    "status": "approved"
+  }
 }
 ````
 
-### PATCH /api/admin/tutors/demote/{user_id}
-Demote Tutor to student.
-Deletes relevant tutor_profile entry from db table
+**Possible Errors**
+
+- 404 Not Found: Application not found
+- 400 Bad Request: Application already approved/rejected
+
+### PATCH /api/admin/tutor-application/{application_id}/reject
+
+Reject a pending tutor application.
+This sets the application's status to "rejected" and does not create a tutor profile.
+
+#### Request
+PATCH /api/admin/tutor-application/1/reject
 
 #### Response (200 OK)
 ````json
 {
-  "message": "user 2 demoted to student and tutor_profile removed."
+  "application_id": 1,
+  "user_id": 2,
+  "full_name": "John Doe",
+  "email": "johndoe@example.com",
+  "gpa": 3.8,
+  "courses": "CSC210, MATH226",
+  "bio": "I love teaching programming.",
+  "status": "rejected",
+  "created_at": "2026-11-12T02:00:00"
 }
 ````
+
+**Possible Errors**
+- 404 Not Found: Application not found
+
+- 400 Bad Request: Application already approved/rejected
+
+
 ## ADMIN: Tutor Course Request Management Endpoints
 For admin to manage tutor requests to add more courses that they can tutor(ie more relevant entries in tutor_courses).
 
