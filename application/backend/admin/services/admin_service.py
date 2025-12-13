@@ -12,6 +12,10 @@ from search.models.tutor_course import TutorCourse
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from sqlalchemy import or_, func
+from schedule.models.booking import Booking
+from schedule.models.availability_slot import AvailabilitySlot
+from chat.models.chat_message import ChatMessage
+from chat.models.chat_media import ChatMedia
 import re
 #----------------------------------------------------------
 # Admin: Manage tutors
@@ -292,3 +296,60 @@ def get_user_id_by_name(db: Session, name: str):
         )
     ).first()
     return user.user_id if user else None
+
+#----------------------------------------------------------
+# Admin: Drop/Delete User
+
+def drop_user(db: Session, user_id: int, role: str = None):
+    """
+    Soft delete a user by setting is_deleted flag.
+    Preserves all related records for historical data.
+    
+    Args:
+        db: Database session
+        user_id: ID of the user to delete
+        role: Optional role verification (tutor, student, admin, both)
+    
+    Returns:
+        Dictionary with deletion details
+    """
+    # Find the user
+    user = db.query(User).filter(User.user_id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Verify role if provided
+    if role and user.role != role:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"User role mismatch. Expected {role}, but user has role {user.role}"
+        )
+    
+    user_email = user.sfsu_email
+    user_name = f"{user.first_name} {user.last_name}"
+    user_role = user.role
+    
+    # Soft delete: set the flag
+    user.is_deleted = True
+    
+    # Anonymize email to prevent reuse (keeps unique constraint happy)
+    user.sfsu_email = f"deleted_{user_id}_{user.sfsu_email}"
+    
+    # If tutor, deactivate their profile
+    if user.role in ["tutor", "both"]:
+        tutor_profile = db.query(TutorProfile).filter(
+            TutorProfile.tutor_id == user_id
+        ).first()
+        if tutor_profile:
+            tutor_profile.status = "rejected"  # Hide from search
+    
+    db.commit()
+    db.refresh(user)
+    
+    return {
+        "message": f"User {user_name} ({user_email}) successfully deleted",
+        "deleted_user_id": user_id,
+        "deleted_email": user.sfsu_email,
+        "deleted_name": user_name,
+        "deleted_role": user_role
+    }

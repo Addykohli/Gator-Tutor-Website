@@ -62,7 +62,8 @@ def get_chat(db: Session, user1: int, user2: int):
             "content": msg.content,
             "media_path": media.media_path if media else None,
             "media_type": media.media_type if media else None,
-            "created_at": msg.created_at
+            "created_at": msg.created_at,
+            "is_read": msg.is_read
         })
     return result
 

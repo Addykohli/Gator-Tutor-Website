@@ -9,6 +9,7 @@ from search.database import get_db
 from auth.services.auth_service import get_user
 from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse
 from admin.schemas.tutor_application_schema import TutorApplicationCreate, TutorApplicationResponse, TutorApplicationUpdateStatus
+from admin.schemas.user_schema import DropUserRequest, DropUserResponse
 from admin.services.admin_service import (
     create_tutor_course_request,
     get_all_tutor_course_requests,
@@ -25,8 +26,8 @@ from admin.services.admin_service import (
     get_all_reports,
     get_user_id_by_name,
     create_report,
-    get_user_reports
-
+    get_user_reports,
+    drop_user
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -159,3 +160,18 @@ def get_user_reports_endpoint(user_id: int = Query(None), name: str = Query(None
 @router.patch("/report/{report_id}/status", response_model= ReportResponse)
 def update_report_endpoint(report_id:int, status:str, db:Session=Depends(get_db)):
     return update_report_status(db, report_id, status)
+
+#----------------------------------------------------------
+# Admin: Drop/Delete User Endpoint
+
+@router.delete("/drop-user/{user_id}", response_model=DropUserResponse)
+def drop_user_endpoint(user_id: int, role: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Soft delete a user by setting is_deleted flag.
+    Admin can specify user_id and optionally verify the role via query parameter.
+    
+    Args:
+        user_id: ID of the user to delete
+        role: Optional role verification (tutor, student, admin, both)
+    """
+    return drop_user(db=db, user_id=user_id, role=role)

@@ -442,3 +442,184 @@ Admin can remove tutor_course entry with corresponding tutor_id and course_id.
 - 404: course/tutor not found
 - 404: Not currently a tutor of this course.
 
+## ADMIN: Delete User (Soft Delete) Endpoint
+
+The Admin Delete User API provides functionality for administrators to soft-delete users from the system. Unlike hard deletion, soft deletion preserves all user data and related records for historical purposes while preventing the user from accessing the system.
+
+### DELETE /api/admin/drop-user/{user_id}
+
+Soft deletes a user by setting the `is_deleted` flag to `true`. The user record remains in the database, but they cannot log in or appear in search results.
+
+#### URL Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `user_id` | integer | Yes | The ID of the user to delete |
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `role` | string | No | Optional role verification. If provided, the user's role must match this value. Valid values: `tutor`, `student`, `admin`, `both` |
+
+#### Request Example
+
+```bash
+# Delete a user without role verification
+DELETE /api/admin/drop-user/123
+
+# Delete a user with role verification
+DELETE /api/admin/drop-user/123?role=student
+```
+
+#### Response
+
+**Success Response (200 OK)**
+
+```json
+{
+  "message": "User John Doe (john.doe@sfsu.edu) successfully deleted",
+  "deleted_user_id": 123,
+  "deleted_email": "deleted_123_john.doe@sfsu.edu",
+  "deleted_name": "John Doe",
+  "deleted_role": "student"
+}
+```
+
+**Response Fields**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `message` | string | Success message with user details (includes original email in message) |
+| `deleted_user_id` | integer | ID of the deleted user |
+| `deleted_email` | string | Anonymized email address (format: `deleted_{user_id}_{original_email}`) |
+| `deleted_name` | string | Full name of the deleted user |
+| `deleted_role` | string | Role of the deleted user (`tutor`, `student`, `admin`, or `both`) |
+
+**Note**: The response does not include `related_records_deleted` because soft delete preserves all related records. All bookings, messages, reports, and other data remain intact.
+
+#### Error Responses
+
+**404 Not Found**
+
+User with the specified ID does not exist.
+
+```json
+{
+  "detail": "User not found"
+}
+```
+
+**400 Bad Request**
+
+Role verification failed - the user's role doesn't match the provided role parameter.
+
+```json
+{
+  "detail": "User role mismatch. Expected tutor, but user has role student"
+}
+```
+
+**500 Internal Server Error**
+
+An unexpected error occurred during deletion.
+
+```json
+{
+  "detail": "Error deleting user: {error message}"
+}
+```
+
+### How Soft Delete Works
+
+#### What Happens When a User is Deleted
+
+1. **User Flag Set**: The user's `is_deleted` field is set to `true`
+2. **Email Anonymization**: The user's email is anonymized to `deleted_{user_id}_{original_email}` to prevent reuse while maintaining database unique constraints
+3. **Tutor Profile Deactivation**: If the user is a tutor (role is `tutor` or `both`), their tutor profile status is set to `rejected`, which hides them from tutor search results
+4. **Data Preservation**: All user data and related records remain in the database:
+   - Bookings (as tutor or student)
+   - Chat messages (sent and received)
+   - Reports (as reporter or reported user)
+   - Tutor applications
+   - Course requests
+   - Tutor course requests
+   - All other related records
+
+#### What Users Cannot Do After Deletion
+
+- **Cannot Log In**: Deleted users are filtered out of authentication queries
+- **Hidden from Search**: Deleted users do not appear in tutor or user searches
+- **Cannot Access System**: All API endpoints that check user authentication will reject deleted users
+
+#### What Data is Preserved
+
+All historical data is preserved:
+- Booking history
+- Chat message history
+- Report history
+- Application history
+- Course request history
+
+This allows administrators to:
+- Maintain audit trails
+- Preserve historical records
+- Investigate past issues
+- Restore users if needed (by setting `is_deleted = false`)
+
+### Role Verification
+
+The optional `role` query parameter allows administrators to add an extra safety check:
+
+```bash
+# This will only delete the user if their role is "student"
+DELETE /api/admin/drop-user/123?role=student
+```
+
+If the user's role doesn't match the provided role, a 400 error is returned and the deletion is aborted.
+
+### Use Cases
+
+#### Delete a Student
+
+```bash
+DELETE /api/admin/drop-user/456?role=student
+```
+
+#### Delete a Tutor
+
+```bash
+DELETE /api/admin/drop-user/789?role=tutor
+```
+
+When a tutor is deleted, their profile is automatically deactivated, removing them from tutor search results.
+
+#### Delete a User Without Role Check
+
+```bash
+DELETE /api/admin/drop-user/123
+```
+
+Use this when you're certain about the user ID and don't need role verification.
+
+### Database Schema
+
+The `users` table includes an `is_deleted` boolean field:
+
+```sql
+ALTER TABLE users ADD COLUMN is_deleted BOOLEAN DEFAULT FALSE NOT NULL;
+CREATE INDEX idx_users_is_deleted ON users(is_deleted);
+```
+
+### Security Considerations
+
+1. **Admin Only**: This endpoint should only be accessible to administrators
+2. **Role Verification**: Use the `role` parameter when you want to ensure you're deleting the correct type of user
+3. **Audit Trail**: Consider logging all user deletions for audit purposes
+4. **Reversibility**: Soft delete allows for user restoration if needed
+
+**Possible Errors**
+- 404 Not Found: User not found
+- 400 Bad Request: User role mismatch (when role verification fails)
+- 500 Internal Server Error: Database error during deletion
+

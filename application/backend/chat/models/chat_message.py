@@ -1,7 +1,7 @@
 """
 Chat Message model representing individual messages of the chat.
 """
-from sqlalchemy import Column, Integer, ForeignKey, DateTime,Text
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, Text, Boolean
 from sqlalchemy.orm import relationship
 from search.database import Base
 from datetime import datetime
@@ -22,6 +22,7 @@ class ChatMessage(Base):
     receiver_id = Column(Integer, ForeignKey("users.user_id"))
     content = Column(Text, nullable =True)
     created_at = Column(DateTime, default = datetime.utcnow)
+    is_read = Column(Boolean, default=False, nullable=False, index=True)
 
     #point to chatmedia model
     chat_media = relationship("ChatMedia", back_populates="message")

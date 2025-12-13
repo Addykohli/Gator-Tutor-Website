@@ -1,5 +1,6 @@
 from chat.schemas.chat_schemas import MessageInfo, MediaMessageInfo, MessageResponse
 from chat.services.chat_service import send_message, send_message_with_media, get_chat, get_user_chats
+from chat.models.chat_message import ChatMessage
 from auth.services.auth_service import get_user_by_id
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from fastapi.responses import FileResponse
@@ -33,19 +34,30 @@ def send_endpoint(req: MessageInfo, db: Session = Depends(get_db), user_id: int 
         content=message.content,
         media_path=None,
         media_type=None,
-        created_at=message.created_at
+        created_at=message.created_at,
+        is_read=message.is_read
     )
 
-@router.get("/api/messages/unread-count")
-async def get_unread_count():
-    """Get count of unread messages - simplified version"""
-    return {"unread_count": 0}
+@router.patch("/messages/{message_id}/read")
+def mark_message_read(message_id: int, db: Session = Depends(get_db)):
+    """Mark a single message as read"""
+    msg = db.query(ChatMessage).filter(ChatMessage.message_id == message_id).first()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+    msg.is_read = True
+    db.commit()
+    return {"success": True, "message_id": message_id, "is_read": True}
 
-@router.patch("/api/messages/{conversation_id}/mark-read")
-async def mark_messages_read(conversation_id: int):
-    """Mark messages as read - simplified version"""
-    return {"success": True}
-
+@router.patch("/messages/mark-read")
+def mark_conversation_read(receiver_id: int, sender_id: int, db: Session = Depends(get_db)):
+    """Mark all messages in a conversation as read"""
+    updated = db.query(ChatMessage).filter(
+        ChatMessage.receiver_id == receiver_id,
+        ChatMessage.sender_id == sender_id,
+        ChatMessage.is_read == False
+    ).update({"is_read": True})
+    db.commit()
+    return {"success": True, "messages_marked_read": updated}
 
 @router.post("/send-media", response_model=MessageResponse)
 async def send_media_endpoint(
@@ -83,7 +95,8 @@ async def send_media_endpoint(
         content=message.content,
         media_path=media.media_path,
         media_type=media.media_type,
-        created_at=message.created_at
+        created_at=message.created_at,
+        is_read=message.is_read
     )
 
 @router.get("/media/{filename}")
