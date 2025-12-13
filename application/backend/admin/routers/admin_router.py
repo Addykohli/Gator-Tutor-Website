@@ -3,7 +3,7 @@ from admin.schemas.course_schema import CourseCreate, CourseResponse
 from admin.schemas.course_request_schema import CourseRequestCreate, CourseRequestResponse, CourseUpdate
 from admin.schemas.tutor_schema import TutorProfileResponse
 from admin.models.tutor_application import TutorApplication
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from search.database import get_db
 from auth.services.auth_service import get_user
@@ -20,7 +20,13 @@ from admin.services.admin_service import (
     reject_application,
     create_course_request,
     get_all_course_requests,
-    update_course_request_status
+    update_course_request_status,
+    update_report_status,
+    get_all_reports,
+    get_user_id_by_name,
+    create_report,
+    get_user_reports
+
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -125,40 +131,31 @@ def remove_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
 #----------------------------------------------------------
 # Reports Endpoints
 
-@router.get("/allreports")
-def get_all_reports(db: Session = Depends(get_db)):
-    """Get all reports with user information"""
-    from admin.models.reports import Reports
-    from search.models.user import User
+#user submits report to admin(seen in appointments-page)
+@router.post("/report", response_model=ReportResponse)
+def create_report_endpoint(data:ReportCreate, db:Session=Depends(get_db)):
+    return create_report(db,data)
+
+#GET reports- view all reports for admin
+@router.get("/allreports", response_model=list[ReportResponse])
+def get_reports_endpoint(db:Session = Depends(get_db)):
+    return get_all_reports(db)
+
+#get user specific report
+@router.get("/userreports", response_model=list[ReportResponse])
+def get_user_reports_endpoint(user_id: int = Query(None), name: str = Query(None), db: Session = Depends(get_db)):
+    if name:
+        found_user_id = get_user_id_by_name(db, name)
+        if not found_user_id:
+            return [] 
+        return get_user_reports(db, found_user_id)
     
-    try:
-        reports = db.query(Reports).order_by(Reports.created_at.desc()).all()
+    if user_id:
+        return get_user_reports(db, user_id)
         
-        enriched_reports = []
-        for report in reports:
-            # Get reporter info
-            reporter = db.query(User).filter(User.user_id == report.reporter_id).first()
-            reporter_name = f"{reporter.first_name} {reporter.last_name}".strip() if reporter else f"User #{report.reporter_id}"
-            reporter_email = reporter.sfsu_email if reporter else ""
-            
-            # Get reported user info
-            reported_user = db.query(User).filter(User.user_id == report.reported_user_id).first()
-            reported_user_name = f"{reported_user.first_name} {reported_user.last_name}".strip() if reported_user else f"User #{report.reported_user_id}"
-            reported_user_email = reported_user.sfsu_email if reported_user else ""
-            
-            enriched_reports.append({
-                "report_id": report.report_id,
-                "reporter_id": report.reporter_id,
-                "reporter_name": reporter_name,
-                "reporter_email": reporter_email,
-                "reported_user_id": report.reported_user_id,
-                "reported_user_name": reported_user_name,
-                "reported_user_email": reported_user_email,
-                "reason": report.reason,
-                "status": report.status,
-                "created_at": report.created_at.isoformat() if report.created_at else None
-            })
-        
-        return enriched_reports
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch reports: {str(e)}")
+    return get_all_reports(db)
+
+#a way to update report status
+@router.patch("/report/{report_id}/status", response_model= ReportResponse)
+def update_report_endpoint(report_id:int, status:str, db:Session=Depends(get_db)):
+    return update_report_status(db, report_id, status)

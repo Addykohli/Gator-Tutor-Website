@@ -245,16 +245,17 @@ def deactivate_course(db:Session, course_id:int):
 #----------------------------------------------------------
 # Admin: Reports
 
-def create_report(db:Session, data:ReportInfo):
+def create_report(db: Session, data: ReportInfo):
     report = Reports(
-        reporter_id = data.reporter_id,
-        reported_user_id = data.reported_user_id,
-        reason = data.reason
+        reporter_id=data.reporter_id,
+        reported_user_id=data.reported_user_id,
+        reason=data.reason
     )
     db.add(report)
     db.commit()
     db.refresh(report)
     return report
+
 
 #all reports for all users
 def get_all_reports(db:Session):
@@ -268,14 +269,19 @@ def get_user_reports(db:Session, user_id:int):
 # that just have a list of reports and not knowing what has been addressed.
 # Frontend could provide visual indicator of reports status for easier on platform management.
 # (submitted, reviewing, closed)
-def update_report_status(db, report_id, status):
-    report = db.query(Reports).filter(Reports.report_id ==report_id).first()
+def update_report_status(db: Session, report_id: int, status: str):
+    if status not in {"submitted", "reviewing", "closed"}:
+        raise HTTPException(400, "Invalid status")
+
+    report = db.query(Reports).filter(Reports.report_id == report_id).first()
     if not report:
-        raise HTTPException(404,"report not found")
+        raise HTTPException(404, "Report not found")
+
     report.status = status
     db.commit()
     db.refresh(report)
     return report
+
 
 def get_user_id_by_name(db: Session, name: str):
     # Case-insensitive search for first or last name
