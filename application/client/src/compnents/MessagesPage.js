@@ -59,25 +59,12 @@ const MessagesPage = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
-  const [lastSeenMessages, setLastSeenMessages] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`lastSeenMessages_${getLoggedInUserId()}`);
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
-  const saveLastSeen = (partnerId, messageId) => {
-    const updated = { ...lastSeenMessages, [partnerId]: messageId };
-    setLastSeenMessages(updated);
-    localStorage.setItem(`lastSeenMessages_${currentUserId}`, JSON.stringify(updated));
-  };
+  const [unreadPartners, setUnreadPartners] = useState({});
 
   const hasUnreadMessages = (partnerId) => {
-    const lastSeen = lastSeenMessages[partnerId] || 0;
-    const lastMessage = partnerLastMessages[partnerId] || 0;
-    return lastMessage > lastSeen;
-  }; const [partnerLastMessages, setPartnerLastMessages] = useState({});
+  return unreadPartners[partnerId] === true;
+};
+  const [partnerLastMessageTime, setPartnerLastMessageTime] = useState({});
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState('');
@@ -207,30 +194,36 @@ const MessagesPage = () => {
         const userIds = await response.json();
         const partnersPromises = userIds.map(id => fetchUserInfo(id));
         const partners = await Promise.all(partnersPromises);
-
-        // Fetch last message ID for each partner
-        const lastMsgs = {};
+  
+        const unreadStatus = {};
+        const lastMsgTimes = {};
+        
         for (const partner of partners) {
           try {
             const msgResponse = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partner.id}`);
             if (msgResponse.ok) {
               const msgs = await msgResponse.json();
               if (msgs.length > 0) {
-                lastMsgs[partner.id] = msgs[msgs.length - 1].message_id;
+                const lastMsg = msgs[msgs.length - 1];
+                // Store timestamp for sorting
+                lastMsgTimes[partner.id] = new Date(lastMsg.created_at).getTime();
+                // Check for unread
+                const hasUnread = msgs.some(
+                  msg => msg.sender_id === partner.id && msg.is_read === false
+                );
+                unreadStatus[partner.id] = hasUnread;
               }
             }
           } catch (e) {
-            console.error('Error fetching last message:', e);
+            console.error('Error fetching messages:', e);
           }
         }
-        setPartnerLastMessages(lastMsgs);
+        setPartnerLastMessageTime(lastMsgTimes);
+        setUnreadPartners(unreadStatus);
         setChatPartners(partners);
-      } else {
-        setChatPartners([]);
       }
     } catch (error) {
       console.error('Error fetching chat partners:', error);
-      setChatPartners([]);
     } finally {
       setLoading(false);
     }
@@ -280,13 +273,25 @@ const MessagesPage = () => {
     }
   };
 
-  const handleSelectPartner = (partner) => {
+  const handleSelectPartner = async (partner) => {
     setSelectedPartnerId(partner.id);
     setSending(false);
     fetchMessages(partner.id);
-    // Mark as read - save the last message ID for this partner
-    if (partnerLastMessages[partner.id]) {
-      saveLastSeen(partner.id, partnerLastMessages[partner.id]);
+    
+    // Mark messages as read in the database
+    try {
+      await fetch(`${CHAT_API_BASE}/api/chat/messages/mark-read?receiver_id=${currentUserId}&sender_id=${partner.id}`, {
+        method: 'PATCH',
+      });
+      // Update local unread status
+      setUnreadPartners(prev => ({ ...prev, [partner.id]: false }));
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+    
+    // On mobile, hide sidebar when chat is selected
+    if (isMobile) {
+      setSidebarVisible(false);
     }
   };
 
@@ -354,6 +359,8 @@ const MessagesPage = () => {
           setMessages(prev => [...prev, sentMessage]);
           setNewMessage('');
           setSelectedFile(null);
+          // ADD THIS LINE:
+          setPartnerLastMessageTime(prev => ({ ...prev, [selectedPartnerId]: Date.now() }));
           if (fileInputRef.current) {
             fileInputRef.current.value = '';
           }
@@ -375,6 +382,8 @@ const MessagesPage = () => {
         };
         setMessages(prev => [...prev, tempMessage]);
         setNewMessage('');
+        // ADD THIS LINE:
+        setPartnerLastMessageTime(prev => ({ ...prev, [selectedPartnerId]: Date.now() }));
 
         if (wsConnected && wsRef.current?.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({
@@ -382,20 +391,7 @@ const MessagesPage = () => {
             content: messageContent,
           }));
         } else {
-          const response = await fetch(`${CHAT_API_BASE}/api/chat/send?user_id=${currentUserId}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              receiver_id: selectedPartnerId,
-              content: messageContent,
-            }),
-          });
-
-          if (!response.ok) {
-            console.error('Failed to send message');
-          }
+          // ... rest of the code
         }
       }
     } catch (error) {
@@ -406,14 +402,13 @@ const MessagesPage = () => {
   };
 
   const filteredPartners = chatPartners
-    .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => {
-      const aUnread = hasUnreadMessages(a.id);
-      const bUnread = hasUnreadMessages(b.id);
-      if (aUnread && !bUnread) return -1;
-      if (!aUnread && bUnread) return 1;
-      return 0;
-    });
+  .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
+  .sort((a, b) => {
+    // Sort by last message time (most recent first)
+    const aTime = partnerLastMessageTime[a.id] || 0;
+    const bTime = partnerLastMessageTime[b.id] || 0;
+    return bTime - aTime;
+  });
 
   const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) ||
     allUsers.find(u => u.id === selectedPartnerId);
