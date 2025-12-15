@@ -17,6 +17,8 @@ from schedule.models.availability_slot import AvailabilitySlot
 from chat.models.chat_message import ChatMessage
 from chat.models.chat_media import ChatMedia
 import re
+
+DEFAULT_TUTOR_IMAGE = "/static/images/default_photo.jpg"
 #----------------------------------------------------------
 # Admin: Manage tutors
 
@@ -43,7 +45,9 @@ def approve_application(db: Session, application_id: int):
     tutor_profile = TutorProfile(
         tutor_id=app.user_id,
         bio=app.bio,
-        status="approved"
+        status="approved",
+        profile_image_path_full=DEFAULT_TUTOR_IMAGE,
+        profile_image_path_thumb=DEFAULT_TUTOR_IMAGE
     )
     db.add(tutor_profile)
 

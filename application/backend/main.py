@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+import os
 
 from auth.routers.auth_router import router as auth_router
 from search.routers.router import router as search_router
@@ -11,6 +13,9 @@ from tutors.router import router as tutors_router
 
 
 app = FastAPI(title="Team08 API", version="0.1.0")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MULTIMEDIA_DIR = os.path.join(BASE_DIR, "multimedia")
+app.mount("/static", StaticFiles(directory=MULTIMEDIA_DIR), name="static")
 
 app.add_middleware(
     CORSMiddleware,
