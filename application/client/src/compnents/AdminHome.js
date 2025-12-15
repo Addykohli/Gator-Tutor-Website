@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
 import Header from './Header';
+import ProfileBg from '../assets/Pinning Ceremony.jpg';
 
 const AdminHome = () => {
   const navigate = useNavigate();
@@ -54,7 +55,7 @@ const AdminHome = () => {
 
     const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : '/api';
+      : '';
 
     const typeMap = {
       'tutor': 'tutor',
@@ -122,25 +123,76 @@ const AdminHome = () => {
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      backgroundColor: isDarkMode ? 'rgb(30, 30, 30)' : '#f8f9fa',
+      background: darkMode
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)'
+        : 'transparent',
+
       color: isDarkMode ? '#e6e6e6' : '#2c3e50',
       transition: 'all 0.3s ease'
     },
     content: {
       flex: 1,
-      padding: '5px 20px',
+      padding: "clamp(10px, 2vw, 20px)",
       maxWidth: '1200px',
       margin: '0 auto',
       width: '100%',
       boxSizing: 'border-box',
       transition: 'all 0.3s ease',
-      backgroundColor: isDarkMode ? 'rgb(30, 30, 30)' : '#f8f9fa',
+      backgroundColor: isDarkMode ? 'rgba(30, 30, 30, 0.0)' : '#f8f9fa',
+      //backdropFilter: 'blur(13.9px)',
+    },
+    gridContainer: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(250px, 30vw, 300px), 1fr))',
+      gap: "clamp(15px, 2vw, 20px)",
+      width: '100%',
+    },
+    card: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: "clamp(15px, 2vw, 20px)",
+      background: 'rgba(255, 255, 255, 0.15)',
+      borderRadius: '16px',
+      boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+      backdropFilter: 'blur(6.8px)',
+      WebkitBackdropFilter: 'blur(6.8px)',
+      border: 'none',
+      textDecoration: 'none',
+      color: isDarkMode ? '#e6e6e6' : '#2c3e50',
+      transition: 'all 0.3s ease',
+      cursor: 'pointer',
+      ':hover': {
+        background: 'rgba(255, 255, 255, 0.25)',
+        transform: 'translateY(-3px)',
+        boxShadow: '0 6px 35px rgba(0, 0, 0, 0.15)',
+      }
+    },
+    iconWrapper: {
+      width: "clamp(40px, 5vw, 50px)",
+      height: "clamp(40px, 5vw, 50px)",
+      borderRadius: '10px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: "clamp(12px, 1.5vw, 15px)",
+      flexShrink: 0,
+      fontSize: "clamp(1.1rem, 1.5vw, 1.3rem)",
+    },
+    cardTitle: {
+      fontSize: "clamp(0.95rem, 1.2vw, 1.1rem)",
+      fontWeight: '600',
+      whiteSpace: 'normal',
+      wordBreak: 'break-word',
+      lineHeight: '1.4',
     },
     primaryButton: {
-      backgroundColor: '#35006D',
+      background: 'rgba(255, 255, 255, 0.15)',
+      borderRadius: '16px',
+      boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+      backdropFilter: 'blur(6.8px)',
+      WebkitBackdropFilter: 'blur(6.8px)',
+      border: '1px solid rgba(255, 255, 255, 0.49)',
       color: 'white',
-      border: 'none',
-      borderRadius: '6px',
       padding: '10px 20px',
       cursor: 'pointer',
       display: 'flex',
@@ -150,8 +202,8 @@ const AdminHome = () => {
       fontWeight: '500',
       transition: 'all 0.2s',
       ':hover': {
-        backgroundColor: '#4b1a80',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+        boxShadow: '0 6px 35px rgba(0, 0, 0, 0.15)',
       },
       ':active': {
         transform: 'translateY(1px)',
@@ -161,9 +213,9 @@ const AdminHome = () => {
       color: isDarkMode ? '#e6e6e6' : '#2c3e50',
       textAlign: "center",
       padding: "0px",
-      borderBottom: "4px solid rgb(255, 220, 112)",
+      borderBottom: isMobile ? "2px solid rgb(255, 220, 112)" : "4px solid rgb(255, 220, 112)",
       display: "inline-block",
-      margin: "20px auto",
+      margin: isMobile ? "10px auto" : "20px auto",
       fontSize: isMobile ? "28px" : "45px",
       fontWeight: "600",
       lineHeight: "1.2",
@@ -214,17 +266,20 @@ const AdminHome = () => {
     },
     searchButton: {
       padding: '12px 24px',
-      backgroundColor: 'rgb(53, 0, 109)',
+      background: 'rgba(255, 255, 255, 0.15)',
+      borderRadius: '16px',
+      boxShadow: '0 4px 30px rgba(0, 0, 0, 0.1)',
+      backdropFilter: 'blur(6.8px)',
+      WebkitBackdropFilter: 'blur(6.8px)',
+      border: '1px solid rgba(255, 255, 255, 0.49)',
       color: 'white',
-      border: 'none',
-      borderRadius: '6px',
       cursor: 'pointer',
       width: isMobile ? '100%' : 'auto',
       fontSize: '16px',
       fontWeight: '600',
       transition: 'background-color 0.2s',
       '&:hover': {
-        backgroundColor: '#7a1a3d'
+        background: 'rgba(255, 255, 255, 0.25)',
       }
     },
     categoryDropdown: {
@@ -286,195 +341,283 @@ const AdminHome = () => {
       <div style={styles.content}>
         {/* User Profile Section */}
         <div style={{
-          backgroundColor: isDarkMode ? 'rgb(80, 80, 80)' : '#fff',
-          borderRadius: '12px',
-          boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.05)',
-          padding: '24px',
-          marginBottom: '20px',
+          backgroundImage: `url("${ProfileBg}")`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderRadius: '16px',
+          boxShadow: isDarkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.08)',
+          marginBottom: "clamp(20px, 3vw, 30px)",
           border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0',
           width: '100%',
-          maxWidth: '1000px',
+          maxWidth: '1200px',
           marginLeft: 'auto',
           marginRight: 'auto',
           boxSizing: 'border-box',
-          transition: 'all 0.3s ease'
+          transition: 'all 0.3s ease',
+          position: 'relative',
+          overflow: 'hidden'
         }}>
+          {/* Glass Overlay */}
           <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(200, 200, 200, 0.49)',
+            borderRadius: '16px',
+            zIndex: 1
+          }}></div>
+
+          {/* Content */}
+          <div style={{
+            position: 'relative',
+            zIndex: 2,
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: isMobile ? 'column' : 'row',
             alignItems: 'center',
-            paddingBottom: '20px',
-            marginBottom: '20px',
-            borderBottom: '1px solid #f0f0f0',
+            gap: "clamp(20px, 3vw, 40px)",
+            padding: "clamp(20px, 3vw, 30px)",
             width: '100%'
           }}>
             <div style={{
-              width: '90px',
-              height: '90px',
-              borderRadius: '50%',
-              backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
               display: 'flex',
+              flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center',
-              marginBottom: '16px',
-              overflow: 'hidden',
-              border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+              width: '100%'
             }}>
-              {user?.firstName && user?.lastName ? (
-                <div style={{
-                  fontSize: '36px',
-                  fontWeight: '600',
-                  color: '#9A2250',
-                  textTransform: 'uppercase'
-                }}>
-                  {user.firstName[0]}{user.lastName[0]}
-                </div>
-              ) : (
-                <i className="fas fa-user" style={{
-                  fontSize: '36px',
-                  color: '#9A2250',
-                  opacity: 0.7
-                }}></i>
-              )}
+              <div style={{
+                width: '90px',
+                height: '90px',
+                borderRadius: '50%',
+                backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '16px',
+                overflow: 'hidden',
+                border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+              }}>
+                {user?.firstName && user?.lastName ? (
+                  <div style={{
+                    fontSize: '36px',
+                    fontWeight: '600',
+                    color: '#9A2250',
+                    textTransform: 'uppercase'
+                  }}>
+                    {user.firstName[0]}{user.lastName[0]}
+                  </div>
+                ) : (
+                  <i className="fas fa-user" style={{
+                    fontSize: '36px',
+                    color: '#9A2250',
+                    opacity: 0.7
+                  }}></i>
+                )}
+              </div>
+
+              <h3 style={{
+                margin: '8px 0 6px',
+                color: isDarkMode ? '#e6e6e6' : (user ? '#2c3e50' : '#6c757d'),
+                fontSize: '1.5rem',
+                textAlign: 'center',
+                fontWeight: user ? '600' : '500',
+                transition: 'all 0.3s ease'
+              }}>
+                {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
+              </h3>
+
+              <div style={{
+                backgroundColor: '#9A2250',
+                color: 'white',
+                padding: '6px 18px',
+                borderRadius: '12px',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                marginTop: '8px',
+                letterSpacing: '0.3px',
+                display: 'inline-block',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+              }}>
+                Administrator
+              </div>
             </div>
-
-            <h3 style={{
-              margin: '8px 0 6px',
-              color: isDarkMode ? '#e6e6e6' : (user ? '#2c3e50' : '#6c757d'),
-              fontSize: '1.5rem',
-              textAlign: 'center',
-              fontWeight: user ? '600' : '500',
-              transition: 'all 0.3s ease'
-            }}>
-              {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
-            </h3>
-
-            <div style={{
-              backgroundColor: '#9A2250',
-              color: 'white',
-              padding: '6px 18px',
-              borderRadius: '12px',
-              fontSize: '0.9rem',
-              fontWeight: '600',
-              marginTop: '8px',
-              letterSpacing: '0.3px',
-              display: 'inline-block',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-            }}>
-              Administrator
-            </div>
-          </div>
-
-          {/* Admin Tools Grid */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-            gap: '15px',
-            width: '100%',
-            marginTop: '20px'
-          }}>
-            {[
-              {
-                title: 'Registered Tutors',
-                icon: 'chalkboard-teacher',
-                path: '/admin/registered-tutors',
-                color: '#4e73df'
-              },
-              {
-                title: 'Registered Students',
-                icon: 'user-graduate',
-                path: '/admin/registered-students',
-                color: '#1cc88a'
-              },
-              {
-                title: 'Tutor Applications',
-                icon: 'file-signature',
-                path: '/admin/tutor-applications',
-                color: '#f6c23e'
-              },
-              {
-                title: 'Reports',
-                icon: 'chart-bar',
-                path: '/reports',
-                color: '#e74a3b'
-              },
-              {
-                title: 'Tutor Course Addition Applications',
-                icon: 'plus-circle',
-                path: '/admin/tutor-course-applications',
-                color: '#36b9cc'
-              },
-              {
-                title: 'Course Catalog',
-                icon: 'book-reader',
-                path: '/admin/course-catalog',
-                color: '#6f42c1'
-              },
-              {
-                title: 'Messages',
-                icon: 'envelope',
-                path: '/messages',
-                color: '#fd7e14'
-              }
-            ].map((item, index) => (
-              <a
-                key={index}
-                href={item.path}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  padding: '16px',
-                  backgroundColor: isDarkMode ? '#1f4068' : 'white',
-                  borderRadius: '10px',
-                  textDecoration: 'none',
-                  color: isDarkMode ? '#e6e6e6' : '#2c3e50',
-                  transition: 'all 0.3s ease',
-                  border: isDarkMode ? '1px solid #2a2a4a' : '1px solid #f0f0f0'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-3px)';
-                  e.currentTarget.style.boxShadow = '0 6px 12px rgba(0,0,0,0.1)';
-                  e.currentTarget.style.borderColor = item.color;
-                  e.currentTarget.style.backgroundColor = `${item.color}08`;
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.transform = '';
-                  e.currentTarget.style.boxShadow = '';
-                  e.currentTarget.style.borderColor = isDarkMode ? '#2a2a4a' : '#f0f0f0';
-                  e.currentTarget.style.backgroundColor = isDarkMode ? '#1f4068' : 'white';
-                }}
-              >
-                <div style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '8px',
-                  backgroundColor: `${item.color}15`,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: '12px',
-                  flexShrink: 0,
-                  color: item.color,
-                  fontSize: '1.1rem'
-                }}>
-                  <i className={`fas fa-${item.icon}`}></i>
-                </div>
-                <span style={{
-                  fontSize: '0.95rem',
-                  fontWeight: '600',
-                  whiteSpace: 'normal',
-                  wordBreak: 'break-word',
-                  lineHeight: '1.4'
-                }}>
-                  {item.title}
-                </span>
-              </a>
-            ))}
           </div>
         </div>
 
-        {/* Search Section - Now full width */}
-        <div style={{
+
+        {/* Admin Tools Sections */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '30px', marginTop: '30px' }}>
+
+          {/* Management Section */}
+          <div>
+            <h2 style={{
+              fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
+              color: isDarkMode ? '#e0e0e0' : '#444',
+              marginBottom: '15px',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
+              paddingLeft: '10px'
+            }}>
+              User & Course Management
+            </h2>
+            <div style={styles.gridContainer}>
+              {[
+                {
+                  title: 'Registered Tutors',
+                  icon: 'chalkboard-teacher',
+                  path: '/search',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Registered Students',
+                  icon: 'user-graduate',
+                  path: '/admin/registered-students',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Course Catalog',
+                  icon: 'book',
+                  path: '/admin/course-catalog',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                }
+              ].map((item, index) => (
+                <a
+                  key={index}
+                  href={item.path}
+                  style={styles.card}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = '';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
+                    <i className={`fas fa-${item.icon}`}></i>
+                  </div>
+                  <span style={styles.cardTitle}>{item.title}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Applications Section */}
+          <div>
+            <h2 style={{
+              fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
+              color: isDarkMode ? '#e0e0e0' : '#444',
+              marginBottom: '15px',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
+              paddingLeft: '10px'
+            }}>
+              Applications & Requests
+            </h2>
+            <div style={styles.gridContainer}>
+              {[
+                {
+                  title: 'Tutor Applications',
+                  icon: 'file-signature',
+                  path: '/admin/tutor-applications',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Tutor Course Addition Requests',
+                  icon: null,
+                  customIcon: 'TCA',
+                  path: '/admin/tutor-course-applications',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Course Coverage Requests',
+                  icon: 'clipboard-list',
+                  path: '/admin/coverage-requests',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                }
+              ].map((item, index) => (
+                <a
+                  key={index}
+                  href={item.path}
+                  style={styles.card}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = '';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
+                    {item.customIcon ? (
+                      <span style={{ fontFamily: 'inherit', fontWeight: '700', fontSize: 'inherit' }}>{item.customIcon}</span>
+                    ) : (
+                      <i className={`fas fa-${item.icon}`}></i>
+                    )}
+                  </div>
+                  <span style={styles.cardTitle}>{item.title}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Reports & Communication Section */}
+          <div>
+            <h2 style={{
+              fontSize: "clamp(1.2rem, 2vw, 1.5rem)",
+              color: isDarkMode ? '#e0e0e0' : '#444',
+              marginBottom: '15px',
+              borderLeft: isDarkMode ? '4px solid rgb(255, 220, 112)' : '4px solid rgb(53, 0, 109)',
+              paddingLeft: '10px'
+            }}>
+              Reports & Communication
+            </h2>
+            <div style={styles.gridContainer}>
+              {[
+                {
+                  title: 'Submitted Reports',
+                  icon: 'chart-bar',
+                  path: '/reports',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                },
+                {
+                  title: 'Messages',
+                  icon: 'envelope',
+                  path: '/messages',
+                  color: isDarkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)'
+                }
+              ].map((item, index) => (
+                <a
+                  key={index}
+                  href={item.path}
+                  style={styles.card}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-3px)';
+                    e.currentTarget.style.boxShadow = '0 6px 15px rgba(0,0,0,0.1)';
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.transform = '';
+                    e.currentTarget.style.boxShadow = '0 4px 30px rgba(0, 0, 0, 0.1)';
+                  }}
+                >
+                  <div style={{ ...styles.iconWrapper, backgroundColor: isDarkMode ? 'rgba(255, 220, 112, 0.15)' : 'rgba(53, 0, 109, 0.15)', color: item.color }}>
+                    <i className={`fas fa-${item.icon}`}></i>
+                  </div>
+                  <span style={styles.cardTitle}>{item.title}</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+
+        {/* Search Section - Now full width - Hidden for admin users */}
+        {user?.role !== 'admin' && <div style={{
           width: '100%',
           maxWidth: '1000px',
           margin: '20px auto',
@@ -516,6 +659,7 @@ const AdminHome = () => {
                   <ul style={{
                     ...styles.categoryList,
                     backgroundColor: isDarkMode ? '#1f4068' : 'white',
+                    color: isDarkMode ? '#e6e6e6' : '#2c3e50',
                     border: isDarkMode ? '1px solid #2a2a4a' : '1px solid rgba(0,0,0,.15)',
                     boxShadow: isDarkMode ? '0 6px 12px rgba(0,0,0,0.3)' : '0 6px 12px rgba(0,0,0,.175)',
                     transition: 'all 0.3s ease'
@@ -585,10 +729,10 @@ const AdminHome = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
       <Footer />
-    </div>
+    </div >
   );
 };
 

@@ -44,9 +44,112 @@ const CheckboxGroup = ({ options, selected, onChange, darkMode }) => (
   </div>
 );
 
+const Pagination = ({ currentPage, totalPages, onPageChange, darkMode }) => {
+  if (totalPages <= 1) return null;
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+
+    for (let i = start; i <= end; i++) {
+      pages.push(i);
+    }
+    return pages;
+  };
+
+  const buttonStyle = (isActive) => ({
+    padding: '8px 14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: isActive ? '600' : '400',
+    backgroundColor: isActive
+      ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+      : (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f5f5f5'),
+    color: isActive
+      ? (darkMode ? '#333' : '#fff')
+      : (darkMode ? '#fff' : '#333'),
+    transition: 'all 0.2s',
+    minWidth: '40px'
+  });
+
+  const navButtonStyle = (disabled) => ({
+    padding: '8px 14px',
+    border: 'none',
+    borderRadius: '6px',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    fontSize: '14px',
+    backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f5f5f5',
+    color: disabled
+      ? (darkMode ? '#555' : '#ccc')
+      : (darkMode ? '#fff' : '#333'),
+    transition: 'all 0.2s',
+    opacity: disabled ? 0.5 : 1
+  });
+
+  return (
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: '8px',
+      marginTop: '24px',
+      padding: '16px 0'
+    }}>
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        style={navButtonStyle(currentPage === 1)}
+      >
+        ← Prev
+      </button>
+
+      {getPageNumbers()[0] > 1 && (
+        <>
+          <button onClick={() => onPageChange(1)} style={buttonStyle(false)}>1</button>
+          {getPageNumbers()[0] > 2 && <span style={{ color: darkMode ? '#fff' : '#333' }}>...</span>}
+        </>
+      )}
+
+      {getPageNumbers().map(page => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          style={buttonStyle(page === currentPage)}
+        >
+          {page}
+        </button>
+      ))}
+
+      {getPageNumbers()[getPageNumbers().length - 1] < totalPages && (
+        <>
+          {getPageNumbers()[getPageNumbers().length - 1] < totalPages - 1 && <span style={{ color: darkMode ? '#fff' : '#333' }}>...</span>}
+          <button onClick={() => onPageChange(totalPages)} style={buttonStyle(false)}>{totalPages}</button>
+        </>
+      )}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        style={navButtonStyle(currentPage === totalPages)}
+      >
+        Next →
+      </button>
+    </div>
+  );
+};
+
 export default function SearchPage() {
   const navigate = useNavigate();
-  const { darkMode } = useAuth();
+  const { darkMode, user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
@@ -57,6 +160,68 @@ export default function SearchPage() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Admin edit mode state
+  const [editingTutorCourses, setEditingTutorCourses] = useState(null); // tutor ID being edited
+  const [confirmDialog, setConfirmDialog] = useState({ show: false, type: null, tutorId: null, courseId: null, tutorName: '', courseName: '' });
+
+  // Remove course from tutor (Admin only)
+  const handleRemoveCourse = async (tutorId, courseId) => {
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/admin/tutor/${tutorId}/course/${courseId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to remove course');
+
+      // Update UI locally without refresh
+      setResults(prevResults => prevResults.map(item => {
+        // Check if this is the tutor we modified
+        if (item._kind === 'tutor' && (item.id === tutorId || item.tutor_id === tutorId)) {
+          return {
+            ...item,
+            // Filter out the removed course
+            courses: item.courses ? item.courses.filter(c => c.course_id !== courseId) : []
+          };
+        }
+        return item;
+      }));
+
+    } catch (error) {
+      console.error('Error removing course:', error);
+      alert('Failed to remove course. Please try again.');
+    }
+  };
+
+  // Demote tutor to student (Admin only)
+  const handleDemoteTutor = async (userId) => {
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/admin/demote/${userId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (!response.ok) throw new Error('Failed to demote tutor');
+      // Refresh results
+      setResults(prevResults => prevResults.filter(item => {
+        // Remove the demoted tutor from the results list
+        if (item._kind === 'tutor' && (item.id === userId || item.tutor_id === userId)) {
+          return false;
+        }
+        return true;
+      }));
+    } catch (error) {
+      console.error('Error demoting tutor:', error);
+      alert('Failed to remove tutor status. Please try again.');
+    }
+  };
 
   const styles = {
     container: {
@@ -119,7 +284,7 @@ export default function SearchPage() {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: '20px',
+      marginBottom: '5px',
       flexWrap: 'wrap',
       gap: '16px',
     },
@@ -143,25 +308,24 @@ export default function SearchPage() {
     },
     tutorsGrid: {
       display: 'grid',
-      gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? '160px' : '320px'}, 1fr))`,
-      gap: isMobile ? '12px' : '24px',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(160px, 25vw, 320px), 1fr))',
+      gap: "clamp(12px, 2vw, 24px)",
     },
     coursesGrid: {
       display: 'grid',
       gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
-      gap: isMobile ? '12px' : '24px',
-      marginTop: '16px',
+      gap: "clamp(12px, 2vw, 24px)",
     },
     courseCard: {
       backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fafafa',
       border: darkMode ? '1px solid #444' : '1px solid #e8e8e8',
-      borderRadius: '8px',
-      padding: isMobile ? '12px' : '24px',
+      borderRadius: "clamp(6px, 1vw, 8px)",
+      padding: "clamp(10px, 2vw, 20px)",
       transition: 'box-shadow 0.2s, background-color 0.3s, border-color 0.3s',
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      fontSize: isMobile ? '12px' : 'inherit',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       '&:hover': {
         boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
       }
@@ -170,24 +334,24 @@ export default function SearchPage() {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'flex-start',
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     courseCode: {
-      fontSize: '20px',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
       fontWeight: 'bold',
       color: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
-      marginBottom: '4px',
+      marginBottom: "clamp(2px, 0.5vw, 4px)",
       transition: 'color 0.3s',
     },
     courseName: {
-      fontSize: '14px',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       color: darkMode ? '#bbb' : '#666',
       transition: 'color 0.3s',
     },
     statusBadge: {
-      padding: '4px 12px',
-      borderRadius: '12px',
-      fontSize: '12px',
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(10px, 1.5vw, 12px)",
       fontWeight: '600',
       whiteSpace: 'nowrap',
     },
@@ -235,13 +399,13 @@ export default function SearchPage() {
     tutorCard: {
       backgroundColor: darkMode ? 'rgb(60, 60, 60)' : "#fafafa",
       border: darkMode ? '1px solid #444' : "1px solid #e8e8e8",
-      borderRadius: "8px",
-      padding: isMobile ? "12px" : "24px",
+      borderRadius: "clamp(6px, 1vw, 8px)",
+      padding: "clamp(10px, 2vw, 20px)",
       transition: "box-shadow 0.2s, background-color 0.3s, border-color 0.3s",
       display: "flex",
       flexDirection: "column",
       height: "100%",
-      fontSize: isMobile ? '12px' : 'inherit',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
       '&:hover': {
         boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.1)'
       }
@@ -252,31 +416,32 @@ export default function SearchPage() {
       flexDirection: 'column',
     },
     coursesSection: {
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     availabilitySection: {
-      marginBottom: '16px',
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     tutorHeader: {
       display: "flex",
       alignItems: "center",
-      gap: isMobile ? "8px" : "16px",
-      marginBottom: "16px",
+      gap: "clamp(8px, 1.5vw, 16px)",
+      marginBottom: "clamp(10px, 2vw, 16px)",
     },
     tutorAvatar: {
-      width: isMobile ? "40px" : "64px",
-      height: isMobile ? "40px" : "64px",
+      width: "clamp(36px, 8vw, 56px)",
+      height: "clamp(36px, 8vw, 56px)",
       borderRadius: "50%",
       backgroundColor: "#35006D",
       color: "white",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
-      fontSize: isMobile ? "16px" : "24px",
+      fontSize: "clamp(14px, 3vw, 22px)",
       fontWeight: "bold",
+      flexShrink: 0,
     },
     tutorName: {
-      fontSize: isMobile ? '16px' : '20px',
+      fontSize: "clamp(14px, 2.5vw, 18px)",
       fontWeight: '600',
       color: darkMode ? '#fff' : '#2c3e50',
       margin: 0,
@@ -293,43 +458,39 @@ export default function SearchPage() {
       fontWeight: '600',
       color: darkMode ? '#fff' : '#2c3e50',
       margin: '0 0 20px 0',
-      paddingBottom: '8px',
+      paddingBottom: '3px',
       borderBottom: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
       transition: 'color 0.3s, border-color 0.3s'
     },
-    tutorRating: {
-      color: "#FFCF01",
-      fontSize: "14px",
-    },
     sectionLabel: {
-      fontSize: "14px",
-      color: "#666",
-      marginBottom: "8px",
+      fontSize: "clamp(12px, 1.8vw, 14px)",
+      color: darkMode ? "#ebeaeaff" : "#313131ff",
+      marginBottom: "clamp(6px, 1vw, 8px)",
       fontWeight: "500",
     },
     courseBadge: {
       display: "inline-block",
       backgroundColor: "#FFCF01",
       color: "#35006D",
-      padding: "4px 12px",
-      borderRadius: "12px",
-      fontSize: "14px",
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(11px, 1.6vw, 13px)",
       fontWeight: "500",
-      margin: "4px",
+      margin: "clamp(2px, 0.5vw, 4px)",
     },
     availabilityBadge: {
       display: "inline-block",
       border: "1px solid #35006D",
       color: "#35006D",
-      padding: "4px 12px",
-      borderRadius: "12px",
-      fontSize: "12px",
-      margin: "4px",
+      padding: "clamp(3px, 0.5vw, 4px) clamp(8px, 1.5vw, 12px)",
+      borderRadius: "clamp(8px, 1.5vw, 12px)",
+      fontSize: "clamp(10px, 1.5vw, 12px)",
+      margin: "clamp(2px, 0.5vw, 4px)",
     },
     tutorActions: {
       display: "flex",
       flexDirection: "row",
-      gap: "12px",
+      gap: "clamp(8px, 1.5vw, 12px)",
       marginTop: "auto",
     },
     contactButton: {
@@ -337,10 +498,11 @@ export default function SearchPage() {
       backgroundColor: "#35006D",
       color: "white",
       border: "none",
-      padding: "10px",
-      borderRadius: "6px",
+      padding: "clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(4px, 0.8vw, 6px)",
       cursor: "pointer",
       fontWeight: "500",
+      fontSize: "clamp(12px, 1.6vw, 14px)",
       transition: "background-color 0.2s",
     },
     bookButton: {
@@ -348,10 +510,11 @@ export default function SearchPage() {
       backgroundColor: "#FFCF01",
       color: "#35006D",
       border: "none",
-      padding: "10px",
-      borderRadius: "6px",
+      padding: "clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(4px, 0.8vw, 6px)",
       cursor: "pointer",
       fontWeight: "500",
+      fontSize: "clamp(12px, 1.6vw, 14px)",
       transition: "background-color 0.2s",
     },
     noResults: {
@@ -398,6 +561,11 @@ export default function SearchPage() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
 
+  // Pagination state - separate for tutors and courses
+  const ITEMS_PER_PAGE = 12;
+  const [tutorPage, setTutorPage] = useState(1);
+  const [coursePage, setCoursePage] = useState(1);
+
   // Sync local price state with URL params
   useEffect(() => {
     const min = q.get('min_rate');
@@ -407,6 +575,12 @@ export default function SearchPage() {
 
     if (max) setMaxPrice((parseInt(max) / 100).toString());
     else setMaxPrice('');
+  }, [q]);
+
+  // Reset pagination when search changes
+  useEffect(() => {
+    setTutorPage(1);
+    setCoursePage(1);
   }, [q]);
 
   // Fetch filter options on mount
@@ -463,8 +637,9 @@ export default function SearchPage() {
         const apiBaseUrl = process.env.REACT_APP_API_URL || '';
 
         // Build the appropriate endpoint and parameters
+        // Fetch a larger number for client-side pagination
         let endpoint, params = new URLSearchParams({
-          limit: 20,
+          limit: 500,
           offset: 0
         });
 
@@ -582,11 +757,57 @@ export default function SearchPage() {
 
             {item.courses && item.courses.length > 0 && (
               <div style={styles.coursesSection}>
-                <div style={styles.sectionLabel}>Teaches</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={styles.sectionLabel}>Teaches</div>
+                  {isAdmin && (
+                    <i
+                      className="fas fa-pencil-alt"
+                      style={{
+                        color: '#dc3545',
+                        fontSize: '12px',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        borderRadius: '4px',
+                        transition: 'all 0.2s'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingTutorCourses(editingTutorCourses === (item.id || item.tutor_id) ? null : (item.id || item.tutor_id));
+                      }}
+                      onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(220, 53, 69, 0.1)'}
+                      onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      title="Edit courses"
+                    />
+                  )}
+                </div>
                 <div>
                   {item.courses.map((course, idx) => (
-                    <span key={idx} style={styles.courseBadge}>
+                    <span key={idx} style={{ ...styles.courseBadge, position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                       {course.department_code} {course.course_number}
+                      {isAdmin && editingTutorCourses === (item.id || item.tutor_id) && (
+                        <i
+                          className="fas fa-times"
+                          style={{
+                            color: '#dc3545',
+                            fontSize: '10px',
+                            marginLeft: '6px',
+                            cursor: 'pointer',
+                            padding: '2px'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setConfirmDialog({
+                              show: true,
+                              type: 'removeCourse',
+                              tutorId: item.id || item.tutor_id,
+                              courseId: course.course_id,
+                              tutorName: [item.first_name, item.last_name].filter(Boolean).join(' '),
+                              courseName: `${course.department_code} ${course.course_number}`
+                            });
+                          }}
+                          title="Remove course"
+                        />
+                      )}
                     </span>
                   ))}
                 </div>
@@ -610,9 +831,35 @@ export default function SearchPage() {
               <button style={{ ...styles.contactButton, fontSize: isMobile ? '12px' : 'inherit', padding: isMobile ? '8px' : '10px' }}>
                 Contact
               </button>
-              <button style={{ ...styles.bookButton, fontSize: isMobile ? '12px' : 'inherit', padding: isMobile ? '8px' : '10px' }}>
-                Book
-              </button>
+              {isAdmin ? (
+                <button
+                  style={{
+                    ...styles.bookButton,
+                    fontSize: isMobile ? '12px' : 'inherit',
+                    padding: isMobile ? '8px' : '10px',
+                    backgroundColor: '#dc3545',
+                    color: 'white',
+                    border: 'none'
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmDialog({
+                      show: true,
+                      type: 'demoteTutor',
+                      tutorId: item.id || item.tutor_id || item.user_id,
+                      courseId: null,
+                      tutorName: [item.first_name, item.last_name].filter(Boolean).join(' '),
+                      courseName: ''
+                    });
+                  }}
+                >
+                  Remove Tutor Status
+                </button>
+              ) : (
+                <button style={{ ...styles.bookButton, fontSize: isMobile ? '12px' : 'inherit', padding: isMobile ? '8px' : '10px' }}>
+                  Book
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -665,7 +912,7 @@ export default function SearchPage() {
             }}
             onClick={() => {
               if (tutorCount > 0) {
-                window.location.href = `/find-tutor?course=${encodeURIComponent(courseCode)}`;
+                window.location.href = `/search?q=${item.department_code}+${item.course_number}&type=tutor`;
               } else {
                 window.location.href = '/request-coverage';
               }
@@ -688,7 +935,7 @@ export default function SearchPage() {
       boxShadow: darkMode ? "0 2px 8px rgba(0, 0, 0, 0.3)" : "0 2px 8px rgba(0, 0, 0, 0.1)",
       boxSizing: 'border-box',
       width: '100%',
-      margin: '0 0 30px 0',
+      margin: '0 0 10px 0',
       position: 'relative',
       transition: 'background-color 0.3s, box-shadow 0.3s'
     },
@@ -708,14 +955,16 @@ export default function SearchPage() {
     },
     searchInput: {
       flex: 1,
-      padding: '12px 16px',
-      border: darkMode ? '1px solid #444' : '1px solid #ced4da',
-      borderRadius: '8px',
-      fontSize: '16px',
-      backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#fff',
-      color: darkMode ? '#fff' : '#2c3e50',
+      padding: '10px 16px',
+      border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'}`,
+      borderRadius: '6px',
+      fontSize: '14px',
+      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#fff',
+      color: darkMode ? '#fff' : '#333',
       outline: 'none',
-      transition: 'all 0.2s',
+      transition: 'all 0.3s ease',
+      height: '40px',
+      boxSizing: 'border-box',
       '&:focus': {
         borderColor: darkMode ? 'rgb(255, 220, 100)' : '#35006D',
         boxShadow: darkMode
@@ -755,16 +1004,23 @@ export default function SearchPage() {
       position: 'relative',
       display: 'inline-block',
       minWidth: '100px',
-      width: isMobile ? 'auto' : '120px'
+      width: isMobile ? 'auto' : '120px',
+      height: '40px',
     },
     categoryButton: {
-      padding: '12px 16px',
+      padding: '0 16px',
       backgroundColor: darkMode ? 'rgb(80, 80, 80)' : '#f8f9fa',
       color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
+      border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'}`,
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      whiteSpace: 'nowrap',
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
       cursor: 'pointer',
       width: '100%',
+      height: '40px',
       textAlign: 'center',
       display: 'flex',
       alignItems: 'center',
@@ -787,6 +1043,7 @@ export default function SearchPage() {
       padding: '8px 0',
       margin: '4px 0 0',
       backgroundColor: darkMode ? 'rgb(70, 70, 70)' : '#ffffff',
+      color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
       border: darkMode ? '1px solid rgb(50, 50, 50)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
@@ -857,9 +1114,15 @@ export default function SearchPage() {
 
   // Initialize search query and category from URL
   const [searchQuery, setSearchQuery] = useState(q.get('q') || '');
-  const [searchCategory, setSearchCategory] = useState(q.get('type') || 'default');
+  const [searchCategory, setSearchCategory] = useState(isAdmin ? 'tutor' : (q.get('type') || 'default'));
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [tutorSortOrder, setTutorSortOrder] = useState(null); // null, 'asc', 'desc'
+  const [tutorSortOrder, setTutorSortOrder] = useState(q.get('sort_order')); // null, 'asc', 'desc'
+  const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+
+  // Update tutorSortOrder when q changes
+  useEffect(() => {
+    setTutorSortOrder(q.get('sort_order'));
+  }, [q]);
 
   // Apply client-side filters to results
   const getFilteredResults = (results) => {
@@ -907,15 +1170,8 @@ export default function SearchPage() {
         if (!modeArray.some(m => tutorModes.includes(m))) return false;
       }
 
-      // Weekday filter
-      const weekday = q.get('weekday');
-      if (weekday) {
-        const availability = item.availability || [];
-        // Check if tutor has availability on the selected weekday
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const selectedDay = days[parseInt(weekday)];
-        if (!availability.some(slot => slot.includes(selectedDay))) return false;
-      }
+      // Note: Weekday filter is handled by the backend, so we don't need to filter here
+      // The backend already returns only tutors with availability on the selected weekday
 
       return true;
     });
@@ -1072,40 +1328,322 @@ export default function SearchPage() {
     );
   };
 
-  // Filter UI Components removed from here
-
   return (
     <div style={styles.container}>
       <Header />
       <div style={styles.container}>
 
-        <div style={{ ...styles.content, display: 'flex', gap: '30px', flexDirection: isMobile ? 'column' : 'row', padding: isMobile ? '20px 10px' : '40px 20px' }}>
+        <div style={{ ...styles.content, display: 'flex', gap: '30px', flexDirection: isMobile ? 'column' : 'row', flexWrap: isMobile ? 'wrap' : 'nowrap', padding: isMobile ? '20px 10px' : '40px 20px' }}>
 
-          {/* Filters Sidebar - Only show for tutors or all */}
+          {/* Filters Sidebar - Only show for tutors or all, hidden on mobile */}
           <div style={{
-            width: isMobile ? '100%' : '280px',
+            width: isMobile ? '100%' : (isFilterCollapsed ? '60px' : '280px'),
             flexShrink: 0,
-            display: searchCategory === 'course' ? 'none' : 'block'
+            display: (isMobile || searchCategory === 'course') ? 'none' : 'block',
+            order: 1,
+            transition: 'width 0.3s ease'
           }}>
             <div style={{
               backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
               borderRadius: '12px',
-              padding: '5px 20px',
+              padding: isFilterCollapsed ? '0' : '5px 20px',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
               border: darkMode ? '1px solid #444' : '1px solid #e0e0e0',
               maxHeight: isMobile && !isFilterOpen ? '60px' : 'none',
-              overflow: 'hidden',
-              transition: 'max-height 0.3s ease',
-              cursor: isMobile && !isFilterOpen ? 'pointer' : 'default'
+              minHeight: isFilterCollapsed ? '500px' : 'auto',
+              overflow: isFilterCollapsed ? 'hidden' : (isMobile && !isFilterOpen ? 'hidden' : 'visible'),
+              transition: 'max-height 0.3s ease, overflow 0.3s ease, padding 0.3s ease',
+              cursor: isMobile && !isFilterOpen ? 'pointer' : 'default',
+              position: 'relative',
+              display: isFilterCollapsed ? 'flex' : 'block',
+              justifyContent: isFilterCollapsed ? 'center' : 'flex-start',
+              alignItems: isFilterCollapsed ? 'center' : 'flex-start'
             }}
               onClick={(e) => {
                 if (isMobile && !isFilterOpen) setIsFilterOpen(true);
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '12px 0', borderBottom: isFilterOpen ? '1px inset rgba(179, 179, 179, 0.62)' : 'none' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#fff' : '#333' }}>Filter Tutors</h3>
-                  {isMobile && (
+              {/* Collapsed state - show only expand button centered */}
+              {isFilterCollapsed ? (
+                <button
+                  onClick={() => setIsFilterCollapsed(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(35, 17, 97)',
+                    cursor: 'pointer',
+                    fontSize: '20px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '8px',
+                    transition: 'transform 0.3s ease'
+                  }}
+                  title="Expand Filters"
+                >
+                  <i className="fas fa-chevron-right"></i>
+                </button>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '12px 0', borderBottom: isFilterOpen ? '1px inset rgba(179, 179, 179, 0.62)' : 'none' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#fff' : '#333' }}>Filter Tutors</h3>
+                      {isMobile && (
+                        <i className={`fas fa-chevron-${isFilterOpen ? 'up' : 'down'}`}
+                          style={{ fontSize: '14px', color: darkMode ? '#fff' : '#333', cursor: 'pointer' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIsFilterOpen(!isFilterOpen);
+                          }}
+                        ></i>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        onClick={() => {
+                          // Clear all filters
+                          navigate(`/search?q=${q.get('q') || ''}&type=${q.get('type') || 'default'}`);
+                        }}
+                        style={{ background: 'none', border: 'none', color: darkMode ? 'rgba(185, 185, 185, 1)' : 'rgb(35, 17, 97)', cursor: 'pointer', fontSize: '16px', fontWeight: '500', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px 8px' }}
+                        title="Reset Filters"
+                      >
+                        <i className="fas fa-sync-alt"></i>
+                      </button>
+                      {!isMobile && (
+                        <button
+                          onClick={() => setIsFilterCollapsed(true)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: darkMode ? 'rgba(185, 185, 185, 1)' : 'rgb(35, 17, 97)',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            fontWeight: '500',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '4px 8px',
+                            transition: 'transform 0.3s ease'
+                          }}
+                          title="Collapse Filters"
+                        >
+                          <i className="fas fa-chevron-left"></i>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {filterOptions ? (
+                    <>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr',
+                        gap: isMobile ? '12px' : '24px',
+                        alignItems: 'start'
+                      }}>
+                        <FilterSection title="Price Range" darkMode={darkMode}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="number"
+                              placeholder="Min"
+                              value={minPrice}
+                              onChange={(e) => setMinPrice(e.target.value)}
+                              onBlur={() => updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateFilters({ min_rate: minPrice ? Math.round(parseFloat(minPrice) * 100) : '' });
+                                }
+                              }}
+                              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                            />
+                            <span style={{ color: darkMode ? '#fff' : '#333', fontSize: '12px' }}>to</span>
+                            <input
+                              type="number"
+                              placeholder="Max"
+                              value={maxPrice}
+                              onChange={(e) => setMaxPrice(e.target.value)}
+                              onBlur={() => updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  updateFilters({ max_rate: maxPrice ? Math.round(parseFloat(maxPrice) * 100) : '' });
+                                }
+                              }}
+                              style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                            />
+                          </div>
+                        </FilterSection>
+
+                        <FilterSection title="Departments" darkMode={darkMode}>
+                          <CheckboxGroup
+                            options={filterOptions.departments.map(d => ({ label: d.code, value: d.code, count: d.count }))}
+                            selected={q.get('departments') ? q.get('departments').split(',') : []}
+                            onChange={(val) => updateFilters({ departments: val })}
+                            darkMode={darkMode}
+                          />
+                        </FilterSection>
+
+                        <FilterSection title="Languages" darkMode={darkMode}>
+                          <CheckboxGroup
+                            options={filterOptions.languages.map(l => ({ label: l.name, value: l.name, count: l.count }))}
+                            selected={q.get('languages') ? q.get('languages').split(',') : []}
+                            onChange={(val) => updateFilters({ languages: val })}
+                            darkMode={darkMode}
+                          />
+                        </FilterSection>
+
+                        <FilterSection title="Availability" darkMode={darkMode}>
+                          <select
+                            value={q.get('weekday') || ''}
+                            onChange={(e) => updateFilters({ weekday: e.target.value })}
+                            style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '8px', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                          >
+                            <option value="">Any Day</option>
+                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
+                              <option key={idx} value={idx}>{day}</option>
+                            ))}
+                          </select>
+
+                        </FilterSection>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ color: darkMode ? '#aaa' : '#666' }}>Loading filters...</div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div style={{ flex: 1, order: 2, display: 'flex', flexDirection: 'column', width: isMobile ? '100%' : 'auto' }}>
+            <div style={{ ...searchBarStyles.searchContainer }}>
+              <h3 style={{
+                margin: '0 0 8px 0',
+                color: darkMode ? '#fff' : '#2c3e50',
+                fontSize: '1.3rem',
+                fontWeight: '600',
+                transition: 'color 0.3s'
+              }}>
+                {isAdmin ? 'Search Tutor by Name' : 'Find Tutors & Courses'}
+              </h3>
+              <div style={searchBarStyles.searchInputContainer}>
+                {/* Mobile: 2 Rows (Row 1: Dropdown+Input, Row 2: Btn) */}
+                {isMobile ? (
+                  <>
+                    <div style={searchBarStyles.mobileSearchTopRow}>
+                      {!isAdmin && (
+                        <div style={searchBarStyles.categoryDropdown}>
+                          <button
+                            style={{
+                              ...searchBarStyles.categoryButton,
+                              padding: '10px 12px',
+                              justifyContent: 'center',
+                              height: '40px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              boxSizing: 'border-box'
+                            }}
+                            onClick={toggleCategory}
+                            type="button"
+                          >
+                            {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                          </button>
+                          {isCategoryOpen && (
+                            <ul style={{ ...searchBarStyles.categoryList, width: '140px' }}>
+                              <li onClick={() => selectCategory('default')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>All</li>
+                              <li onClick={() => selectCategory('tutor')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
+                              <li onClick={() => selectCategory('course')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
+                            </ul>
+                          )}
+                        </div>
+                      )}
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                        placeholder={`Search...`}
+                        style={{
+                          ...searchBarStyles.searchInput,
+                          width: 'auto',
+                          height: '40px',
+                          boxSizing: 'border-box'
+                        }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSearch}
+                      style={{ ...searchBarStyles.searchButton, width: '100%', marginTop: '4px' }}
+                    >
+                      <i className="fas fa-search"></i>
+                      Search
+                    </button>
+                  </>
+                ) : (
+                  // Desktop: 1 Row
+                  <>
+                    {!isAdmin && (
+                      <div style={searchBarStyles.categoryDropdown}>
+                        <button
+                          style={searchBarStyles.categoryButton}
+                          onClick={toggleCategory}
+                          type="button"
+                        >
+                          {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
+                        </button>
+                        {isCategoryOpen && (
+                          <ul style={searchBarStyles.categoryList}>
+                            <li onClick={() => selectCategory('default')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>All</li>
+                            <li onClick={() => selectCategory('tutor')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
+                            <li onClick={() => selectCategory('course')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
+                      placeholder={searchQuery === '' && searchCategory === 'default' ? 'Search all' : searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}${searchCategory === 'all' ? '' : 's'}...`}
+                      style={searchBarStyles.searchInput}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearch}
+                      style={searchBarStyles.searchButton}
+                    >
+                      <i className="fas fa-search"></i>
+                      Search
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Mobile Filter Section - Only show on mobile, between search and results */}
+            {isMobile && searchCategory !== 'course' && (
+              <div style={{
+                backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
+                borderRadius: '12px',
+                padding: '5px 20px',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                border: darkMode ? '1px solid #444' : '1px solid #e0e0e0',
+                maxHeight: !isFilterOpen ? '60px' : 'none',
+                overflow: 'hidden',
+                transition: 'max-height 0.3s ease',
+                cursor: !isFilterOpen ? 'pointer' : 'default',
+                marginTop: '15px'
+              }}
+                onClick={(e) => {
+                  if (!isFilterOpen) setIsFilterOpen(true);
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', padding: '12px 0', borderBottom: isFilterOpen ? '1px inset rgba(179, 179, 179, 0.62)' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: darkMode ? '#fff' : '#333' }}>Filter Tutors</h3>
                     <i className={`fas fa-chevron-${isFilterOpen ? 'up' : 'down'}`}
                       style={{ fontSize: '14px', color: darkMode ? '#fff' : '#333', cursor: 'pointer' }}
                       onClick={(e) => {
@@ -1113,25 +1651,22 @@ export default function SearchPage() {
                         setIsFilterOpen(!isFilterOpen);
                       }}
                     ></i>
-                  )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigate(`/search?q=${q.get('q') || ''}&type=${q.get('type') || 'default'}`);
+                    }}
+                    style={{ background: 'none', border: 'none', color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(35, 17, 97)', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
+                  >
+                    Reset
+                  </button>
                 </div>
-                <button
-                  onClick={() => {
-                    // Clear all filters
-                    navigate(`/search?q=${q.get('q') || ''}&type=${q.get('type') || 'default'}`);
-                  }}
-                  style={{ background: 'none', border: 'none', color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(35, 17, 97)', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}
-                >
-                  Reset
-                </button>
-              </div>
 
-              {filterOptions ? (
-                <>
+                {filterOptions ? (
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr',
-                    gap: isMobile ? '12px' : '24px',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: '12px',
                     alignItems: 'start'
                   }}>
                     <FilterSection title="Price Range" darkMode={darkMode}>
@@ -1195,117 +1730,16 @@ export default function SearchPage() {
                           <option key={idx} value={idx}>{day}</option>
                         ))}
                       </select>
-                      <CheckboxGroup
-                        options={[{ label: 'Online', value: 'online' }, { label: 'In-Person', value: 'in-person' }]}
-                        selected={q.get('location_modes') ? q.get('location_modes').split(',') : []}
-                        onChange={(val) => updateFilters({ location_modes: val })}
-                        darkMode={darkMode}
-                      />
+
                     </FilterSection>
                   </div>
-                </>
-              ) : (
-                <div style={{ color: darkMode ? '#aaa' : '#666' }}>Loading filters...</div>
-              )}
-            </div>
-          </div>
-
-          {/* Main Content Area */}
-          <div style={{ flex: 1 }}>
-            <div style={searchBarStyles.searchContainer}>
-              <h3 style={{
-                margin: '0 0 8px 0',
-                color: darkMode ? '#fff' : '#2c3e50',
-                fontSize: '1.3rem',
-                fontWeight: '600',
-                transition: 'color 0.3s'
-              }}>
-                Find Tutors & Courses
-              </h3>
-              <div style={searchBarStyles.searchInputContainer}>
-                {/* Mobile: 2 Rows (Row 1: Dropdown+Input, Row 2: Btn) */}
-                {isMobile ? (
-                  <>
-                    <div style={searchBarStyles.mobileSearchTopRow}>
-                      <div style={searchBarStyles.categoryDropdown}>
-                        <button
-                          style={{
-                            ...searchBarStyles.categoryButton,
-                            padding: '10px 12px',
-                            justifyContent: 'center'
-                          }}
-                          onClick={toggleCategory}
-                          type="button"
-                        >
-                          {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
-                        </button>
-                        {isCategoryOpen && (
-                          <ul style={{ ...searchBarStyles.categoryList, width: '140px' }}>
-                            <li onClick={() => selectCategory('default')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>All</li>
-                            <li onClick={() => selectCategory('tutor')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
-                            <li onClick={() => selectCategory('course')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
-                          </ul>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                        placeholder={`Search...`}
-                        style={{ ...searchBarStyles.searchInput, width: 'auto' }}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      style={{ ...searchBarStyles.searchButton, width: '100%', marginTop: '4px' }}
-                    >
-                      <i className="fas fa-search"></i>
-                      Search
-                    </button>
-                  </>
                 ) : (
-                  // Desktop: 1 Row
-                  <>
-                    <div style={searchBarStyles.categoryDropdown}>
-                      <button
-                        style={searchBarStyles.categoryButton}
-                        onClick={toggleCategory}
-                        type="button"
-                      >
-                        {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
-                      </button>
-                      {isCategoryOpen && (
-                        <ul style={searchBarStyles.categoryList}>
-                          <li onClick={() => selectCategory('default')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>All</li>
-                          <li onClick={() => selectCategory('tutor')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
-                          <li onClick={() => selectCategory('course')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
-                        </ul>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                      placeholder={searchQuery === '' && searchCategory === 'default' ? 'Search all' : searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}${searchCategory === 'all' ? '' : 's'}...`}
-                      style={searchBarStyles.searchInput}
-                    />
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      style={searchBarStyles.searchButton}
-                    >
-                      <i className="fas fa-search"></i>
-                      Search
-                    </button>
-                  </>
+                  <div style={{ color: darkMode ? '#aaa' : '#666' }}>Loading filters...</div>
                 )}
               </div>
-            </div>
+            )}
 
-            <div style={styles.columnsContainer}>
+            <div style={{ ...styles.columnsContainer, marginTop: '20px' }}>
               <div style={{ width: '100%' }}>
                 {status === "idle" && (
                   <div style={styles.noResults}>
@@ -1356,9 +1790,9 @@ export default function SearchPage() {
                           display: 'flex',
                           alignItems: 'center',
                           gap: '12px',
-                          marginBottom: '20px'
+                          marginBottom: '5px'
                         }}>
-                          <h2 style={{ ...styles.sectionHeading, margin: 0 }}>Tutors</h2>
+                          <h2 style={{ ...styles.sectionHeading, margin: 0 }}>{isAdmin ? 'Results' : 'Tutors'}</h2>
                           <button
                             onClick={toggleSortOrder}
                             style={{
@@ -1382,9 +1816,9 @@ export default function SearchPage() {
                             }}
                             title={tutorSortOrder === null ? 'Sort by price' : tutorSortOrder === 'asc' ? 'Price: Low to High' : 'Price: High to Low'}
                           >
-                            <i className="fas fa-sort-amount-down" style={{
+                            <i className={`fas ${tutorSortOrder === 'asc' ? 'fa-arrow-down-short-wide' : 'fa-sort-amount-down'}`} style={{
                               fontSize: '18px',
-                              transform: tutorSortOrder === 'desc' ? 'scaleY(-1)' : 'scaleY(1)',
+                              transform: 'none',
                               transition: 'transform 0.3s',
                               opacity: tutorSortOrder === null ? 0.5 : 1
                             }}></i>
@@ -1401,16 +1835,30 @@ export default function SearchPage() {
                           </div>
                         </div>
 
-                        {getFilteredResults(results).some(item => item._kind === "tutor") ? (
-                          <div style={styles.tutorsGrid}>
-                            {getSortedTutors(getFilteredResults(results).filter(item => item._kind === "tutor"))
-                              .map((item, idx) => (
-                                <ResultCard key={`tutor-${item.id || idx}`} item={item} />
-                              ))}
-                          </div>
-                        ) : (
-                          <p style={styles.noItemsText}>No tutors found</p>
-                        )}
+                        {(() => {
+                          const allTutors = getSortedTutors(getFilteredResults(results).filter(item => item._kind === "tutor"));
+                          const totalTutorPages = Math.ceil(allTutors.length / ITEMS_PER_PAGE);
+                          const startIdx = (tutorPage - 1) * ITEMS_PER_PAGE;
+                          const paginatedTutors = allTutors.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+                          return allTutors.length > 0 ? (
+                            <>
+                              <div style={styles.tutorsGrid}>
+                                {paginatedTutors.map((item, idx) => (
+                                  <ResultCard key={`tutor-${item.id || idx}`} item={item} />
+                                ))}
+                              </div>
+                              <Pagination
+                                currentPage={tutorPage}
+                                totalPages={totalTutorPages}
+                                onPageChange={setTutorPage}
+                                darkMode={darkMode}
+                              />
+                            </>
+                          ) : (
+                            <p style={styles.noItemsText}>No tutors found</p>
+                          );
+                        })()}
                       </div>
                     )}
 
@@ -1428,17 +1876,30 @@ export default function SearchPage() {
                           </div>
                         </div>
 
-                        {getFilteredResults(results).some(item => item._kind === "course") ? (
-                          <div style={styles.coursesGrid}>
-                            {getFilteredResults(results)
-                              .filter(item => item._kind === "course")
-                              .map((item, idx) => (
-                                <ResultCard key={`course-${item.course_id || idx}`} item={item} />
-                              ))}
-                          </div>
-                        ) : (
-                          <p style={styles.noItemsText}>No courses found</p>
-                        )}
+                        {(() => {
+                          const allCourses = getFilteredResults(results).filter(item => item._kind === "course");
+                          const totalCoursePages = Math.ceil(allCourses.length / ITEMS_PER_PAGE);
+                          const startIdx = (coursePage - 1) * ITEMS_PER_PAGE;
+                          const paginatedCourses = allCourses.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
+                          return allCourses.length > 0 ? (
+                            <>
+                              <div style={styles.coursesGrid}>
+                                {paginatedCourses.map((item, idx) => (
+                                  <ResultCard key={`course-${item.course_id || idx}`} item={item} />
+                                ))}
+                              </div>
+                              <Pagination
+                                currentPage={coursePage}
+                                totalPages={totalCoursePages}
+                                onPageChange={setCoursePage}
+                                darkMode={darkMode}
+                              />
+                            </>
+                          ) : (
+                            <p style={styles.noItemsText}>No courses found</p>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -1450,6 +1911,90 @@ export default function SearchPage() {
           {/* Closing the flex container started in content replacement */}
         </div>
       </div>
+
+      {/* Admin Confirmation Dialog */}
+      {confirmDialog.show && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999
+        }}>
+          <div style={{
+            backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+            borderRadius: '12px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{
+              margin: '0 0 16px 0',
+              color: darkMode ? '#fff' : '#333',
+              fontSize: '18px'
+            }}>
+              {confirmDialog.type === 'removeCourse' ? 'Remove Course' : 'Remove Tutor Status'}
+            </h3>
+            <p style={{
+              margin: '0 0 24px 0',
+              color: darkMode ? '#ccc' : '#666',
+              fontSize: '14px',
+              lineHeight: '1.5'
+            }}>
+              {confirmDialog.type === 'removeCourse'
+                ? `Are you sure you want to remove "${confirmDialog.courseName}" from ${confirmDialog.tutorName}'s courses?`
+                : `Are you sure you want to remove tutor status from ${confirmDialog.tutorName}? This will demote them to a student.`
+              }
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setConfirmDialog({ show: false, type: null, tutorId: null, courseId: null, tutorName: '', courseName: '' })}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: `1px solid ${darkMode ? '#555' : '#ddd'}`,
+                  backgroundColor: 'transparent',
+                  color: darkMode ? '#ccc' : '#666',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (confirmDialog.type === 'removeCourse') {
+                    handleRemoveCourse(confirmDialog.tutorId, confirmDialog.courseId);
+                  } else {
+                    handleDemoteTutor(confirmDialog.tutorId);
+                  }
+                  setConfirmDialog({ show: false, type: null, tutorId: null, courseId: null, tutorName: '', courseName: '' });
+                }}
+                style={{
+                  padding: '10px 20px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: '#dc3545',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500'
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

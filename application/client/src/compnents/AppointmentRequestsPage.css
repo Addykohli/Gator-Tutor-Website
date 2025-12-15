@@ -21,7 +21,7 @@
 .page-content {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 40px 20px;
+    padding: 20px 20px;
     width: 100%;
     box-sizing: border-box;
 }
@@ -31,7 +31,7 @@
     padding-bottom: 3px;
     border-bottom: 8px solid rgb(255, 220, 112);
     display: block;
-    margin: 20px auto 40px;
+    margin: 0px auto 20px;
     font-size: 45px;
     font-weight: 600;
     width: fit-content;
@@ -50,7 +50,8 @@
 .tabs-container {
     display: flex;
     gap: 20px;
-    marginBottom: 30px;
+    margin-bottom: 30px;
+    padding-top: 5px;
 }
 
 .tab-item {
@@ -119,9 +120,16 @@
 
 /* Requests List */
 .requests-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
     gap: 20px;
+}
+
+/* Mobile: Single column */
+@media (max-width: 768px) {
+    .requests-list {
+        grid-template-columns: 1fr;
+    }
 }
 
 .request-card {
@@ -240,6 +248,13 @@
 
 .not-dark .detail-value {
     color: #333;
+}
+
+/* Date and Time values */
+.detail-item:nth-child(2) .detail-value,
+.detail-item:nth-child(3) .detail-value {
+    color: rgb(255, 220, 112) !important;
+    font-weight: 500;
 }
 
 /* Description Box */

@@ -1,3 +1,4 @@
+import { useForm } from 'react-hook-form';
 import React, { useState } from 'react';
 import { useAuth } from '../Context/Context';
 import Header from './Header';
@@ -13,12 +14,7 @@ const CourseCoverageRequestPage = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-  const [formData, setFormData] = useState({
-    courseNumber: '',
-    topics: '',
-    notes: '',
-    email: ''
-  });
+
   const [showSuccess, setShowSuccess] = useState(false);
 
   const styles = {
@@ -26,8 +22,8 @@ const CourseCoverageRequestPage = () => {
       display: 'flex',
       flexDirection: 'column',
       minHeight: '100vh',
-      background: darkMode 
-        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)' 
+      background: darkMode
+        ? 'linear-gradient(36deg, rgba(8, 8, 8, 1) 17%, rgba(15, 15, 15, 1) 29%, rgba(22, 22, 22, 1) 46%, rgba(23, 23, 23, 1) 68%, rgba(23, 23, 23, 1) 68%, rgba(26, 26, 26, 1) 77%, rgba(28, 28, 28, 1) 80%, rgba(33, 33, 33, 1) 85%, rgba(34, 34, 34, 1) 84%, rgba(37, 37, 37, 1) 87%, rgba(42, 42, 42, 1) 89%, rgba(49, 49, 49, 1) 93%, rgba(51, 51, 51, 1) 100%, rgba(54, 54, 54, 1) 98%, rgba(52, 52, 52, 1) 99%, rgba(70, 70, 70, 1) 100%, rgba(61, 61, 61, 1) 100%)'
         : '#ffffff',
       transition: 'background 0.3s ease',
     },
@@ -174,34 +170,44 @@ const CourseCoverageRequestPage = () => {
 
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    console.log('Submitting coverage request:', formData);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
-    setShowSuccess(true);
+  const onSubmit = async (data) => {
+    const apiBaseUrl = window.location.hostname === 'localhost'
+      ? 'http://localhost:8000'
+      : '/api';
 
-    // Reset form
-    setFormData({
-      courseNumber: '',
-      topics: '',
-      notes: '',
-      email: ''
-    });
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          courseNumber: data.courseNumber,
+          topics: data.topics || '',
+          notes: data.notes || '',
+          email: JSON.parse(localStorage.getItem('user'))?.email || ''
+        })
+      });
 
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+      if (!response.ok) {
+        throw new Error('Failed to submit request');
+      }
 
-    // Redirect after delay
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 2000);
-  };
+      setShowSuccess(true);
+      reset();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error submitting coverage request:', error);
+      alert('Failed to submit request. Please try again.');
+    }
   };
 
   return (
@@ -219,20 +225,18 @@ const CourseCoverageRequestPage = () => {
         <div style={styles.twoColumn}>
           <div>
             <div style={styles.formCard}>
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit(onSubmit)}>
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>
                     SFSU Course Number<span style={styles.required}>*</span>
                   </label>
                   <input
                     type="text"
-                    name="courseNumber"
                     placeholder="e.g., CSC 415"
-                    value={formData.courseNumber}
-                    onChange={handleChange}
+                    {...register("courseNumber", { required: "Course number is required" })}
                     style={styles.formInput}
-                    required
                   />
+                  {errors.courseNumber && <span style={{ color: 'red', fontSize: '12px' }}>{errors.courseNumber.message}</span>}
                 </div>
 
                 <div style={styles.formGroup}>
@@ -240,10 +244,8 @@ const CourseCoverageRequestPage = () => {
                     Topics Needed (optional)
                   </label>
                   <textarea
-                    name="topics"
                     placeholder="List specific topics or chapters you need help with..."
-                    value={formData.topics}
-                    onChange={handleChange}
+                    {...register("topics")}
                     style={{ ...styles.formInput, ...styles.textarea }}
                     rows="4"
                   />
@@ -254,29 +256,14 @@ const CourseCoverageRequestPage = () => {
                     Additional notes (optional)
                   </label>
                   <textarea
-                    name="notes"
                     placeholder="Any additional information that might help tutors..."
-                    value={formData.notes}
-                    onChange={handleChange}
+                    {...register("notes")}
                     style={{ ...styles.formInput, ...styles.textarea }}
                     rows="6"
                   />
                 </div>
 
-                <div style={styles.formGroup}>
-                  <label style={styles.formLabel}>
-                    Your Email<span style={styles.required}>*</span>
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="your.email@sfsu.edu"
-                    value={formData.email}
-                    onChange={handleChange}
-                    style={styles.formInput}
-                    required
-                  />
-                </div>
+
 
                 <div style={styles.formActions}>
                   <button
@@ -296,6 +283,23 @@ const CourseCoverageRequestPage = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+
+          {/* Info Cards Column */}
+          <div>
+            <div style={styles.infoCard}>
+              <h3 style={styles.infoCardTitle}>Need more courses covered?</h3>
+              <p style={styles.infoCardText}>
+                You can request new courses to be added to our catalog here, add the topics you need along with the course name.
+              </p>
+            </div>
+
+            <div style={styles.infoCard}>
+              <h3 style={styles.infoCardTitle}>No tutors for a course you need tutoring for?</h3>
+              <p style={styles.infoCardText}>
+                Submit a request mentioning the course and we'll get right to it!
+              </p>
             </div>
           </div>
         </div>

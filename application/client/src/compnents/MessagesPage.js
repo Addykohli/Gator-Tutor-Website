@@ -1,271 +1,1047 @@
-import React, { useState } from 'react';
-import { format } from 'date-fns';
+import { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Footer from './Footer';
+import { useAuth } from '../Context/Context';
 
-// Sample conversation data for development
-const sampleConversations = [
-  {
-    id: 1,
-    name: 'John Doe',
-    avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-    lastMessage: 'Hey, how are you doing?',
-    time: '10:30 AM',
-    unread: 2,
-    messages: [
-      { id: 1, text: 'Hey there!', sender: 'them', time: '10:25 AM' },
-      { id: 2, text: 'How are you doing?', sender: 'them', time: '10:26 AM' },
-      { id: 3, text: "I'm good, thanks! How about you?", sender: 'me', time: '10:30 AM' },
-    ]
-  },
-  {
-    id: 2,
-    name: 'Study Group',
-    avatar: 'https://randomuser.me/api/portraits/lego/2.jpg',
-    lastMessage: 'Alice: Let\'s meet at the library',
-    time: '9:15 AM',
-    unread: 0,
-    isGroup: true,
-    messages: [
-      { id: 1, text: 'Bob: Has everyone finished the assignment?', sender: 'them', senderName: 'Bob', time: '9:00 AM' },
-      { id: 2, text: 'Yes, just submitted mine', sender: 'me', time: '9:05 AM' },
-      { id: 3, text: "Let's meet at the library", sender: 'them', senderName: 'Alice', time: '9:15 AM' },
-    ]
-  },
-  {
-    id: 3,
-    name: 'Sarah Wilson',
-    avatar: 'https://randomuser.me/api/portraits/women/3.jpg',
-    lastMessage: 'The meeting is at 2pm',
-    time: 'Yesterday',
-    unread: 0,
-    messages: [
-      { id: 1, text: 'Hi Sarah, when is our next meeting?', sender: 'me', time: 'Yesterday' },
-      { id: 2, text: 'The meeting is at 2pm', sender: 'them', time: 'Yesterday' },
-    ]
-  },
-];
+const CHAT_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
+const userCache = {};
+
+const fetchUserInfo = async (userId) => {
+  if (userCache[userId]) {
+    return userCache[userId];
+  }
+
+  try {
+    const response = await fetch(`${CHAT_API_BASE}/api/users/${userId}`);
+    if (response.ok) {
+      const userData = await response.json();
+      const userInfo = {
+        id: userData.user_id,
+        name: `${userData.first_name} ${userData.last_name}`,
+        email: userData.sfsu_email,
+        role: userData.role || 'User',
+      };
+      userCache[userId] = userInfo;
+      return userInfo;
+    }
+  } catch (error) {
+    console.error(`Error fetching user ${userId}:`, error);
+  }
+
+  return { id: userId, name: `User ${userId}`, email: '', role: 'User' };
+};
 
 const MessagesPage = () => {
-  const [conversations, setConversations] = useState(sampleConversations);
-  const [selectedConversation, setSelectedConversation] = useState(null);
+  const getLoggedInUserId = () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        const user = JSON.parse(userData);
+        const userId = user.user_id || user.id;
+        if (userId) {
+          return userId;
+        }
+      }
+    } catch (error) {
+      console.error('Error getting logged in user:', error);
+    }
+    return 1;
+  };
+
+  const [currentUserId, setCurrentUserId] = useState(getLoggedInUserId());
+  const [chatPartners, setChatPartners] = useState([]);
+  const [selectedPartnerId, setSelectedPartnerId] = useState(null);
+  const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-
-
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    const updatedConversations = conversations.map(conv => {
-      if (conv.id === selectedConversation.id) {
-        const newMsg = {
-          id: conv.messages.length + 1,
-          text: newMessage,
-          sender: 'me',
-          time: format(new Date(), 'h:mm a')
-        };
-        return {
-          ...conv,
-          lastMessage: newMessage,
-          time: 'Just now',
-          messages: [...conv.messages, newMsg]
-        };
-      }
-      return conv;
-    });
-
-    setConversations(updatedConversations);
-    setSelectedConversation(updatedConversations.find(c => c.id === selectedConversation.id));
-    setNewMessage('');
+  const [loading, setLoading] = useState(true);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [lastSeenMessages, setLastSeenMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`lastSeenMessages_${getLoggedInUserId()}`);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+  const saveLastSeen = (partnerId, messageId) => {
+    const updated = { ...lastSeenMessages, [partnerId]: messageId };
+    setLastSeenMessages(updated);
+    localStorage.setItem(`lastSeenMessages_${currentUserId}`, JSON.stringify(updated));
   };
 
-  const handleFileUpload = (e) => {
+  const hasUnreadMessages = (partnerId) => {
+    const lastSeen = lastSeenMessages[partnerId] || 0;
+    const lastMessage = partnerLastMessages[partnerId] || 0;
+    return lastMessage > lastSeen;
+  }; const [partnerLastMessages, setPartnerLastMessages] = useState({});
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+
+  // Dark mode and mobile responsiveness
+  const { darkMode } = useAuth();
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+
+  const wsRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const scrollToBottom = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  // Handle window resize for mobile detection
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      // Auto-show sidebar on desktop, hide on mobile when a chat is selected
+      if (!mobile) {
+        setSidebarVisible(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    const checkUserChange = () => {
+      const newUserId = getLoggedInUserId();
+      if (newUserId !== currentUserId) {
+        setCurrentUserId(newUserId);
+        setChatPartners([]);
+        setMessages([]);
+        setSelectedPartnerId(null);
+        setLoading(true);
+
+        if (wsRef.current) {
+          wsRef.current.close();
+        }
+      }
+    };
+
+    window.addEventListener('storage', checkUserChange);
+    const interval = setInterval(checkUserChange, 1000);
+
+    return () => {
+      window.removeEventListener('storage', checkUserChange);
+      clearInterval(interval);
+    };
+  }, [currentUserId]);
+
+  useEffect(() => {
+    fetchChatPartners();
+    connectWebSocket();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [currentUserId]);
+
+  const connectWebSocket = () => {
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsHost = window.location.hostname === 'localhost' ? 'localhost:8000' : window.location.host;
+    const wsUrl = `${wsProtocol}//${wsHost}/api/chat/ws/${currentUserId}`;
+    try {
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onopen = () => {
+        console.log('WebSocket connected');
+        setWsConnected(true);
+      };
+
+      wsRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data.sender_id === selectedPartnerId || data.receiver_id === selectedPartnerId) {
+          setMessages(prev => {
+            const exists = prev.some(m => m.message_id === data.message_id);
+            if (exists) return prev;
+            return [...prev, {
+              message_id: data.message_id,
+              sender_id: data.sender_id,
+              receiver_id: data.receiver_id,
+              content: data.content,
+              media_path: data.media_path || null,
+              media_type: data.media_type || null,
+              created_at: data.created_at,
+            }];
+          });
+        }
+      };
+
+      wsRef.current.onclose = () => {
+        setWsConnected(false);
+        setTimeout(() => connectWebSocket(), 3000);
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket error:', error);
+      };
+    } catch (error) {
+      console.error('Failed to connect WebSocket:', error);
+    }
+  };
+
+  const fetchChatPartners = async () => {
+    try {
+      const response = await fetch(`${CHAT_API_BASE}/api/chat/allchats/${currentUserId}`);
+      if (response.ok) {
+        const userIds = await response.json();
+        const partnersPromises = userIds.map(id => fetchUserInfo(id));
+        const partners = await Promise.all(partnersPromises);
+
+        // Fetch last message ID for each partner
+        const lastMsgs = {};
+        for (const partner of partners) {
+          try {
+            const msgResponse = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partner.id}`);
+            if (msgResponse.ok) {
+              const msgs = await msgResponse.json();
+              if (msgs.length > 0) {
+                lastMsgs[partner.id] = msgs[msgs.length - 1].message_id;
+              }
+            }
+          } catch (e) {
+            console.error('Error fetching last message:', e);
+          }
+        }
+        setPartnerLastMessages(lastMsgs);
+        setChatPartners(partners);
+      } else {
+        setChatPartners([]);
+      }
+    } catch (error) {
+      console.error('Error fetching chat partners:', error);
+      setChatPartners([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const response = await fetch(`${CHAT_API_BASE}/api/users`);
+      if (response.ok) {
+        const users = await response.json();
+        const formattedUsers = users
+          .filter(u => u.user_id !== currentUserId)
+          .map(u => ({
+            id: u.user_id,
+            name: `${u.first_name} ${u.last_name}`,
+            email: u.sfsu_email,
+            role: u.role || 'User',
+          }));
+        setAllUsers(formattedUsers);
+      } else {
+        setAllUsers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setAllUsers([]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const fetchMessages = async (partnerId) => {
+    setMessagesLoading(true);
+    try {
+      const response = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partnerId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMessages(data);
+      } else {
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error('Error fetching messages:', error);
+      setMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const handleSelectPartner = (partner) => {
+    setSelectedPartnerId(partner.id);
+    setSending(false);
+    fetchMessages(partner.id);
+    // Mark as read - save the last message ID for this partner
+    if (partnerLastMessages[partner.id]) {
+      saveLastSeen(partner.id, partnerLastMessages[partner.id]);
+    }
+  };
+
+  const handleStartNewChat = (user) => {
+    const existingPartner = chatPartners.find(p => p.id === user.id);
+    if (!existingPartner) {
+      setChatPartners(prev => [user, ...prev]);
+    }
+    setSelectedPartnerId(user.id);
+    setMessages([]);
+    setShowNewChatModal(false);
+    setUserSearchTerm('');
+  };
+
+  const handleOpenNewChatModal = () => {
+    setShowNewChatModal(true);
+    fetchAllUsers();
+  };
+
+  const handleFileSelect = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-
-    const updatedConversations = conversations.map(conv => {
-      if (conv.id === selectedConversation.id) {
-        const newMsg = {
-          id: conv.messages.length + 1,
-          file: {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url: URL.createObjectURL(file)
-          },
-          sender: 'me',
-          time: format(new Date(), 'h:mm a')
-        };
-        return {
-          ...conv,
-          lastMessage: 'Attachment: ' + file.name,
-          time: 'Just now',
-          messages: [...conv.messages, newMsg]
-        };
+    if (file) {
+      const maxSize = 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        alert('File size must be less than 10MB');
+        return;
       }
-      return conv;
-    });
-
-    setConversations(updatedConversations);
-    setSelectedConversation(updatedConversations.find(c => c.id === selectedConversation.id));
+      setSelectedFile(file);
+    }
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+
+    if ((!newMessage.trim() && !selectedFile) || !selectedPartnerId || sending) {
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      if (selectedFile) {
+        setUploadingFile(true);
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('receiver_id', selectedPartnerId);
+        if (newMessage.trim()) {
+          formData.append('content', newMessage);
+        }
+
+        const response = await fetch(`${CHAT_API_BASE}/api/chat/send-media?user_id=${currentUserId}`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (response.ok) {
+          const sentMessage = await response.json();
+          setMessages(prev => [...prev, sentMessage]);
+          setNewMessage('');
+          setSelectedFile(null);
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        } else {
+          alert('Failed to send file. Please try again.');
+        }
+        setUploadingFile(false);
+      } else {
+        const messageContent = newMessage.trim();
+
+        const tempMessage = {
+          message_id: Date.now(),
+          sender_id: currentUserId,
+          receiver_id: selectedPartnerId,
+          content: messageContent,
+          media_path: null,
+          media_type: null,
+          created_at: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, tempMessage]);
+        setNewMessage('');
+
+        if (wsConnected && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({
+            receiver_id: selectedPartnerId,
+            content: messageContent,
+          }));
+        } else {
+          const response = await fetch(`${CHAT_API_BASE}/api/chat/send?user_id=${currentUserId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              receiver_id: selectedPartnerId,
+              content: messageContent,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to send message');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const filteredPartners = chatPartners
+    .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      const aUnread = hasUnreadMessages(a.id);
+      const bUnread = hasUnreadMessages(b.id);
+      if (aUnread && !bUnread) return -1;
+      if (!aUnread && bUnread) return 1;
+      return 0;
+    });
+
+  const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) ||
+    allUsers.find(u => u.id === selectedPartnerId);
+
+  const filteredUsers = allUsers.filter(user =>
+    user.name.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.email.toLowerCase().includes(userSearchTerm.toLowerCase()) ||
+    user.role.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
+
+  const formatTime = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  };
+
+  const getInitials = (name) => {
+    if (!name) return '?';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const renderMedia = (message) => {
+    if (!message.media_path) return null;
+
+    const mediaUrl = message.media_path.startsWith('http')
+      ? message.media_path
+      : `${CHAT_API_BASE}${message.media_path}`;
+
+    if (message.media_type?.startsWith('image/')) {
+      return (
+        <img
+          src={mediaUrl}
+          alt="Shared"
+          style={styles.mediaImage}
+          onClick={() => window.open(mediaUrl, '_blank')}
+        />
+      );
+    } else if (message.media_type?.startsWith('video/')) {
+      return (
+        <video src={mediaUrl} controls style={styles.mediaVideo} />
+      );
+    } else if (message.media_type?.startsWith('audio/')) {
+      return (
+        <audio src={mediaUrl} controls style={styles.mediaAudio} />
+      );
+    } else {
+      return (
+        <a href={mediaUrl} target="_blank" rel="noopener noreferrer" style={styles.fileLink}>
+          Download File
+        </a>
+      );
+    }
+  };
+
+  // Hide sidebar when selecting a partner on mobile
+  const handleSelectPartnerMobile = (partner) => {
+    handleSelectPartner(partner);
+    if (isMobile) {
+      setSidebarVisible(false);
+    }
+  };
+
+  const isButtonDisabled = (!newMessage.trim() && !selectedFile) || !selectedPartnerId || sending || uploadingFile;
+
+  const styles = {
+    container: {
+      display: 'flex',
+      height: isMobile ? 'calc(100vh - 60px)' : 'calc(100vh - 60px)',
+      maxWidth: '1400px',
+      margin: isMobile ? '0' : '0 auto',
+      width: '100%',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+      overflow: 'hidden',
+      boxShadow: darkMode ? '0 2px 10px rgba(0,0,0,0.3)' : '0 2px 10px rgba(0,0,0,0.1)',
+      position: 'relative',
+    },
+    sidebar: {
+      width: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
+      minWidth: isMobile ? (sidebarVisible ? '100%' : '0') : '280px',
+      backgroundColor: darkMode ? '#2d2d2d' : '#35006D',
+      color: '#fff',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      transition: 'all 0.3s ease',
+      position: isMobile ? 'absolute' : 'relative',
+      top: 0,
+      left: 0,
+      height: '100%',
+      zIndex: isMobile ? 50 : 1,
+    },
+    sidebarHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '20px',
+      borderBottom: '1px solid rgba(255,255,255,0.1)',
+    },
+    headerLeft: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '10px',
+    },
+    sidebarTitle: {
+      margin: 0,
+      fontSize: '20px',
+    },
+    newChatButton: {
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      backgroundColor: '#FFCF01',
+      color: '#35006D',
+      border: 'none',
+      fontSize: '24px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchInput: {
+      margin: '10px 20px',
+      padding: '10px 15px',
+      borderRadius: '20px',
+      border: 'none',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+    },
+    conversationList: {
+      flex: 1,
+      overflowY: 'auto',
+    },
+    loadingContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      height: '100%',
+      color: darkMode ? '#888' : '#888',
+    },
+    emptyState: {
+      textAlign: 'center',
+      padding: '20px',
+      color: 'rgba(255,255,255,0.6)',
+      fontSize: '14px',
+    },
+    conversationItem: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '15px 20px',
+      cursor: 'pointer',
+      borderLeft: '4px solid transparent',
+      transition: 'background-color 0.2s',
+    },
+    avatar: {
+      width: '45px',
+      height: '45px',
+      borderRadius: '50%',
+      backgroundColor: '#FFCF01',
+      color: '#35006D',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      marginRight: '12px',
+      fontSize: '14px',
+      flexShrink: 0,
+    },
+    conversationInfo: {
+      flex: 1,
+    },
+    conversationName: {
+      margin: 0,
+      fontSize: '15px',
+    },
+    conversationRole: {
+      margin: '4px 0 0',
+      fontSize: '12px',
+      opacity: 0.7,
+    },
+    chatArea: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+    },
+    chatHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: isMobile ? '10px 15px' : '15px 20px',
+      borderBottom: darkMode ? '1px solid #333' : '1px solid #eee',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
+    },
+    chatAvatar: {
+      width: '45px',
+      height: '45px',
+      borderRadius: '50%',
+      backgroundColor: '#35006D',
+      color: '#fff',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontWeight: 'bold',
+      marginRight: '12px',
+      fontSize: '14px',
+    },
+    chatName: {
+      margin: 0,
+      fontSize: '16px',
+      color: darkMode ? '#fff' : '#333',
+    },
+    chatStatus: {
+      margin: '2px 0 0',
+      fontSize: '13px',
+      color: darkMode ? '#aaa' : '#888',
+    },
+    messagesContainer: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: isMobile ? '15px' : '20px',
+      display: 'flex',
+      flexDirection: 'column',
+      backgroundColor: darkMode ? '#1a1a1a' : '#fff',
+    },
+    messageWrapper: {
+      display: 'flex',
+      marginBottom: '12px',
+    },
+    messageBubble: {
+      maxWidth: isMobile ? '85%' : '70%',
+      padding: '12px 16px',
+      borderRadius: '18px',
+    },
+    messageText: {
+      margin: 0,
+      fontSize: '14px',
+      lineHeight: '1.4',
+    },
+    messageTime: {
+      display: 'block',
+      fontSize: '11px',
+      marginTop: '5px',
+      textAlign: 'right',
+    },
+    inputContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: isMobile ? '10px 15px' : '15px 20px',
+      borderTop: darkMode ? '1px solid #333' : '1px solid #eee',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fafafa',
+      gap: '10px',
+    },
+    attachButton: {
+      width: '40px',
+      height: '40px',
+      borderRadius: '50%',
+      backgroundColor: darkMode ? '#3d3d3d' : '#f0f0f0',
+      border: 'none',
+      fontSize: '18px',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    filePreview: {
+      display: 'flex',
+      alignItems: 'center',
+      backgroundColor: darkMode ? '#3d3d3d' : '#e8e8e8',
+      padding: '5px 10px',
+      borderRadius: '15px',
+      maxWidth: '200px',
+    },
+    fileName: {
+      fontSize: '12px',
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      marginRight: '8px',
+      color: darkMode ? '#fff' : '#333',
+    },
+    removeFileButton: {
+      background: 'none',
+      border: 'none',
+      color: '#e74c3c',
+      fontSize: '18px',
+      cursor: 'pointer',
+      padding: 0,
+    },
+    messageInput: {
+      flex: 1,
+      padding: '12px 20px',
+      borderRadius: '25px',
+      border: darkMode ? '1px solid #444' : '1px solid #ddd',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+      minWidth: 0,
+    },
+    noChat: {
+      flex: 1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: darkMode ? '#888' : '#888',
+      fontSize: '16px',
+    },
+    modalOverlay: {
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1000,
+    },
+    modal: {
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      borderRadius: '12px',
+      width: isMobile ? '95%' : '400px',
+      maxHeight: '500px',
+      display: 'flex',
+      flexDirection: 'column',
+    },
+    modalHeader: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '20px',
+      borderBottom: darkMode ? '1px solid #444' : '1px solid #eee',
+    },
+    modalTitle: {
+      margin: 0,
+      fontSize: '18px',
+      color: darkMode ? '#fff' : '#35006D',
+    },
+    closeButton: {
+      background: 'none',
+      border: 'none',
+      fontSize: '24px',
+      cursor: 'pointer',
+      color: darkMode ? '#888' : '#888',
+    },
+    modalSearchInput: {
+      margin: '15px 20px',
+      padding: '10px 15px',
+      borderRadius: '8px',
+      border: darkMode ? '1px solid #444' : '1px solid #ddd',
+      fontSize: '14px',
+      outline: 'none',
+      backgroundColor: darkMode ? '#3d3d3d' : '#fff',
+      color: darkMode ? '#fff' : '#333',
+    },
+    userList: {
+      flex: 1,
+      overflowY: 'auto',
+      padding: '0 10px 20px',
+    },
+    userItem: {
+      display: 'flex',
+      alignItems: 'center',
+      padding: '12px 15px',
+      cursor: 'pointer',
+      borderRadius: '8px',
+      marginBottom: '5px',
+      transition: 'background-color 0.2s',
+      backgroundColor: 'transparent',
+    },
+    userInfo: {
+      flex: 1,
+    },
+    userName: {
+      margin: 0,
+      fontSize: '14px',
+      fontWeight: '500',
+      color: darkMode ? '#fff' : '#333',
+    },
+    userRole: {
+      margin: '2px 0 0',
+      fontSize: '12px',
+      color: darkMode ? '#aaa' : '#888',
+    },
+    mediaImage: {
+      maxWidth: '100%',
+      borderRadius: '8px',
+      marginTop: '8px',
+      cursor: 'pointer',
+    },
+    mediaVideo: {
+      maxWidth: '100%',
+      borderRadius: '8px',
+      marginTop: '8px',
+    },
+    mediaAudio: {
+      width: '100%',
+      marginTop: '8px',
+    },
+    fileLink: {
+      color: '#35006D',
+      textDecoration: 'underline',
+      marginTop: '8px',
+      display: 'inline-block',
+    },
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Header />
-      <div style={{ ...styles.container, flex: 1 }}>
-      <div style={styles.sidebar}>
-        <div style={styles.sidebarHeader}>
-          <h2 style={styles.sidebarTitle}>Messages</h2>
-        </div>
-        <div style={styles.searchContainer}>
+      <div style={styles.container}>
+        <div style={styles.sidebar}>
+          <div style={styles.sidebarHeader}>
+            <div style={styles.headerLeft}>
+              <h2 style={styles.sidebarTitle}>Messages</h2>
+            </div>
+            <button onClick={handleOpenNewChatModal} style={styles.newChatButton} data-testid="button-new-chat">+</button>
+          </div>
           <input
             type="text"
             placeholder="Search conversations..."
-            style={styles.searchInput}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            style={styles.searchInput}
+            data-testid="input-search-conversations"
           />
-        </div>
-        <div style={styles.conversationList}>
-          {filteredConversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              style={{
-                ...styles.conversationItem,
-                backgroundColor: selectedConversation?.id === conversation.id ? '#f0f0f0' : 'white',
-              }}
-              onClick={() => setSelectedConversation(conversation)}
-            >
-              <img
-                src={conversation.avatar}
-                alt={conversation.name}
-                style={styles.avatar}
-              />
-              <div style={styles.conversationInfo}>
-                <div style={styles.conversationHeader}>
-                  <h3 style={styles.conversationName}>{conversation.name}</h3>
-                  <span style={styles.conversationTime}>{conversation.time}</span>
-                </div>
-                <p style={styles.conversationPreview}>
-                  {conversation.lastMessage.length > 30
-                    ? conversation.lastMessage.substring(0, 30) + '...'
-                    : conversation.lastMessage}
-                </p>
-              </div>
-              {conversation.unread > 0 && (
-                <span style={styles.unreadBadge}>{conversation.unread}</span>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {selectedConversation ? (
-        <div style={styles.chatContainer}>
-          <div style={styles.chatHeader}>
-            <button 
-              style={styles.backButton}
-              onClick={() => setSelectedConversation(null)}
-            >
-              <i className="fas fa-chevron-left" style={{ fontSize: '24px' }}></i>
-            </button>
-            <img
-              src={selectedConversation.avatar}
-              alt={selectedConversation.name}
-              style={styles.chatAvatar}
-            />
-            <div>
-              <h2 style={styles.chatName}>{selectedConversation.name}</h2>
-              <p style={styles.chatStatus}>
-                {selectedConversation.isGroup ? 'Group' : 'Online'}
-              </p>
-            </div>
-          </div>
-
-          <div style={styles.messagesContainer}>
-            {selectedConversation.messages.map((message) => (
-              <div
-                key={message.id}
-                style={{
-                  ...styles.message,
-                  alignSelf: message.sender === 'me' ? 'flex-end' : 'flex-start',
-                  backgroundColor: message.sender === 'me' ? '#007AFF' : '#f0f0f0',
-                  color: message.sender === 'me' ? 'white' : 'black',
-                }}
-              >
-                {message.sender !== 'me' && selectedConversation.isGroup && (
-                  <span style={styles.senderName}>
-                    {message.senderName || selectedConversation.name}
-                  </span>
-                )}
-                {message.text && <p style={styles.messageText}>{message.text}</p>}
-                {message.file && (
-                  <div style={styles.fileContainer}>
-                    <div style={styles.fileIcon}>
-                    <i className="fas fa-paperclip" style={{ fontSize: '24px' }}></i>
-                  </div>
-                    <div style={styles.fileInfo}>
-                      <p style={styles.fileName}>{message.file.name}</p>
-                      <p style={styles.fileSize}>
-                        {Math.round(message.file.size / 1024)} KB
-                      </p>
+          <div style={styles.conversationList}>
+            {loading ? (
+              <div style={styles.loadingContainer}>Loading...</div>
+            ) : filteredPartners.length === 0 ? (
+              <div style={styles.emptyState}>No conversations yet</div>
+            ) : (
+              filteredPartners.map((partner) => (
+                <div
+                  key={partner.id}
+                  onClick={() => handleSelectPartnerMobile(partner)}
+                  style={{
+                    ...styles.conversationItem,
+                    backgroundColor: selectedPartnerId === partner.id ? '#35006D' : 'transparent',
+                  }}
+                  data-testid={`conversation-item-${partner.id}`}
+                >
+                  <div style={styles.avatar}>{getInitials(partner.name)}</div>
+                  <div style={styles.conversationInfo}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h3 style={{
+                        ...styles.conversationName,
+                        fontWeight: hasUnreadMessages(partner.id) ? '700' : '500'
+                      }}>
+                        {partner.name}
+                      </h3>
+                      {hasUnreadMessages(partner.id) && (
+                        <span style={{
+                          width: '8px',
+                          height: '8px',
+                          backgroundColor: '#FFCF01',
+                          borderRadius: '50%',
+                          flexShrink: 0
+                        }} />
+                      )}
                     </div>
-                    <a
-                      href={message.file.url}
-                      download
-                      style={styles.downloadButton}
-                      onClick={(e) => e.stopPropagation()}
+                    <p style={styles.conversationRole}>{partner.role}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        <div style={styles.chatArea}>
+          {selectedPartner ? (
+            <>
+              <div style={styles.chatHeader}>
+                {isMobile && (
+                  <button
+                    onClick={() => setSidebarVisible(true)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '20px',
+                      cursor: 'pointer',
+                      color: darkMode ? '#fff' : '#333',
+                      marginRight: '10px',
+                      padding: '5px'
+                    }}
+                  >
+                    ☰
+                  </button>
+                )}
+                <div style={styles.chatAvatar}>{getInitials(selectedPartner.name)}</div>
+                <div>
+                  <h2 style={styles.chatName}>{selectedPartner.name}</h2>
+                  <p style={styles.chatStatus}>{selectedPartner.role}</p>
+                </div>
+              </div>
+
+              <div style={styles.messagesContainer} ref={messagesContainerRef}>
+                {messagesLoading ? (
+                  <div style={styles.loadingContainer}>Loading messages...</div>
+                ) : messages.length === 0 ? (
+                  <div style={styles.loadingContainer}>No messages yet. Start the conversation!</div>
+                ) : (
+                  messages.map((message) => (
+                    <div
+                      key={message.message_id}
+                      style={{
+                        ...styles.messageWrapper,
+                        justifyContent: message.sender_id === currentUserId ? 'flex-end' : 'flex-start',
+                      }}
+                      data-testid={`message-${message.message_id}`}
                     >
-                      <i className="fas fa-download"></i>
-                    </a>
+                      <div
+                        style={{
+                          ...styles.messageBubble,
+                          backgroundColor: message.sender_id === currentUserId ? '#35006D' : '#f0f0f0',
+                          color: message.sender_id === currentUserId ? '#fff' : '#333',
+                        }}
+                      >
+                        {renderMedia(message)}
+                        {message.content && <p style={styles.messageText}>{message.content}</p>}
+                        <span style={{
+                          ...styles.messageTime,
+                          color: message.sender_id === currentUserId ? 'rgba(255,255,255,0.7)' : '#888',
+                        }}>
+                          {formatTime(message.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={handleSendMessage} style={styles.inputContainer}>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                  accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={styles.attachButton}
+                  data-testid="button-attach-file"
+                >
+                  📎
+                </button>
+
+                {selectedFile && (
+                  <div style={styles.filePreview}>
+                    <span style={styles.fileName}>{selectedFile.name}</span>
+                    <button type="button" onClick={handleRemoveFile} style={styles.removeFileButton} data-testid="button-remove-file">×</button>
                   </div>
                 )}
-                <span style={styles.messageTime}>
-                  {message.time}
-                </span>
-              </div>
-            ))}
-          </div>
 
-          <form onSubmit={handleSendMessage} style={styles.messageInputContainer}>
-            <button type="button" style={styles.iconButton}>
-              <i className="far fa-smile" style={{ fontSize: '24px', color: '#666' }}></i>
-            </button>
-            <div style={styles.attachmentContainer}>
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  style={styles.messageInput}
+                  data-testid="input-message"
+                />
+                <button
+                  type="submit"
+                  disabled={isButtonDisabled}
+                  style={{
+                    ...styles.sendButton,
+                    opacity: isButtonDisabled ? 0.5 : 1,
+                    cursor: isButtonDisabled ? 'not-allowed' : 'pointer',
+                  }}
+                  data-testid="button-send-message"
+                >
+                  ➤
+                </button>
+              </form>
+            </>
+          ) : (
+            <div style={styles.noChat}>Select a conversation to start messaging</div>
+          )}
+        </div>
+
+        {showNewChatModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowNewChatModal(false)}>
+            <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h3 style={styles.modalTitle}>Start New Chat</h3>
+                <button onClick={() => setShowNewChatModal(false)} style={styles.closeButton} data-testid="button-close-modal">×</button>
+              </div>
               <input
-                type="file"
-                id="file-upload"
-                style={{ display: 'none' }}
-                onChange={handleFileUpload}
+                type="text"
+                placeholder="Search users..."
+                value={userSearchTerm}
+                onChange={(e) => setUserSearchTerm(e.target.value)}
+                style={styles.modalSearchInput}
+                data-testid="input-search-users"
               />
-              <label htmlFor="file-upload" style={styles.iconButton}>
-                <i className="fas fa-paperclip" style={{ fontSize: '24px', color: '#666' }}></i>
-              </label>
+              <div style={styles.userList}>
+                {loadingUsers ? (
+                  <div style={styles.loadingContainer}>Loading users...</div>
+                ) : filteredUsers.length === 0 ? (
+                  <div style={styles.emptyState}>No users found</div>
+                ) : (
+                  filteredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      onClick={() => handleStartNewChat(user)}
+                      style={styles.userItem}
+                      data-testid={`user-item-${user.id}`}
+                    >
+                      <div style={styles.avatar}>{getInitials(user.name)}</div>
+                      <div style={styles.userInfo}>
+                        <h4 style={styles.userName}>{user.name}</h4>
+                        <p style={styles.userRole}>{user.role}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
-            <input
-              type="text"
-              placeholder="Type a message..."
-              style={styles.messageInput}
-              value={newMessage}
-              onChange={(e) => setNewMessage(e.target.value)}
-            />
-            <button type="submit" style={styles.sendButton}>
-              <i className="fas fa-paper-plane" style={{ fontSize: '20px', color: 'white' }}></i>
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div style={styles.noChatSelected}>
-          <h2>Select a conversation to start messaging</h2>
-          <p>Or start a new conversation with a tutor or classmate</p>
-        </div>
-      )}
+          </div>
+        )}
       </div>
       <Footer />
     </div>
@@ -273,43 +1049,76 @@ const MessagesPage = () => {
 };
 
 const styles = {
+  pageContainer: {
+    minHeight: '100vh',
+    backgroundColor: '#f5f5f5',
+  },
   container: {
     display: 'flex',
-    minHeight: 'calc(100vh - 160px)', 
-    height: 'auto',
+    height: 'calc(100vh - 80px)',
+    maxWidth: '1400px',
+    margin: '0px',
     backgroundColor: '#fff',
-    borderRadius: '10px',
     overflow: 'hidden',
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    margin: '20px', 
+    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
   },
   sidebar: {
-    width: '350px',
-    borderRight: '1px solid #e0e0e0',
+    width: '280px',
+    backgroundColor: '#35006D',
+    color: '#fff',
     display: 'flex',
     flexDirection: 'column',
   },
   sidebarHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: '20px',
-    borderBottom: '1px solid #e0e0e0',
+    borderBottom: '1px solid rgba(255,255,255,0.1)',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  backButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    color: '#fff',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'background-color 0.2s',
   },
   sidebarTitle: {
     margin: 0,
-    fontSize: '24px',
-    fontWeight: '600',
-    color: '#333',
+    fontSize: '20px',
   },
-  searchContainer: {
-    padding: '15px',
-    borderBottom: '1px solid #e0e0e0',
+  newChatButton: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    backgroundColor: '#FFCF01',
+    color: '#35006D',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchInput: {
-    width: '100%',
+    margin: '10px 20px',
     padding: '10px 15px',
     borderRadius: '20px',
-    border: '1px solid #e0e0e0',
-    outline: 'none',
+    border: 'none',
     fontSize: '14px',
+    outline: 'none',
   },
   conversationList: {
     flex: 1,
@@ -318,246 +1127,277 @@ const styles = {
   conversationItem: {
     display: 'flex',
     alignItems: 'center',
-    padding: '15px',
-    borderBottom: '1px solid #f0f0f0',
+    padding: '15px 20px',
     cursor: 'pointer',
-    transition: 'background-color 0.2s',
-    '&:hover': {
-      backgroundColor: '#f9f9f9',
-    },
+    borderLeft: '4px solid transparent',
   },
   avatar: {
-    width: '50px',
-    height: '50px',
+    width: '45px',
+    height: '45px',
     borderRadius: '50%',
-    marginRight: '15px',
-    objectFit: 'cover',
-  },
-  conversationInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
-  conversationHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '5px',
-  },
-  conversationName: {
-    margin: 0,
-    fontSize: '16px',
-    fontWeight: '600',
-    color: '#333',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  conversationTime: {
-    fontSize: '12px',
-    color: '#999',
-    marginLeft: '10px',
-  },
-  conversationPreview: {
-    margin: 0,
-    fontSize: '14px',
-    color: '#666',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  unreadBadge: {
-    backgroundColor: '#007AFF',
-    color: 'white',
-    borderRadius: '50%',
-    width: '20px',
-    height: '20px',
+    backgroundColor: '#FFCF01',
+    color: '#35006D',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '12px',
-    fontWeight: '600',
-    marginLeft: '10px',
+    fontWeight: 'bold',
+    marginRight: '12px',
+    fontSize: '14px',
   },
-  chatContainer: {
+  conversationInfo: {
+    flex: 1,
+  },
+  conversationName: {
+    margin: 0,
+    fontSize: '15px',
+    fontWeight: '500',
+  },
+  conversationRole: {
+    margin: '4px 0 0',
+    fontSize: '12px',
+    opacity: 0.7,
+  },
+  chatArea: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    backgroundColor: '#fff',
   },
   chatHeader: {
     display: 'flex',
     alignItems: 'center',
     padding: '15px 20px',
-    borderBottom: '1px solid #e0e0e0',
-    backgroundColor: '#f9f9f9',
-  },
-  backButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    marginRight: '15px',
-    display: 'none',
-    '@media (max-width: 768px)': {
-      display: 'block',
-    },
+    borderBottom: '1px solid #eee',
+    backgroundColor: '#fafafa',
   },
   chatAvatar: {
-    width: '40px',
-    height: '40px',
+    width: '45px',
+    height: '45px',
     borderRadius: '50%',
-    marginRight: '15px',
-    objectFit: 'cover',
+    backgroundColor: '#35006D',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontWeight: 'bold',
+    marginRight: '12px',
+    fontSize: '14px',
   },
   chatName: {
     margin: 0,
     fontSize: '16px',
-    fontWeight: '600',
     color: '#333',
   },
   chatStatus: {
-    margin: 0,
-    fontSize: '12px',
-    color: '#666',
+    margin: '2px 0 0',
+    fontSize: '13px',
+    color: '#888',
   },
   messagesContainer: {
     flex: 1,
-    padding: '20px',
     overflowY: 'auto',
+    padding: '20px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '15px',
-    backgroundColor: '#e5ddd5',
-    backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'100\' height=\'100\' viewBox=\'0 0 100 100\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cpath d=\'M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29-22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z\' fill=\'%239C92AC\' fill-opacity=\'0.1\' fill-rule=\'evenodd\'/%3E%3C/svg%3E")',
   },
-  message: {
+  loadingContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    color: '#888',
+  },
+  messageWrapper: {
+    display: 'flex',
+    marginBottom: '12px',
+  },
+  messageBubble: {
     maxWidth: '70%',
-    padding: '10px 15px',
+    padding: '12px 16px',
     borderRadius: '18px',
-    position: 'relative',
-    wordWrap: 'break-word',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-  },
-  senderName: {
-    fontSize: '12px',
-    fontWeight: '600',
-    marginBottom: '4px',
-    color: '#666',
   },
   messageText: {
-    margin: '0',
+    margin: 0,
     fontSize: '14px',
     lineHeight: '1.4',
   },
   messageTime: {
-    fontSize: '10px',
-    color: 'rgba(255, 255, 255, 0.8)',
+    display: 'block',
+    fontSize: '11px',
+    marginTop: '5px',
     textAlign: 'right',
-    marginTop: '4px',
-    marginLeft: '10px',
-    display: 'inline-block',
-    float: 'right',
   },
-  fileContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  mediaImage: {
+    maxWidth: '250px',
+    maxHeight: '200px',
     borderRadius: '8px',
-    padding: '8px',
-    marginTop: '8px',
-  },
-  fileIcon: {
-    fontSize: '24px',
-    marginRight: '10px',
-  },
-  fileInfo: {
-    flex: 1,
-  },
-  fileName: {
-    margin: 0,
-    fontSize: '14px',
-    fontWeight: '500',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-  fileSize: {
-    margin: '2px 0 0',
-    fontSize: '12px',
-    color: 'rgba(255, 255, 255, 0.8)',
-  },
-  downloadButton: {
-    background: 'none',
-    border: 'none',
-    color: 'white',
     cursor: 'pointer',
-    fontSize: '16px',
-    marginLeft: '10px',
-    padding: '5px',
+    marginBottom: '8px',
   },
-  messageInputContainer: {
+  mediaVideo: {
+    maxWidth: '250px',
+    borderRadius: '8px',
+    marginBottom: '8px',
+  },
+  mediaAudio: {
+    maxWidth: '250px',
+    marginBottom: '8px',
+  },
+  fileLink: {
+    color: '#FFCF01',
+    textDecoration: 'underline',
+  },
+  inputContainer: {
     display: 'flex',
     alignItems: 'center',
     padding: '15px 20px',
-    borderTop: '1px solid #e0e0e0',
-    backgroundColor: '#f9f9f9',
+    borderTop: '1px solid #eee',
+    backgroundColor: '#fafafa',
+    gap: '10px',
   },
-  iconButton: {
-    background: 'none',
-    border: 'none',
-    cursor: 'pointer',
-    padding: '8px',
-    margin: '0 5px',
+  attachButton: {
+    width: '40px',
+    height: '40px',
     borderRadius: '50%',
+    backgroundColor: '#f0f0f0',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    '&:hover': {
-      backgroundColor: '#f0f0f0',
-    },
   },
-  attachmentContainer: {
-    position: 'relative',
+  filePreview: {
+    display: 'flex',
+    alignItems: 'center',
+    backgroundColor: '#e8e8e8',
+    padding: '5px 10px',
+    borderRadius: '15px',
+    maxWidth: '200px',
+  },
+  fileName: {
+    fontSize: '12px',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    marginRight: '8px',
+  },
+  removeFileButton: {
+    background: 'none',
+    border: 'none',
+    color: '#e74c3c',
+    fontSize: '18px',
+    cursor: 'pointer',
+    padding: 0,
   },
   messageInput: {
     flex: 1,
     padding: '12px 20px',
-    borderRadius: '20px',
-    border: '1px solid #e0e0e0',
-    outline: 'none',
+    borderRadius: '25px',
+    border: '1px solid #ddd',
     fontSize: '14px',
-    margin: '0 10px',
-    '&:focus': {
-      borderColor: '#007AFF',
-    },
+    outline: 'none',
   },
   sendButton: {
-    backgroundColor: '#007AFF',
-    color: 'white',
-    border: 'none',
+    width: '45px',
+    height: '45px',
     borderRadius: '50%',
-    width: '40px',
-    height: '40px',
+    backgroundColor: '#35006D',
+    color: '#fff',
+    border: 'none',
+    fontSize: '18px',
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    cursor: 'pointer',
-    '&:hover': {
-      backgroundColor: '#0066CC',
-    },
   },
-  noChatSelected: {
+  noChat: {
     flex: 1,
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f9f9f9',
-    color: '#999',
+    color: '#888',
+    fontSize: '16px',
+  },
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  modal: {
+    backgroundColor: '#fff',
+    borderRadius: '12px',
+    width: '400px',
+    maxHeight: '500px',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  modalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '20px',
+    borderBottom: '1px solid #eee',
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '18px',
+    color: '#35006D',
+  },
+  closeButton: {
+    background: 'none',
+    border: 'none',
+    fontSize: '24px',
+    cursor: 'pointer',
+    color: '#888',
+  },
+  modalSearchInput: {
+    margin: '15px 20px',
+    padding: '10px 15px',
+    borderRadius: '8px',
+    border: '1px solid #ddd',
+    fontSize: '14px',
+    outline: 'none',
+  },
+  userList: {
+    flex: 1,
+    overflowY: 'auto',
+    padding: '0 10px 20px',
+  },
+  userItem: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '12px 15px',
+    cursor: 'pointer',
+    borderRadius: '8px',
+    marginBottom: '5px',
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: '500',
+    color: '#333',
+  },
+  userRole: {
+    margin: '2px 0 0',
+    fontSize: '12px',
+    color: '#888',
+  },
+  emptyState: {
     textAlign: 'center',
-    padding: '40px 20px',
-    '& h2': {
-      marginBottom: '10px',
-      color: '#333',
-    },
+    padding: '20px',
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: '14px',
   },
 };
 

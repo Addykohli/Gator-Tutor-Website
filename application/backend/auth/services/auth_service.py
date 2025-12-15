@@ -11,7 +11,10 @@ pw: test12
 pwd_context = CryptContext(schemes =["argon2"], deprecated="auto")
 
 def get_user(db: Session, email:str):
-    return db.query(User).filter(func.lower(User.sfsu_email) == func.lower(email)).first()
+    return db.query(User).filter(
+        func.lower(User.sfsu_email) == func.lower(email),
+        User.is_deleted == False
+    ).first()
 
 def get_user_by_id(db: Session, user_id: int):
     return db.query(User).filter(User.user_id == user_id).first()

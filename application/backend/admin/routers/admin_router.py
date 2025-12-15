@@ -1,101 +1,148 @@
 from admin.schemas.report_schema import ReportCreate, ReportResponse
 from admin.schemas.course_schema import CourseCreate, CourseResponse
+from admin.schemas.course_request_schema import CourseRequestCreate, CourseRequestResponse, CourseUpdate
 from admin.schemas.tutor_schema import TutorProfileResponse
+from admin.models.tutor_application import TutorApplication
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from search.database import get_db
+from auth.services.auth_service import get_user
 from admin.schemas.tutor_course_schema import TutorCourseRequestCreate, TutorCourseRequestResponse
+from admin.schemas.tutor_application_schema import TutorApplicationCreate, TutorApplicationResponse, TutorApplicationUpdateStatus
+from admin.schemas.user_schema import DropUserRequest, DropUserResponse
 from admin.services.admin_service import (
-    get_all_reports, 
-    get_user_reports,
-    create_report, 
-    update_report_status,
-    get_all_courses,
-    create_course,
-    deactivate_course,
-    promote_to_tutor,
-    demote_to_student_only,
-    get_user_id_by_name,
     create_tutor_course_request,
     get_all_tutor_course_requests,
     approve_tutor_course_request,
-    reject_tutor_course_request
+    reject_tutor_course_request,
+    remove_tutor_course,
+    create_application,
+    approve_application,
+    reject_application,
+    create_course_request,
+    get_all_course_requests,
+    update_course_request_status,
+    update_report_status,
+    get_all_reports,
+    get_user_id_by_name,
+    create_report,
+    get_user_reports,
+    drop_user
 )
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
 #----------------------------------------------------------
-# Admin Manage Tutors(& Tutor Courses) Endpiints
-#Todo: manage tutors endpoints/services needed:
-# X promote, student to tutor
-# x demote tutor to student
-# delete inactive user accounts
-#   -> this probably falls under  "drop a student" task
-# X approve/reject aditional courses for tutor to tutor_courses
-# remove courses from tutor_courses
+# Tutor Application Endpoints (for students/tutors applying)
+
+# Submit a tutor application
+@router.post("/tutor-applications", response_model=TutorApplicationResponse)
+def submit_application(data: TutorApplicationCreate, db: Session = Depends(get_db)):
+    return create_application(db, data)
+
+# gets all tutor applications for admin view
+@router.get("/all-tutor-applications")
+def get_all_tutor_applications(db: Session = Depends(get_db)):
+    apps = db.query(TutorApplication).order_by(TutorApplication.created_at.desc()).all()
+    return {"items": [TutorApplicationResponse.from_orm(app) for app in apps]}
+
+#updates status of tutor_application entry(if approved, adds tutor_profile entry)
+@router.patch("/tutor-applications/{application_id}/status", response_model=TutorApplicationResponse)
+def update_status(application_id: int, body: TutorApplicationUpdateStatus, db: Session = Depends(get_db)):
+    if body.status == "approved":
+        updated = approve_application(db, application_id)
+    elif body.status == "rejected":
+        updated = reject_application(db, application_id)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    return updated
+
+#-------------------------------------------------------------------
+# ADMIN: Course Coverage Requests
+
+# for admin to see all course_coverage_requests
+@router.get("/all-coverage-requests", response_model=list[CourseRequestResponse])
+def list_course_requests(db: Session = Depends(get_db)):
+    return get_all_course_requests(db)
+
+#submit a course_coverage_request and add entry to table
+@router.post("/submit-coverage-request")
+def submit_create_course_request(data: CourseRequestCreate, db: Session = Depends(get_db)):
+    return create_course_request(db, data)
+
+    #return create_course_request(db, user_id, data)
+#updates the status to the course request table, and adds an entry to courses
+@router.patch("/coverage-request/{request_id}/status", response_model=CourseRequestResponse)
+def update_status(request_id: int, data: CourseUpdate, db: Session = Depends(get_db)):
+    return update_course_request_status(db, request_id, data.status)
 
 
-#promote student to tutor role, add student to tutor_profiles
-@router.post("/promote/{user_id}", response_model = TutorProfileResponse)
-def promotion_endpoint(user_id:int, db:Session=Depends(get_db)):
-    return promote_to_tutor(db, user_id)
-#change tutor user to student user only, removes tutor_profile
-@router.patch("/demote/{user_id}")
-def demote_tutor_endpoint(user_id:int, db: Session = Depends(get_db)):
-    return demote_to_student_only(db, user_id)
 
-# GET admin list all requests
+@router.get("/debug/courses")
+async def list_all_courses(db: Session = Depends(get_db)):
+    from search.models.course import Course
+    try:
+        courses = db.query(Course).all()
+        return [{"code": c.code, "name": c.name, "department": c.department} for c in courses]
+    except Exception as e:
+        return {"error": str(e)}
+
+@router.get("/allcourses")
+async def get_all_courses(db: Session = Depends(get_db)):
+    """Get all courses for the course catalog"""
+    from search.models.course import Course
+    try:
+        courses = db.query(Course).all()
+        return [{
+            "course_id": c.course_id,
+            "department_code": c.department_code,
+            "course_number": c.course_number,
+            "title": c.title,
+            "is_active": c.is_active if hasattr(c, 'is_active') else True
+        } for c in courses]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch courses: {str(e)}")
+#----------------------------------------------------------
+# Tutor Course Request Endpoints (Restored)
+
 @router.get("/all-tutor-course-requests", response_model=list[TutorCourseRequestResponse])
-def list_all_requests(db: Session = Depends(get_db)):
+def get_all_requests(db: Session = Depends(get_db)):
     return get_all_tutor_course_requests(db)
-   
-# tutor makes request to add course to tutor_courses
-@router.post("/tutor-course-request/{tutor_id}", response_model=TutorCourseRequestResponse)
-def tutor_create_request(tutor_id: int, data: TutorCourseRequestCreate, db: Session = Depends(get_db)):
-    return create_tutor_course_request(db, tutor_id, data)
 
-# changes approves request status, adds course to tutor_courses
-@router.patch("/tutor-course-request/{request_id}/approve", response_model=TutorCourseRequestResponse)
+@router.post("/tutor-course-request", response_model=TutorCourseRequestResponse)
+def new_tutor_course_request(request: TutorCourseRequestCreate, db: Session = Depends(get_db)):
+    return create_tutor_course_request(db=db, tutor_id=request.tutor_id, data=request)
+
+@router.patch("/tutor-course-request/{request_id}/approve")
 def approve_request(request_id: int, db: Session = Depends(get_db)):
-    return approve_tutor_course_request(db, request_id)
+    return approve_tutor_course_request(db=db, request_id=request_id)
 
-# admin changes request status to rejected
-@router.patch("/tutor-course-request/{request_id}/reject", response_model=TutorCourseRequestResponse)
+@router.patch("/tutor-course-request/{request_id}/reject")
 def reject_request(request_id: int, db: Session = Depends(get_db)):
-    return reject_tutor_course_request(db, request_id)
+    return reject_tutor_course_request(db=db, request_id=request_id)
+
+@router.delete("/remove-tutor-course")
+def remove_course(tutor_id: int, course_id: int, db: Session = Depends(get_db)):
+    return remove_tutor_course(db=db, tutor_id=tutor_id, course_id=course_id)
 
 #----------------------------------------------------------
-# Admin Manage Courses Endpoints
-#note: only courses, not tutor_courses
+# Reports Endpoints
 
-#get list of all DB courses for admin ease
-@router.get("/allcourses", response_model=list[CourseResponse])
-def list_courses_endpoint(db:Session=Depends(get_db)):
-    return get_all_courses(db)
-
-#add courses to DB by admin
-@router.post("/addcourse", response_model=CourseResponse)
-def add_course_endpoint(data: CourseCreate, db:Session=Depends(get_db)):
-    return create_course(db, data)
-
-#change course status from active to inactive in DB
-@router.patch("/deactivate/{course_id}", response_model=CourseResponse)
-def deactivate_course_endpoint(course_id:int, db:Session= Depends(get_db)):
-    return deactivate_course(db, course_id)
-
-
-#----------------------------------------------------------
-# Report(complaints/issues) Enpoints
-
-#post report
+#user submits report to admin(seen in appointments-page)
 @router.post("/report", response_model=ReportResponse)
 def create_report_endpoint(data:ReportCreate, db:Session=Depends(get_db)):
     return create_report(db,data)
 
-#GET reports
+#GET reports- view all reports for admin
 @router.get("/allreports", response_model=list[ReportResponse])
 def get_reports_endpoint(db:Session = Depends(get_db)):
     return get_all_reports(db)
 
-#get user specific report- post merge with addys changes
+#get user specific report
 @router.get("/userreports", response_model=list[ReportResponse])
 def get_user_reports_endpoint(user_id: int = Query(None), name: str = Query(None), db: Session = Depends(get_db)):
     if name:
@@ -113,3 +160,18 @@ def get_user_reports_endpoint(user_id: int = Query(None), name: str = Query(None
 @router.patch("/report/{report_id}/status", response_model= ReportResponse)
 def update_report_endpoint(report_id:int, status:str, db:Session=Depends(get_db)):
     return update_report_status(db, report_id, status)
+
+#----------------------------------------------------------
+# Admin: Drop/Delete User Endpoint
+
+@router.delete("/drop-user/{user_id}", response_model=DropUserResponse)
+def drop_user_endpoint(user_id: int, role: Optional[str] = None, db: Session = Depends(get_db)):
+    """
+    Soft delete a user by setting is_deleted flag.
+    Admin can specify user_id and optionally verify the role via query parameter.
+    
+    Args:
+        user_id: ID of the user to delete
+        role: Optional role verification (tutor, student, admin, both)
+    """
+    return drop_user(db=db, user_id=user_id, role=role)

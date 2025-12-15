@@ -228,14 +228,33 @@ const AppointmentRequestsPage = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const bId = params.get('booking');
+    const tabParam = params.get('tab'); // Read tab from URL parameter
+
     if (!bId || isNaN(Number(bId)) || !allBookings.length) return;
+
     // Safely parse booking id
     const bookingIdNum = Number(bId);
     const found = allBookings.find(b => b.booking_id === bookingIdNum || b.id === bookingIdNum);
+
     if (found) {
-      let desiredTab = 'pending';
-      if (found.status === 'confirmed') desiredTab = 'upcoming';
-      else if (found.status === 'completed') desiredTab = 'completed';
+      let desiredTab = 'pending'; // Default
+      const now = new Date();
+      const endTime = found.end_time ? new Date(found.end_time) : null;
+
+      // Determine correct tab based on status AND end time
+      if (found.status === 'pending') {
+        desiredTab = 'pending';
+      } else if (found.status === 'confirmed' && endTime && endTime > now) {
+        desiredTab = 'upcoming';
+      } else if (found.status === 'completed' || (found.status === 'confirmed' && endTime && endTime <= now)) {
+        desiredTab = 'completed';
+      }
+
+      // Use URL tab param if provided and valid (as a hint from the calendar)
+      if (tabParam && ['pending', 'upcoming', 'completed'].includes(tabParam)) {
+        desiredTab = tabParam;
+      }
+
       setActiveTab(desiredTab);
       setHighlightedBookingId(bookingIdNum);
       setTimeout(() => setHighlightedBookingId(null), 2200);
@@ -402,13 +421,13 @@ const AppointmentRequestsPage = () => {
                   <div style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666' }}>
                     Showing {paginatedBookings.length} of {filteredBookings.length} results
                   </div>
-                  <div 
+                  <div
                     className="sort-control"
                     onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
                     title={`Sort by date (${sortOrder === 'asc' ? 'Oldest first' : 'Newest first'})`}
                   >
                     <span>Sort by Date</span>
-                    <i 
+                    <i
                       className={`fas fa-arrow-${sortOrder === 'asc' ? 'up' : 'down'} sort-arrow`}
                     />
                   </div>
@@ -437,24 +456,7 @@ const AppointmentRequestsPage = () => {
                             {request.student_email || 'No email provided'}
                           </div>
                         </div>
-                        <div className="status-badge" style={{
-                          backgroundColor: request.status === 'confirmed'
-                            ? darkMode ? 'rgba(40, 167, 69, 0.2)' : '#d4edda'
-                            : request.status === 'cancelled'
-                              ? darkMode ? 'rgba(220, 53, 69, 0.2)' : '#f8d7da'
-                              : request.status === 'completed'
-                                ? darkMode ? 'rgba(23, 162, 184, 0.2)' : '#d1ecf1'
-                                : darkMode ? 'rgba(255, 193, 7, 0.2)' : '#fff3cd',
-                          color: request.status === 'confirmed'
-                            ? '#155724'
-                            : request.status === 'cancelled'
-                              ? '#721c24'
-                              : request.status === 'completed'
-                                ? '#0c5460'
-                                : '#856404'
-                        }}>
-                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                        </div>
+
                       </div>
 
                       <div className="request-details-grid">
@@ -552,11 +554,28 @@ const AppointmentRequestsPage = () => {
                 </div>
 
                 {totalPages > 1 && (
-                  <div className="pagination">
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    marginTop: '24px',
+                    paddingTop: '20px',
+                    borderTop: darkMode ? '1px solid #444' : '1px solid #eee'
+                  }}>
                     <button
-                      className={`page-button ${currentPage === 1 ? 'disabled-button' : ''}`}
                       onClick={() => handlePageChange(currentPage - 1)}
                       disabled={currentPage === 1}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: darkMode ? '#fff' : '#333',
+                        cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+                        opacity: currentPage === 1 ? 0.5 : 1,
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
                     >
                       Previous
                     </button>
@@ -564,17 +583,41 @@ const AppointmentRequestsPage = () => {
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
                         key={page}
-                        className={`page-button ${currentPage === page ? 'active-page-button' : ''}`}
                         onClick={() => handlePageChange(page)}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          backgroundColor: currentPage === page
+                            ? (darkMode ? 'rgb(255, 220, 100)' : '#35006D')
+                            : (darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'),
+                          color: currentPage === page
+                            ? (darkMode ? '#333' : '#fff')
+                            : (darkMode ? '#fff' : '#333'),
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          minWidth: '32px'
+                        }}
                       >
                         {page}
                       </button>
                     ))}
 
                     <button
-                      className={`page-button ${currentPage === totalPages ? 'disabled-button' : ''}`}
                       onClick={() => handlePageChange(currentPage + 1)}
                       disabled={currentPage === totalPages}
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: darkMode ? '#fff' : '#333',
+                        cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+                        opacity: currentPage === totalPages ? 0.5 : 1,
+                        fontSize: '14px',
+                        fontWeight: '500'
+                      }}
                     >
                       Next
                     </button>

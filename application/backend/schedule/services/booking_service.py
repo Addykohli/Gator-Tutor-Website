@@ -88,7 +88,7 @@ def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
         Booking.tutor_id == tutor_id
     ).order_by(Booking.start_time.desc()).all()
     
-    # Populate course_title for response
+    # Populate course_title and student details for response
     for booking in bookings:
         if booking.course:
             booking.course_title = booking.course.title
@@ -101,6 +101,11 @@ def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
                 print(f"Warning: Course with ID {booking.course_id} not found for booking {booking.booking_id}")
         else:
             print(f"Warning: Booking {booking.booking_id} has no course_id")
+        
+        # Populate student_name and student_email
+        if booking.student:
+            booking.student_name = f"{booking.student.first_name} {booking.student.last_name}"
+            booking.student_email = booking.student.sfsu_email
     
     return bookings
 
@@ -130,6 +135,7 @@ def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Option
             booking.tutor_name = f"{booking.tutor_profile.user.first_name} {booking.tutor_profile.user.last_name}"
         if booking.student:
             booking.student_name = f"{booking.student.first_name} {booking.student.last_name}"
+            booking.student_email = booking.student.sfsu_email
         if booking.course:
             booking.course_title = booking.course.title
             

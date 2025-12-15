@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Context/Context';
 import Footer from './Footer';
@@ -22,6 +22,14 @@ const HomePage = () => {
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
 
+  // Course Management State
+  const [isAddCourseModalOpen, setIsAddCourseModalOpen] = useState(false);
+  const [isRemoveCourseModalOpen, setIsRemoveCourseModalOpen] = useState(false);
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [courseSearchResults, setCourseSearchResults] = useState([]);
+  const [isSearchingCourses, setIsSearchingCourses] = useState(false);
+  const [requestedCourses, setRequestedCourses] = useState(new Set());
+
   // Search state
   const [searchQuery, setSearchQuery] = useState(() => {
     const saved = localStorage.getItem('searchQuery');
@@ -34,20 +42,119 @@ const HomePage = () => {
   });
 
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 850);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth <= 768);
+      setIsMobile(window.innerWidth <= 850);
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Tutor Profile State
+  const [tutorProfile, setTutorProfile] = useState({
+    bio: '',
+    hourly_rate: 0,
+    languages: []
+  });
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editForm, setEditForm] = useState({
+    bio: '',
+    hourly_rate: '',
+    languages: ''
+  });
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Fetch tutor profile data
+  useEffect(() => {
+    const fetchTutorProfile = async () => {
+      if (user?.isTutor) {
+        try {
+          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+          const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+          if (response.ok) {
+            const data = await response.json();
+            // Backend returns hourly_rate_cents, convert to dollars for display
+            const hourlyRate = data.hourly_rate_cents ? data.hourly_rate_cents / 100 : 0;
+
+            setTutorProfile({
+              bio: data.bio || '',
+              hourly_rate: hourlyRate,
+              languages: data.languages || []
+            });
+            setEditForm({
+              bio: data.bio || '',
+              hourly_rate: hourlyRate.toString(),
+              languages: (data.languages || []).join(', ')
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching tutor profile:", error);
+        }
+      }
+    };
+    fetchTutorProfile();
+  }, [user]);
+
+  // Handle Profile Update
+  const handleProfileUpdate = async () => {
+    setIsSavingProfile(true);
+    const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+    try {
+      const updates = [];
+
+      // Update Price (convert to cents)
+      const rateCents = Math.round(parseFloat(editForm.hourly_rate) * 100);
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/price`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hourly_rate_cents: rateCents })
+        })
+      );
+
+      // Update Bio
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/bio`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bio: editForm.bio })
+        })
+      );
+
+      // Update Languages
+      const langs = editForm.languages.split(',').map(l => l.trim()).filter(l => l);
+      updates.push(
+        fetch(`${apiBaseUrl}/api/tutors/${user.id}/languages`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ languages: langs })
+        })
+      );
+
+      await Promise.all(updates);
+
+      // Update local state
+      setTutorProfile({
+        bio: editForm.bio,
+        hourly_rate: parseFloat(editForm.hourly_rate),
+        languages: editForm.languages.split(',').map(l => l.trim()).filter(l => l)
+      });
+      setIsEditingProfile(false);
+
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      alert("Failed to update profile");
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   // Memoize the API base URL with useMemo since it doesn't depend on any props or state
   const apiBaseUrl = React.useMemo(() => {
-    return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api';
+    return window.location.hostname === 'localhost' ? 'http://localhost:8000' : '';
   }, []);
 
   // Fetch tutor availability
@@ -122,6 +229,69 @@ const HomePage = () => {
       setIsLoadingCourses(false);
     }
   }, [user?.isTutor, user?.id, apiBaseUrl]);
+
+  // Course Management Handlers
+  const handleCourseSearch = async (query) => {
+    if (!query) {
+      setCourseSearchResults([]);
+      return;
+    }
+    setIsSearchingCourses(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/courses?q=${encodeURIComponent(query)}`);
+      const data = await response.json();
+      setCourseSearchResults(data.items || []);
+    } catch (error) {
+      console.error("Error searching courses:", error);
+    } finally {
+      setIsSearchingCourses(false);
+    }
+  };
+
+  const requestAddCourse = async (courseId) => {
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ course_id: courseId })
+      });
+      if (response.ok) {
+        // Success! Update state to show checkmark
+        setRequestedCourses(prev => {
+          const newSet = new Set(prev);
+          newSet.add(courseId);
+          return newSet;
+        });
+        // Note: We keep the modal open as requested
+      } else {
+        const err = await response.json();
+        alert(err.detail || "Failed to submit request");
+      }
+    } catch (error) {
+      console.error("Error requesting course:", error);
+      alert("Error requesting course");
+    }
+  };
+
+  const removeCourse = async (courseId) => {
+    if (!window.confirm("Are you sure you want to remove this course?")) return;
+    try {
+      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses/${courseId}`, {
+        method: 'DELETE'
+      });
+      if (response.ok) {
+        setTutorCourses(tutorCourses.filter(c => c.course_id !== courseId && c.id !== courseId));
+        alert("Course removed successfully");
+        setIsRemoveCourseModalOpen(false);
+      } else {
+        const err = await response.json();
+        alert(err.detail || "Failed to remove course");
+      }
+    } catch (error) {
+      console.error("Error removing course:", error);
+      alert("Error removing course");
+    }
+  };
 
   // Fetch tutor bookings
   const fetchTutorBookings = React.useCallback(async () => {
@@ -352,7 +522,7 @@ const HomePage = () => {
 
     const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : '/api';
+      : '';
 
     const typeMap = {
       'tutor': 'tutor',
@@ -458,7 +628,7 @@ const HomePage = () => {
       width: "100%",
       maxWidth: "1400px",
       margin: "0 auto",
-      padding: "clamp(8px, 2vw, 20px) clamp(5px, 1.5vw, 10px)",
+      padding: "clamp(6px, 2vw, 10px) clamp(5px, 1.5vw, 10px)",
       flex: 1,
       boxSizing: "border-box",
       marginBottom: "clamp(40px, 8vw, 80px)",
@@ -483,13 +653,13 @@ const HomePage = () => {
     calendarGrid: {
       width: '100%',
       position: 'relative',
-      overflow: 'hidden',
+      overflow: 'visible',
       backgroundColor: darkMode ? '#1a1a1a' : '#ffffff',
       border: darkMode ? '1px solid #2d2d2d' : '1px solid #dee2e6',
       borderRadius: '8px',
       boxSizing: 'border-box',
       minHeight: '200px',
-      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 2px 8px rgba(0,0,0,0.3)' : '0 1px 3px rgba(0,0,0,0.1)',
       overflowX: 'visible',
       '--calendar-cell-bg': darkMode ? '#2d2d2d' : '#fff',
       '--calendar-cell-border': darkMode ? '#3d3d3d' : '#e9ecef',
@@ -599,12 +769,14 @@ const HomePage = () => {
     tutorCalendarGrid: {
       width: '100%',
       display: 'grid',
-      gridTemplateColumns: isMobile ? 'clamp(25px, 4vw, 30px) repeat(7, 1fr)' : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
+      gridTemplateColumns: isMobile
+        ? 'clamp(25px, 4vw, 30px) repeat(7, calc((100% - clamp(25px, 4vw, 30px)) / 3))'
+        : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
       backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
       border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
       borderRadius: '8px',
-      overflow: 'hidden',
-      overflowX: 'visible',
+      overflow: isAnimating ? 'hidden' : 'visible',
+      overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible'),
       '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
       '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
       '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
@@ -616,6 +788,10 @@ const HomePage = () => {
       backgroundColor: 'var(--tutor-time-bg, #fff)',
       padding: "clamp(0px, 0.5vw, 4px) clamp(1px, 0.5vw, 4px) clamp(4px, 2vw, 20px)",
       textAlign: 'center',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      zIndex: 5,
+      position: 'sticky',
+      left: 0,
       fontSize: "clamp(0.5rem, 1vw, 0.75rem)",
       fontWeight: '500',
       color: 'var(--tutor-time-text, #666)',
@@ -668,7 +844,7 @@ const HomePage = () => {
         : "#fff",
       borderRadius: "clamp(16px, 3vw, 24px)",
       padding: "clamp(16px, 3vw, 32px)",
-      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
@@ -677,8 +853,9 @@ const HomePage = () => {
     },
     searchInputContainer: {
       display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row',
-      alignItems: isMobile ? 'stretch' : 'center',
+      flexDirection: 'row',
+      flexWrap: isMobile ? 'wrap' : 'nowrap',
+      alignItems: 'center',
       gap: "clamp(6px, 1vw, 8px)",
       marginTop: "clamp(6px, 1.2vw, 10px)"
     },
@@ -690,12 +867,14 @@ const HomePage = () => {
       fontSize: "clamp(14px, 1.8vw, 16px)",
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : "#ffffff",
+      height: isMobile ? '42px' : 'auto',
+      boxSizing: 'border-box'
     },
     categoryDropdown: {
       position: 'relative',
       display: 'inline-block',
-      minWidth: isMobile ? '100%' : '120px',
-      width: isMobile ? '100%' : '120px'
+      minWidth: isMobile ? '35%' : '120px',
+      width: isMobile ? '35%' : '120px'
     },
     categoryButton: {
       padding: "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
@@ -708,8 +887,14 @@ const HomePage = () => {
       textAlign: 'center',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      fontSize: "clamp(14px, 1.8vw, 16px)",
+      justifyContent: isMobile ? 'center' : 'space-between',
+      fontSize: isMobile ? '0.8rem' : "clamp(14px, 1.8vw, 16px)",
+      whiteSpace: 'nowrap',
+      overflow: 'hidden',
+      textOverflow: 'ellipsis',
+      padding: isMobile ? '0 4px' : "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
+      height: isMobile ? '42px' : 'auto',
+      boxSizing: 'border-box'
     },
     categoryList: {
       position: 'absolute',
@@ -720,6 +905,7 @@ const HomePage = () => {
       padding: '8px 8px',
       margin: '4px 0 0',
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : 'white',
+      color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid rgba(0,0,0,.15)',
       borderRadius: '6px',
       boxShadow: '0 6px 12px rgba(0,0,0,.175)',
@@ -731,7 +917,7 @@ const HomePage = () => {
         : "#fff",
       borderRadius: "clamp(16px, 3vw, 24px)",
       padding: "clamp(16px, 3vw, 32px)",
-      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.08)',
+      boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
       width: '100%',
@@ -823,9 +1009,9 @@ const HomePage = () => {
           borderBottom: '1px solid var(--calendar-cell-border)',
           padding: isMobile ? '6px 4px' : '12px 8px',
           position: 'relative',
-          overflowY: 'auto',
-          maxHeight: isMobile ? '300px' : '500px',
-          transition: 'background-color 0.2s ease'
+          transition: 'background-color 0.2s ease',
+          display: 'flex',
+          flexDirection: 'column'
         }}
           onMouseEnter={(e) => {
             if (!isToday) {
@@ -856,7 +1042,7 @@ const HomePage = () => {
                   key={`${booking.booking_id || index}`}
                   style={{
                     backgroundColor: `${booking.color}44`,
-                    color: '#333',
+                    color: darkMode ? '#fff' : '#333',
                     borderRadius: isMobile ? '4px' : '6px',
                     padding: isMobile ? '4px 6px' : '10px',
                     boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
@@ -894,7 +1080,7 @@ const HomePage = () => {
                   )}
                   <div style={{
                     fontSize: isMobile ? '0.65rem' : '0.8rem',
-                    color: darkMode ? '#000000ff' : '#6c757d',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.9)' : '#6c757d',
                     fontWeight: isMobile ? '600' : '400'
                   }}>
                     {booking.formattedTime}
@@ -902,7 +1088,7 @@ const HomePage = () => {
                   <div style={{
                     fontWeight: '500',
                     fontSize: isMobile ? '0.7rem' : '1rem',
-                    color: '#212529',
+                    color: darkMode ? '#fff' : '#212529',
                     lineHeight: isMobile ? '1.2' : '1.4'
                   }}>
                     {booking.tutor_name || 'Tutoring Session'}
@@ -910,14 +1096,14 @@ const HomePage = () => {
                   {booking.course_name && (
                     <div style={{
                       fontSize: isMobile ? '0.6rem' : '0.8rem',
-                      color: '#495057',
+                      color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#495057',
                       display: 'flex',
                       alignItems: 'center',
                       marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-book" style={{
                         marginRight: isMobile ? '4px' : '6px',
-                        color: '#6c757d',
+                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
                         width: isMobile ? '10px' : '14px',
                         fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
@@ -928,14 +1114,14 @@ const HomePage = () => {
                   {booking.location && (
                     <div style={{
                       fontSize: isMobile ? '0.6rem' : '0.8rem',
-                      color: '#6c757d',
+                      color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#6c757d',
                       display: 'flex',
                       alignItems: 'center',
                       marginTop: isMobile ? '2px' : '4px'
                     }}>
                       <i className="fas fa-map-marker-alt" style={{
                         marginRight: isMobile ? '4px' : '6px',
-                        color: '#6c757d',
+                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
                         width: isMobile ? '10px' : '14px',
                         fontSize: isMobile ? '0.6rem' : '0.8rem',
                         textAlign: 'center'
@@ -1193,6 +1379,14 @@ const HomePage = () => {
         const isAvailable = isTimeSlotAvailable(currentDate, hour);
         const booking = getBookingForSlot(currentDate, hour);
 
+        // Time marker logic
+        const now = new Date();
+        const isToday = isSameDay(currentDate, now);
+        const currentHour = now.getHours();
+        const showTimeMarker = isToday && (hour === currentHour);
+        const currentMinute = now.getMinutes();
+        const markerTop = (currentMinute / 60) * 100;
+
         // Debug logging for all slots when bookings exist
         if (tutorBookings && tutorBookings.length > 0) {
           const dateStr = format(currentDate, 'yyyy-MM-dd');
@@ -1224,12 +1418,36 @@ const HomePage = () => {
               willChange: 'transform, background-color, border-color'
             }}
           >
+            {showTimeMarker && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: `${markerTop}%`,
+                  left: 0,
+                  width: '100%',
+                  height: '1px',
+                  backgroundColor: '#EA4335',
+                  zIndex: 15,
+                  pointerEvents: 'none'
+                }}
+              >
+                <div style={{
+                  position: 'absolute',
+                  left: '-4px',
+                  top: '-3px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EA4335',
+                }} />
+              </div>
+            )}
             {booking ? (
               <button
                 id={`booking-btn-${booking.booking_id}`}
                 type="button"
                 className={`calendar-booking-btn${glowBookingId === booking.booking_id ? ' glow-animation' : ''}`}
-                onClick={() => booking.isStudentBooking ? handleStudentBookingClick(booking) : handleBookingClick(booking.booking_id)}
+                onClick={() => booking.isStudentBooking ? handleStudentBookingClick(booking) : handleBookingClick(booking)}
                 style={{
                   position: 'absolute',
                   top: '1px', left: '1px', right: '1px', bottom: '1px',
@@ -1252,9 +1470,11 @@ const HomePage = () => {
                   boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                   zIndex: 10,
                   border: `1px solid ${booking.isStudentBooking ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255,255,255,0.3)'}`,
-                  borderLeft: booking.status === 'confirmed'
-                    ? `${isMobile ? '3px' : '6px'} solid rgba(53, 0, 109, 0.95)`
-                    : `${isMobile ? '3px' : '6px'} solid rgba(255, 193, 7, 0.95)`,
+                  borderLeft: (booking.isStudentBooking && booking.status === 'confirmed')
+                    ? `${isMobile ? '3px' : '6px'} solid rgb(95, 0, 196)`
+                    : booking.status === 'confirmed'
+                      ? `${isMobile ? '3px' : '6px'} solid rgba(53, 0, 109, 0.95)`
+                      : `${isMobile ? '3px' : '6px'} solid rgba(255, 193, 7, 0.95)`,
                   cursor: 'pointer',
                   transition: 'box-shadow 0.3s, background 0.3s, transform 0.2s',
                 }}
@@ -1312,6 +1532,94 @@ const HomePage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ success: false, message: '' });
 
+  // Scroll tracking for mobile calendars
+  const studentScrollRef = useRef(null);
+  const tutorScrollRef = useRef(null);
+  const [studentScrollProgress, setStudentScrollProgress] = useState(0);
+  const [tutorScrollProgress, setTutorScrollProgress] = useState(0);
+
+  const handleScroll = (ref, setProgress) => {
+    if (ref.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = ref.current;
+      const scrollableWidth = scrollWidth - clientWidth;
+      if (scrollableWidth > 0) {
+        const progress = (scrollLeft / scrollableWidth) * 100;
+        setProgress(progress);
+      } else {
+        setProgress(0);
+      }
+    }
+  };
+
+  // Set initial scroll position to show today (or Friday for weekend)
+  useEffect(() => {
+    if (!isMobile) return;
+    if (isAnimating) return; // Don't scroll during animations
+    if (isLoadingAvailability) return; // Wait for loading to complete
+
+    const today = new Date();
+    const todayTime = today.getTime();
+    const weekStartTime = currentWeekStart.getTime();
+    const weekEndTime = addDays(currentWeekStart, 6).getTime();
+
+    // Check if today is within the current week being displayed
+    const isTodayInCurrentWeek = todayTime >= weekStartTime && todayTime <= weekEndTime;
+
+    // Calculate which day index should be leftmost
+    let targetDayIndex = 0; // Default to Sunday (start of week)
+
+    if (isTodayInCurrentWeek) {
+      const dayOfWeek = today.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+
+      // For Saturday (6) or Sunday (0), use Friday (5)
+      if (dayOfWeek === 0) { // Sunday
+        targetDayIndex = 5; // Friday
+      } else if (dayOfWeek === 6) { // Saturday
+        targetDayIndex = 5; // Friday
+      } else {
+        targetDayIndex = dayOfWeek; // Today (1=Mon to 5=Fri)
+      }
+    }
+
+    // Calculate scroll position
+    const scrollToDay = (ref, calendarName) => {
+      if (ref.current && targetDayIndex > 0) {
+        const { scrollWidth, clientWidth } = ref.current;
+        const scrollableWidth = scrollWidth - clientWidth;
+        if (scrollableWidth > 0) {
+          // Calculate position based on day index
+          // At index 0, scrollLeft = 0
+          // At index 4 (max for 3-day view), scrollLeft = scrollableWidth
+          // Linear interpolation: scrollLeft = (targetDayIndex / 4) * scrollableWidth
+          const maxDayIndex = 4; // 7 days - 3 visible = 4 scroll positions
+          const scrollPosition = Math.min(targetDayIndex, maxDayIndex) / maxDayIndex * scrollableWidth;
+
+          ref.current.scrollLeft = scrollPosition;
+
+          // Update progress
+          const progress = (scrollPosition / scrollableWidth) * 100;
+          if (ref === studentScrollRef) {
+            setStudentScrollProgress(progress);
+          } else if (ref === tutorScrollRef) {
+            setTutorScrollProgress(progress);
+          }
+        }
+      }
+    };
+
+    // Small delay to ensure DOM is rendered
+    const timer = setTimeout(() => {
+      if (studentScrollRef.current) {
+        scrollToDay(studentScrollRef, 'Student');
+      }
+      if (tutorScrollRef.current) {
+        scrollToDay(tutorScrollRef, 'Tutor');
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isMobile, currentWeekStart, isAnimating, isLoadingAvailability]); // Re-run when week changes or loading completes
+
   // Function to save availability for a specific date
   // Replace the saveAvailability function in HomePage.js with this corrected version
 
@@ -1326,7 +1634,7 @@ const HomePage = () => {
     try {
       const apiBaseUrl = window.location.hostname === 'localhost'
         ? 'http://localhost:8000'
-        : '/api';
+        : '';
 
       const weekday = date.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
       const formattedDate = format(date, 'yyyy-MM-dd');
@@ -1762,9 +2070,26 @@ const HomePage = () => {
   };
 
   // Handle tutor booking clicks (navigates to appointment requests)
-  function handleBookingClick(bookingId) {
+  function handleBookingClick(booking) {
+    if (!booking) return;
+
+    const bookingId = booking.booking_id || booking.id;
     setGlowBookingId(bookingId);
-    navigate(`/appointment-requests?booking=${bookingId}`);
+
+    // Determine which tab to select based on booking status and end time
+    let tab = 'pending'; // Default tab
+    const now = new Date();
+    const endTime = booking.end_time ? new Date(booking.end_time) : null;
+
+    if (booking.status === 'pending') {
+      tab = 'pending';
+    } else if (booking.status === 'confirmed' && endTime && endTime > now) {
+      tab = 'upcoming';
+    } else if (booking.status === 'completed' || (endTime && endTime <= now)) {
+      tab = 'completed';
+    }
+
+    navigate(`/appointment-requests?booking=${bookingId}&tab=${tab}`);
   }
 
   // Handle student booking clicks (navigates to sessions page with correct tab)
@@ -1916,10 +2241,10 @@ const HomePage = () => {
         <div style={{
           display: isMobile ? 'flex' : (isAuthenticated ? 'grid' : 'flex'),
           flexDirection: isMobile ? 'column' : 'row',
-          gridTemplateColumns: isMobile ? 'none' : (isSidebarCollapsed ? '80px 1fr' : '280px 1fr'),
+          gridTemplateColumns: isMobile ? 'none' : '280px 1fr',
           width: '100%',
           gap: '20px',
-          padding: isMobile ? '0 10px' : '0 20px',
+          padding: isMobile ? '0 4px' : '0 10px',
           boxSizing: 'border-box',
           maxWidth: '1400px',
           margin: '0 auto',
@@ -1931,87 +2256,18 @@ const HomePage = () => {
               <div style={{
                 backgroundColor: darkMode ? "rgba(40, 40, 40, 0.4)" : '#fff',
                 borderRadius: '12px',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
-                padding: isMobile ? '12px' : (isSidebarCollapsed ? '24px 10px' : '24px'),
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                padding: isMobile ? '12px' : '24px',
                 height: 'fit-content',
                 border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #f0f0f0',
-                width: isMobile ? '100%' : (isSidebarCollapsed ? '80px' : '280px'),
+                width: isMobile ? '100%' : '280px',
                 boxSizing: 'border-box',
                 transition: 'all 0.3s ease',
                 overflow: 'hidden',
                 minHeight: isMobile ? 'auto' : '300px',
                 position: 'relative'
               }}>
-                {/* Collapse/Expand Button - Hidden on mobile */}
-                {!isMobile && (
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    margin: isSidebarCollapsed ? '20px 0px' : '0px',
-                    height: isSidebarCollapsed ? '90%' : 'auto',
-                    width: '90%',
-                    display: 'flex',
-                    alignItems: isSidebarCollapsed ? 'center' : 'flex-start',
-                    justifyContent: isSidebarCollapsed ? 'center' : 'flex-end',
-                    pointerEvents: 'none',
-                    zIndex: 10,
-                    paddingTop: isSidebarCollapsed ? 0 : '10px',
-                  }}>
-                    <button
-                      onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                      style={{
-                        position: 'relative',
-                        backgroundColor: 'rgba(231, 230, 230, 0.49)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: darkMode ? 'rgba(0, 0, 0, 0.91)' : '#6c757d',
-                        padding: isSidebarCollapsed ? '15px 8px' : '5px',
-                        margin: isSidebarCollapsed ? '0px' : '0 10px',
-                        borderRadius: isSidebarCollapsed ? '0 6px 6px 0' : '4px',
-                        boxShadow: isSidebarCollapsed ? '-2px 0 8px rgba(0,0,0,0.1)' : 'none',
-                        transition: 'all 0.3s ease',
-                        pointerEvents: 'auto',
-                        height: isSidebarCollapsed ? '100%' : 'auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.7)';
-                        e.currentTarget.style.color = '#35006D';
-                        if (isSidebarCollapsed) {
-                          e.currentTarget.style.boxShadow = '-2px 0 12px rgba(0,0,0,0.15)';
-                        }
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = 'rgba(231, 230, 230, 0.49)';
-                        e.currentTarget.style.color = 'rgba(0, 0, 0, 0.91)';
-                        if (isSidebarCollapsed) {
-                          e.currentTarget.style.boxShadow = '-2px 0 8px rgba(0,0,0,0.1)';
-                        } else {
-                          e.currentTarget.style.boxShadow = 'none';
-                        }
-                      }}
-                    >
-                      <span style={{
-                        fontSize: '16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '20px',
-                        height: '20px'
-                      }}>
-                        {isSidebarCollapsed ? (
-                          <i className="fas fa-bars" style={{ fontSize: '16px' }}></i>
-                        ) : (
-                          <i className="fas fa-window-minimize" style={{ fontSize: '12px' }}></i>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-                )}
-                {/* Profile Header */}
+                {/* Sidebar Content */}
                 <div style={{
                   display: 'flex',
                   flexDirection: isMobile ? 'row' : 'column',
@@ -2020,8 +2276,6 @@ const HomePage = () => {
                   paddingBottom: isMobile ? '20px' : '20px',
                   marginBottom: '20px',
                   borderBottom: user ? '1px solid rgb(100, 100, 100)' : 'none',
-                  opacity: isSidebarCollapsed ? 0 : 1,
-                  transition: 'opacity 0.2s ease',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -2050,46 +2304,46 @@ const HomePage = () => {
                               position: 'relative',
                               padding: '4px 10px',
                               minWidth: 'clamp(60px, 12vw, 80px)',
-                              background: darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(10px)',
+                              WebkitBackdropFilter: 'blur(10px)',
                               color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                              border: 'none',
-                              borderRadius: '20px',
+                              border: '1px solid rgba(180, 180, 190, 0.4)',
+                              borderRadius: '8px',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px',
+                              gap: '4px',
                               transition: 'all 0.2s',
                               zIndex: 1,
                               minHeight: '28px',
-                              boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                             }}
                             onMouseOver={(e) => {
-                              e.currentTarget.style.background = darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                               e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                             }}
                             onMouseOut={(e) => {
-                              e.currentTarget.style.background = darkMode
-                                ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                                : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                             }}
                           >
                             <i className="fas fa-calendar-check" style={{ fontSize: '0.85rem' }}></i>
                             <div style={{
                               display: 'flex',
                               flexDirection: 'column',
+                              justifyContent: 'center',
+                              height: '100%',
                               lineHeight: '1.1',
                               textAlign: 'left',
                               fontSize: '0.6rem',
                               fontWeight: '200',
-                              marginRight: pendingRequestsCount > 0 ? '6px' : '0',
-                              minWidth: 'clamp(60px, 12vw, 80px)'
+                              margin: '0 4px 0 0',
+                              padding: 0,
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              whiteSpace: 'nowrap'
                             }}>
                               <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Requests</span>
                             </div>
@@ -2119,6 +2373,62 @@ const HomePage = () => {
                         </div>
                       )}
 
+                      {/* Sessions Button - Students only */}
+                      {!user?.isTutor && (
+                        <div style={{ position: 'relative', width: '100%' }}>
+                          <button
+                            onClick={() => navigate('/sessions')}
+                            style={{
+                              position: 'relative',
+                              padding: '4px 10px',
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              background: 'rgba(255, 255, 255, 0.15)',
+                              backdropFilter: 'blur(10px)',
+                              WebkitBackdropFilter: 'blur(10px)',
+                              color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                              border: '1px solid rgba(180, 180, 190, 0.4)',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.2s',
+                              zIndex: 1,
+                              minHeight: '28px',
+                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                              e.currentTarget.style.transform = 'translateY(-1px)';
+                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              e.currentTarget.style.transform = 'translateY(0)';
+                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                            }}
+                          >
+                            <i className="fas fa-chalkboard" style={{ fontSize: '0.85rem' }}></i>
+                            <div style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              height: '100%',
+                              lineHeight: '1.1',
+                              textAlign: 'left',
+                              fontSize: '0.6rem',
+                              fontWeight: '200',
+                              margin: '0 4px 0 0',
+                              padding: 0,
+                              minWidth: 'clamp(60px, 12vw, 80px)',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Sessions</span>
+                            </div>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Messages Button */}
                       <div style={{ position: 'relative', width: '100%' }}>
                         <button
@@ -2127,34 +2437,30 @@ const HomePage = () => {
                             position: 'relative',
                             padding: '4px 10px',
                             minWidth: 'clamp(60px, 12vw, 80px)',
-                            background: darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
                             color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: 'none',
-                            borderRadius: '20px',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '6px',
+                            gap: '4px',
                             transition: 'all 0.2s',
                             zIndex: 1,
                             minHeight: '28px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 2px 5px rgba(0,0,0,0.15)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = darkMode
-                              ? 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)'
-                              : 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-envelope" style={{ fontSize: '0.85rem' }}></i>
@@ -2163,12 +2469,14 @@ const HomePage = () => {
                             flexDirection: 'column',
                             justifyContent: 'center',
                             height: '100%',
+                            lineHeight: '1.1',
+                            textAlign: 'left',
                             fontSize: '0.6rem',
                             fontWeight: '200',
-                            whiteSpace: 'nowrap',
-                            marginRight: '0',
-                            padding: '0',
-                            minWidth: 'clamp(60px, 12vw, 80px)'
+                            margin: '0 4px 0 0',
+                            padding: 0,
+                            minWidth: 'clamp(60px, 12vw, 80px)',
+                            whiteSpace: 'nowrap'
                           }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Messages</span>
                           </div>
@@ -2252,8 +2560,6 @@ const HomePage = () => {
                 {/* Buttons Section - Desktop */}
                 {user && !isMobile && (
                   <div style={{
-                    opacity: isSidebarCollapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
@@ -2267,30 +2573,32 @@ const HomePage = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
                             color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: 'none',
-                            borderRadius: '1px',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
+                            justifyContent: 'flex-start',
                             gap: '10px',
                             transition: 'all 0.2s',
                             fontWeight: '600',
                             fontSize: '0.95rem',
                             position: 'relative',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
@@ -2321,6 +2629,48 @@ const HomePage = () => {
                       </div>
                     )}
 
+                    {/* Sessions Button - Students only */}
+                    {!user?.isTutor && (
+                      <div style={{ marginBottom: '12px' }}>
+                        <button
+                          onClick={() => navigate('/sessions')}
+                          style={{
+                            width: '100%',
+                            padding: '12px 16px',
+                            background: 'rgba(255, 255, 255, 0.15)',
+                            backdropFilter: 'blur(10px)',
+                            WebkitBackdropFilter: 'blur(10px)',
+                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                            border: '1px solid rgba(180, 180, 190, 0.4)',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-start',
+                            gap: '10px',
+                            transition: 'all 0.2s',
+                            fontWeight: '600',
+                            fontSize: '0.95rem',
+                            position: 'relative',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                          }}
+                          onMouseOver={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                          }}
+                          onMouseOut={(e) => {
+                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.transform = 'translateY(0)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                          }}
+                        >
+                          <i className="fas fa-chalkboard" style={{ fontSize: '1rem' }}></i>
+                          Sessions
+                        </button>
+                      </div>
+                    )}
+
                     {/* Messages Button */}
                     <div>
                       <button
@@ -2328,30 +2678,32 @@ const HomePage = () => {
                         style={{
                           width: '100%',
                           padding: '12px 16px',
-                          background: 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
                           color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                          border: 'none',
-                          borderRadius: '1px',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
+                          justifyContent: 'flex-start',
                           gap: '10px',
                           transition: 'all 0.2s',
                           fontWeight: '600',
                           fontSize: '0.95rem',
                           position: 'relative',
-                          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
                         }}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.45) 53%, rgba(191, 145, 8, 0.45) 94%)';
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
                           e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(180deg, rgba(255, 224, 112, 0.35) 53%, rgba(191, 145, 8, 0.35) 94%)';
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                         }}
                       >
                         <i className="fas fa-envelope" style={{ fontSize: '1rem' }}></i>
@@ -2359,13 +2711,51 @@ const HomePage = () => {
                       </button>
                     </div>
                   </div>
+                )} {/* Apply to be a Tutor - Only for students */}
+                {user && !user.isTutor && user.role !== 'admin' && (
+                  <div style={{ marginTop: '10px' }}>
+                    <button
+                      onClick={() => navigate('/apply-tutor')}
+                      style={{
+                        width: '100%',
+                        padding: '12px 16px',
+                        background: 'rgba(255, 255, 255, 0.15)',
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                        border: '1px solid rgba(180, 180, 190, 0.4)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'flex-start',
+                        gap: '10px',
+                        transition: 'all 0.2s',
+                        fontWeight: '600',
+                        fontSize: '0.95rem',
+                        position: 'relative',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                      }}
+                    >
+                      <i className="fas fa-graduation-cap" style={{ fontSize: '1rem' }}></i>
+                      Apply as Tutor
+                    </button>
+                  </div>
                 )}
 
                 {/* Courses I Tutor Section - Only for tutors */}
                 {user?.isTutor && (
                   <div style={{
-                    opacity: isSidebarCollapsed ? 0 : 1,
-                    transition: 'opacity 0.2s ease',
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
@@ -2388,39 +2778,45 @@ const HomePage = () => {
                       Courses I Tutor
                     </h4>
 
-                    {isLoadingCourses ? (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'center',
-                        padding: '10px 0'
-                      }}>
-                        <div className="spinner-border spinner-border-sm" role="status">
-                          <span className="visually-hidden">Loading...</span>
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px',
+                      padding: '8px',
+                      backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                      borderRadius: '8px',
+                      marginTop: '10px'
+                    }}>
+                      {isLoadingCourses ? (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          padding: '10px 0'
+                        }}>
+                          <div className="spinner-border spinner-border-sm" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                          </div>
                         </div>
-                      </div>
-                    ) : tutorCourses.length > 0 ? (
-                      <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                        {tutorCourses.map((course, index) => (
+                      ) : tutorCourses.length > 0 ? (
+                        tutorCourses.map((course, index) => (
                           <div key={index} style={{
                             display: 'flex',
                             alignItems: 'center',
-                            padding: '8px 12px',
-                            marginBottom: '6px',
-                            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : '#f8f9fa',
+                            padding: '8px',
+                            backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.03)' : 'white',
                             borderRadius: '6px',
-                            transition: 'all 0.2s ease',
-                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #f0f0f0',
+                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e9ecef',
+                            transition: 'all 0.2s',
+                            ':hover': {
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                            }
                           }}>
                             <div style={{
-                              width: '34px',
-                              height: '34px',
                               backgroundColor: darkMode
                                 ? 'rgba(255, 220, 100, 0.1)'
                                 : '#fff3cd',
                               borderRadius: '6px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
+                              padding: '4px 8px',
                               marginRight: '12px',
                               flexShrink: 0,
                               color: darkMode
@@ -2437,8 +2833,7 @@ const HomePage = () => {
                             <div style={{
                               flex: 1,
                               minWidth: 0,
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis'
+                              overflow: 'hidden'
                             }}>
                               <div style={{
                                 fontWeight: '600',
@@ -2461,17 +2856,275 @@ const HomePage = () => {
                               </div>
                             </div>
                           </div>
-                        ))}
+                        ))
+                      ) : (
+                        <div style={{
+                          fontSize: '0.8rem',
+                          color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
+                          fontStyle: 'italic',
+                          textAlign: 'center',
+                          padding: '8px 0'
+                        }}>
+                          No courses added yet
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: '12px', marginTop: '16px' }}>
+                      <button
+                        onClick={() => setIsRemoveCourseModalOpen(true)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 6px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                          fontSize: '0.7rem',
+                          position: 'relative',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                          width: isMobile ? '100%' : 'auto'
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                        }}
+                      >
+                        <i className="fas fa-trash"></i>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCourseSearchQuery('');
+                          setCourseSearchResults([]);
+                          setIsAddCourseModalOpen(true);
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '8px 6px',
+                          background: 'rgba(255, 255, 255, 0.15)',
+                          backdropFilter: 'blur(10px)',
+                          WebkitBackdropFilter: 'blur(10px)',
+                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
+                          border: '1px solid rgba(180, 180, 190, 0.4)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          transition: 'all 0.2s',
+                          fontWeight: '600',
+                          fontSize: '0.7rem',
+                          position: 'relative',
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.transform = 'translateY(-1px)';
+                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                        }}
+                      >
+                        <i className="fas fa-plus"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Tutor Profile Section */}
+                {user?.isTutor && (
+                  <div style={{
+                    width: '100%',
+                    marginBottom: '20px',
+                    paddingTop: '20px',
+                    borderTop: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '12px'
+                    }}>
+                      <h4 style={{
+                        color: darkMode ? "#fff" : '#495057',
+                        fontSize: '0.95rem',
+                        margin: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        fontWeight: '600',
+                        letterSpacing: '0.3px'
+                      }}>
+                        <i className="fas fa-user-circle" style={{ color: darkMode ? '#fff' : '#35006D' }}></i>
+                        My Profile
+                      </h4>
+                      <button
+                        onClick={() => setIsEditingProfile(!isEditingProfile)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid ' + (darkMode ? 'rgba(255,255,255,0.3)' : 'rgba(53,0,109,0.3)'),
+                          color: darkMode ? '#fff' : '#35006D',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        {isEditingProfile ? 'Cancel' : 'Edit Profile'}
+                      </button>
+                    </div>
+
+                    {isEditingProfile ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Bio</label>
+                          <textarea
+                            value={editForm.bio}
+                            onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                            placeholder="Tell students about yourself..."
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              minHeight: '60px',
+                              resize: 'vertical',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Hourly Rate ($)</label>
+                          <input
+                            type="number"
+                            value={editForm.hourly_rate}
+                            onChange={(e) => setEditForm({ ...editForm, hourly_rate: e.target.value })}
+                            placeholder="25.00"
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{
+                            fontSize: '0.75rem',
+                            color: darkMode ? '#aaa' : '#666',
+                            display: 'block',
+                            marginBottom: '4px'
+                          }}>Languages (comma-separated)</label>
+                          <input
+                            type="text"
+                            value={editForm.languages}
+                            onChange={(e) => setEditForm({ ...editForm, languages: e.target.value })}
+                            placeholder="English, Spanish, etc."
+                            style={{
+                              width: '100%',
+                              padding: '8px',
+                              borderRadius: '6px',
+                              border: '1px solid ' + (darkMode ? '#444' : '#ddd'),
+                              backgroundColor: darkMode ? '#2a2a2a' : '#fff',
+                              color: darkMode ? '#fff' : '#333',
+                              fontSize: '0.85rem',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+                        <button
+                          onClick={handleProfileUpdate}
+                          disabled={isSavingProfile}
+                          style={{
+                            padding: '10px 16px',
+                            background: '#35006D',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: isSavingProfile ? 'wait' : 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600',
+                            opacity: isSavingProfile ? 0.7 : 1
+                          }}
+                        >
+                          {isSavingProfile ? 'Saving...' : 'Save Profile'}
+                        </button>
                       </div>
                     ) : (
-                      <div style={{
-                        fontSize: '0.8rem',
-                        color: darkMode ? 'rgba(255, 255, 255, 0.6)' : '#6c757d',
-                        fontStyle: 'italic',
-                        textAlign: 'center',
-                        padding: '8px 0'
-                      }}>
-                        No courses added yet
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{
+                          padding: '10px',
+                          background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                          borderRadius: '6px'
+                        }}>
+                          <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Bio</div>
+                          <div style={{ fontSize: '0.85rem', color: darkMode ? '#fff' : '#333' }}>
+                            {tutorProfile.bio || <span style={{ fontStyle: 'italic', color: '#999' }}>No bio set</span>}
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', gap: '10px' }}>
+                          <div style={{
+                            flex: 1,
+                            padding: '10px',
+                            background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            borderRadius: '6px'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Hourly Rate</div>
+                            <div style={{ fontSize: '0.9rem', color: darkMode ? '#fff' : '#333', fontWeight: '600' }}>
+                              ${tutorProfile.hourly_rate?.toFixed(2) || '0.00'}
+                            </div>
+                          </div>
+                          <div style={{
+                            flex: 1,
+                            padding: '10px',
+                            background: darkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                            borderRadius: '6px'
+                          }}>
+                            <div style={{ fontSize: '0.75rem', color: darkMode ? '#aaa' : '#666', marginBottom: '4px' }}>Languages</div>
+                            <div style={{ fontSize: '0.85rem', color: darkMode ? '#fff' : '#333' }}>
+                              {tutorProfile.languages?.length > 0
+                                ? tutorProfile.languages.join(', ')
+                                : <span style={{ fontStyle: 'italic', color: '#999' }}>Not set</span>}
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -2508,19 +3161,19 @@ const HomePage = () => {
                         <li
                           onClick={() => selectCategory('default')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >All</li>
                         <li
                           onClick={() => selectCategory('tutor')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Tutors</li>
                         <li
                           onClick={() => selectCategory('course')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Courses</li>
                       </ul>
@@ -2547,7 +3200,9 @@ const HomePage = () => {
                       justifyContent: 'center',
                       gap: '8px',
                       fontWeight: '500',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      width: isMobile ? '100%' : 'auto',
+                      marginTop: isMobile ? '6px' : '0'
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.backgroundColor = '#4b1a80';
@@ -2572,6 +3227,118 @@ const HomePage = () => {
               </div>
             )}
 
+            {/* Welcome Section for Non-Logged-In Users */}
+            {!isAuthenticated && (
+              <div style={{
+                marginTop: '30px',
+                padding: '20px',
+                borderRadius: '8px',
+                background: darkMode
+                  ? 'linear-gradient(145deg, rgba(40, 40, 40, 0.8), rgba(25, 25, 25, 0.9))'
+                  : 'linear-gradient(145deg, #f8f9fa, #e9ecef)',
+                border: darkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid #e0e0e0',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)'
+              }}>
+                <h3 style={{
+                  margin: '0 0 15px 0',
+                  color: darkMode ? '#fff' : '#2c3e50',
+                  fontSize: '1.4rem',
+                  fontWeight: '600'
+                }}>
+                  Welcome to Gator Tutor! 🎓
+                </h3>
+
+                <p style={{
+                  color: darkMode ? 'rgba(255, 255, 255, 0.9)' : '#495057',
+                  marginBottom: '20px',
+                  lineHeight: '1.6'
+                }}>
+                  Connect with expert tutors, schedule one-on-one sessions, and get the help you need to succeed in your courses. Our platform makes it easy to find the perfect tutor for your learning style and schedule.
+                </p>
+
+                <div style={{
+                  display: 'flex',
+                  flexDirection: isMobile ? 'column' : 'row',
+                  gap: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <button
+                    onClick={() => navigate('/login')}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: '#35006D',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      flex: isMobile ? '1' : 'none'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.backgroundColor = '#4b1a80';
+                      e.currentTarget.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.backgroundColor = '#35006D';
+                      e.currentTarget.boxShadow = 'none';
+                    }}
+                  >
+                    Log In
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/register')}
+                    style={{
+                      padding: '10px 20px',
+                      backgroundColor: 'transparent',
+                      color: darkMode ? '#fff' : '#35006D',
+                      border: `2px solid ${darkMode ? 'rgba(255, 255, 255, 0.2)' : '#35006D'}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontWeight: '500',
+                      transition: 'all 0.2s',
+                      flex: isMobile ? '1' : 'none'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.backgroundColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(53, 0, 109, 0.1)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.backgroundColor = 'transparent';
+                    }}
+                  >
+                    Create Account
+                  </button>
+                </div>
+
+                <div style={{
+                  backgroundColor: darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  borderLeft: `4px solid ${darkMode ? 'rgba(255, 220, 112, 0.8)' : '#35006D'}`
+                }}>
+                  <h4 style={{
+                    margin: '0 0 10px 0',
+                    color: darkMode ? 'rgba(255, 220, 112, 0.9)' : '#2c3e50',
+                    fontSize: '1.1rem'
+                  }}>
+                    Get the most out of Gator Tutor:
+                  </h4>
+                  <ul style={{
+                    margin: '0',
+                    paddingLeft: '20px',
+                    color: darkMode ? 'rgba(255, 255, 255, 0.8)' : '#495057'
+                  }}>
+                    <li>📅 Schedule one-on-one tutoring sessions</li>
+                    <li>💬 Message tutors directly</li>
+                    <li>📚 Request course coverage for specific topics</li>
+                    <li>👨‍🏫 View and manage your tutoring sessions</li>
+                    <li>👩‍🏫 Apply to be a tutor yourself!</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
             {/* Edit Availability Section */}
             {user?.isTutor && editingDate && (
               <div
@@ -2581,16 +3348,25 @@ const HomePage = () => {
                   width: '100%',
                   margin: 0,
                   animation: isEditPanelAnimating ? 'editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'none',
-                  transformOrigin: 'center top'
+                  transformOrigin: 'center top',
+                  padding: "clamp(16px, 3vw, 32px)",
                 }}>
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  marginBottom: '16px'
+                  marginBottom: "clamp(12px, 2vw, 16px)"
                 }}>
-                  <h3 style={{ margin: 0, color: darkMode ? '#fff' : '#2c3e50' }}>
-                    Edit Availability - {format(editingDate, 'EEEE, MMMM d, yyyy')}
+                  <h3 style={{
+                    margin: 0,
+                    color: darkMode ? '#fff' : '#2c3e50',
+                    fontSize: "clamp(1.1rem, 2.5vw, 1.5rem)",
+                    lineHeight: 1.2
+                  }}>
+                    Edit Availability <br style={{ display: isMobile ? 'block' : 'none' }} />
+                    <span style={{ fontSize: "clamp(0.9rem, 2vw, 1.2rem)", fontWeight: 'normal', color: darkMode ? '#ccc' : '#666' }}>
+                      {isMobile ? format(editingDate, 'MMM d, yyyy') : `- ${format(editingDate, 'EEEE, MMMM d, yyyy')}`}
+                    </span>
                   </h3>
                   <button
                     onClick={() => {
@@ -2602,9 +3378,10 @@ const HomePage = () => {
                       border: 'none',
                       color: '#6c757d',
                       cursor: 'pointer',
-                      fontSize: '1.2rem',
-                      padding: '4px 8px',
-                      transition: 'color 0.2s'
+                      fontSize: "clamp(1.2rem, 3vw, 1.5rem)",
+                      padding: "clamp(4px, 1vw, 8px)",
+                      transition: 'color 0.2s',
+                      marginLeft: '8px'
                     }}
                     onMouseOver={(e) => e.currentTarget.style.color = '#333'}
                     onMouseOut={(e) => e.currentTarget.style.color = '#6c757d'}
@@ -2613,53 +3390,84 @@ const HomePage = () => {
                   </button>
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: "clamp(12px, 2vw, 16px)" }}>
                   {editSlots.map((slot, index) => (
                     <div key={slot.id} style={{
                       display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '12px',
-                      padding: '12px',
+                      flexDirection: 'row',
+                      alignItems: isMobile ? 'flex-end' : 'center',
+                      gap: "clamp(8px, 1.5vw, 12px)",
+                      marginBottom: "clamp(8px, 1.5vw, 12px)",
+                      padding: "clamp(10px, 1.5vw, 12px)",
                       backgroundColor: 'rgba(255, 220, 100, 0.3)',
                       borderRadius: '8px',
                       border: darkMode ? '1px solid #444' : '1px solid #e9ecef',
                       animation: isEditPanelAnimating ? `editPanelPopIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ${0.1 + index * 0.1}s backwards` : 'none'
                     }}>
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '40px' }}>
-                          From:
-                        </label>
-                        <input
-                          type="time"
-                          value={slot.startTime}
-                          onChange={(e) => handleSlotTimeChange(slot.id, 'startTime', e.target.value)}
-                          style={{
-                            padding: '8px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '0.9rem',
-                            flex: 1
-                          }}
-                        />
-                      </div>
+                      <div style={{ display: 'flex', gap: "clamp(8px, 1.5vw, 12px)", flex: 1 }}>
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'flex-start' : 'center',
+                          gap: isMobile ? '4px' : '8px'
+                        }}>
+                          <label style={{
+                            fontSize: "clamp(0.8rem, 1.5vw, 0.9rem)",
+                            fontWeight: '500',
+                            color: darkMode ? 'rgb(173, 180, 187)' : '#495057',
+                            minWidth: '40px',
+                            marginBottom: isMobile ? '2px' : '0'
+                          }}>
+                            From{isMobile ? '' : ':'}
+                          </label>
+                          <input
+                            type="time"
+                            value={slot.startTime}
+                            onChange={(e) => handleSlotTimeChange(slot.id, 'startTime', e.target.value)}
+                            style={{
+                              padding: "clamp(4px, 1vw, 8px)",
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: "clamp(0.85rem, 1.5vw, 0.9rem)",
+                              width: '100%',
+                              minHeight: "clamp(32px, 5vw, 36px)",
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
 
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <label style={{ fontSize: '0.9rem', fontWeight: '500', color: darkMode ? 'rgb(173, 180, 187)' : '#495057', minWidth: '30px' }}>
-                          To:
-                        </label>
-                        <input
-                          type="time"
-                          value={slot.endTime}
-                          onChange={(e) => handleSlotTimeChange(slot.id, 'endTime', e.target.value)}
-                          style={{
-                            padding: '8px',
-                            border: '1px solid #ced4da',
-                            borderRadius: '4px',
-                            fontSize: '0.9rem',
-                            flex: 1
-                          }}
-                        />
+                        <div style={{
+                          flex: 1,
+                          display: 'flex',
+                          flexDirection: isMobile ? 'column' : 'row',
+                          alignItems: isMobile ? 'flex-start' : 'center',
+                          gap: isMobile ? '4px' : '8px'
+                        }}>
+                          <label style={{
+                            fontSize: "clamp(0.8rem, 1.5vw, 0.9rem)",
+                            fontWeight: '500',
+                            color: darkMode ? 'rgb(173, 180, 187)' : '#495057',
+                            minWidth: isMobile ? 'auto' : '30px',
+                            marginBottom: isMobile ? '2px' : '0'
+                          }}>
+                            To{isMobile ? '' : ':'}
+                          </label>
+                          <input
+                            type="time"
+                            value={slot.endTime}
+                            onChange={(e) => handleSlotTimeChange(slot.id, 'endTime', e.target.value)}
+                            style={{
+                              padding: "clamp(4px, 1vw, 8px)",
+                              border: '1px solid #ced4da',
+                              borderRadius: '4px',
+                              fontSize: "clamp(0.85rem, 1.5vw, 0.9rem)",
+                              width: '100%',
+                              minHeight: "clamp(32px, 5vw, 36px)",
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
                       </div>
 
                       <button
@@ -2669,17 +3477,23 @@ const HomePage = () => {
                           color: 'white',
                           border: 'none',
                           borderRadius: '4px',
-                          padding: '8px 12px',
+                          padding: isMobile ? '0' : "clamp(8px, 1.5vw, 8px) clamp(12px, 2vw, 12px)",
                           cursor: 'pointer',
-                          fontSize: '0.85rem',
+                          fontSize: "clamp(0.85rem, 1.5vw, 0.85rem)",
                           transition: 'background-color 0.2s',
-                          minWidth: '80px'
+                          minWidth: isMobile ? '36px' : '80px',
+                          height: isMobile ? '36px' : 'auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          marginTop: isMobile ? '0' : '0'
                         }}
                         onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
                         onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                        aria-label="Delete slot"
                       >
-                        <i className="fas fa-trash" style={{ marginRight: '4px' }}></i>
-                        Delete
+                        <i className="fas fa-trash" style={{ marginRight: isMobile ? '0' : '4px' }}></i>
+                        {!isMobile && 'Delete'}
                       </button>
                     </div>
                   ))}
@@ -2688,19 +3502,20 @@ const HomePage = () => {
                     onClick={handleAddSlot}
                     style={{
                       width: '100%',
-                      padding: '10px',
+                      padding: "clamp(10px, 2vw, 12px)",
                       backgroundColor: 'transparent',
                       border: darkMode ? '2px dashed rgb(114, 117, 120)' : '2px dashed rgb(206, 212, 218)',
                       borderRadius: '8px',
                       color: '#6c757d',
                       cursor: 'pointer',
-                      fontSize: '0.9rem',
+                      fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                       fontWeight: '500',
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '8px'
+                      gap: '8px',
+                      marginTop: "clamp(8px, 1.5vw, 12px)"
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.borderColor = 'rgb(196, 180, 7)';
@@ -2720,30 +3535,36 @@ const HomePage = () => {
 
                 <div style={{
                   display: 'flex',
-                  gap: '12px',
-                  paddingTop: '16px',
+                  flexDirection: 'column',
+                  gap: "clamp(12px, 2vw, 16px)",
+                  paddingTop: "clamp(16px, 2vw, 16px)",
                   borderTop: '1px solid #e9ecef'
                 }}>
-                  <div style={{ display: 'flex', gap: '10px', marginTop: '15px', width: '100%' }}>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: isMobile ? 'column' : 'row',
+                    gap: "clamp(10px, 1.5vw, 12px)",
+                    width: '100%'
+                  }}>
                     <div style={{ flex: 1, position: 'relative' }}>
                       <button
                         onClick={handleApplyToThisDay}
                         disabled={isSaving}
                         style={{
                           width: '100%',
-                          padding: '10px 20px',
+                          padding: "clamp(10px, 2vw, 12px)",
                           backgroundColor: isSaving ? '#6c757d' : '#35006D',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: isSaving ? 'not-allowed' : 'pointer',
-                          fontSize: '0.9rem',
+                          fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                           fontWeight: '500',
                           transition: 'background-color 0.2s',
                           opacity: isSaving ? 0.7 : 1,
                           textAlign: 'center',
                           boxSizing: 'border-box',
-                          height: '40px',
+                          height: "clamp(42px, 6vw, 44px)",
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center'
@@ -2761,24 +3582,23 @@ const HomePage = () => {
                         disabled={isSaving}
                         style={{
                           width: '100%',
-                          padding: '10px 35px 10px 20px',
+                          padding: "clamp(10px, 2vw, 12px) clamp(35px, 3vw, 40px) clamp(10px, 2vw, 12px) clamp(10px, 2vw, 12px)",
                           backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: isSaving ? 'not-allowed' : 'pointer',
-                          fontSize: '0.9rem',
+                          fontSize: "clamp(0.9rem, 1.5vw, 0.9rem)",
                           fontWeight: '500',
                           transition: 'background-color 0.2s',
                           opacity: isSaving ? 0.7 : 1,
                           textAlign: 'center',
                           position: 'relative',
                           boxSizing: 'border-box',
-                          height: '40px',
+                          height: "clamp(42px, 6vw, 44px)",
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          paddingRight: '35px'
+                          justifyContent: 'center'
                         }}
                         onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
                         onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
@@ -2787,17 +3607,17 @@ const HomePage = () => {
                         <div
                           style={{
                             position: 'absolute',
-                            right: '8px',
+                            right: "clamp(8px, 1.5vw, 12px)",
                             top: '50%',
                             transform: 'translateY(-50%)',
                             backgroundColor: 'rgba(255, 255, 255, 0.2)',
                             borderRadius: '50%',
-                            width: '18px',
-                            height: '18px',
+                            width: "clamp(18px, 2.5vw, 20px)",
+                            height: "clamp(18px, 2.5vw, 20px)",
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '12px',
+                            fontSize: "clamp(10px, 1.5vw, 12px)",
                             fontWeight: 'bold',
                             cursor: 'help',
                             pointerEvents: 'auto'
@@ -2816,11 +3636,11 @@ const HomePage = () => {
                       top: '20px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      padding: '12px 24px',
+                      padding: "clamp(10px, 2vw, 12px) clamp(20px, 3vw, 24px)",
                       backgroundColor: saveStatus.success ? 'rgba(212, 237, 218, 0.95)' : 'rgba(248, 215, 218, 0.95)',
                       color: saveStatus.success ? '#155724' : '#721c24',
                       borderRadius: '8px',
-                      fontSize: '0.95rem',
+                      fontSize: "clamp(0.85rem, 1.5vw, 0.95rem)",
                       boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                       zIndex: 1000,
                       transition: 'all 0.3s ease-in-out',
@@ -2853,8 +3673,9 @@ const HomePage = () => {
                   width: '100%',
                   margin: 0,
                   position: 'relative',
-                  overflow: 'hidden',
-                  minHeight: '600px'
+                  overflow: 'visible',
+                  minHeight: '400px',
+                  height: 'auto'
                 }}>
                   <div style={styles.calendarHeader}>
                     <button
@@ -2871,7 +3692,7 @@ const HomePage = () => {
                         justifyContent: 'center',
                         gap: "clamp(4px, 1vw, 8px)",
                         fontWeight: '500',
-                        fontSize: "clamp(0.7rem, 1.2vw, 1rem)",
+                        fontSize: "clamp(0.6rem, 1.1vw, 1rem)",
                         transition: 'all 0.2s'
                       }}
                       onMouseOver={(e) => {
@@ -2936,25 +3757,65 @@ const HomePage = () => {
                   {!user?.isTutor && (
                     <div style={{
                       position: 'relative',
-                      minHeight: '400px'
+                      minHeight: 'auto',
+                      overflow: isAnimating ? 'hidden' : (isMobile ? 'auto' : 'visible')
                     }}>
-                      <div style={{
-                        ...styles.calendarGrid,
-                        ...calendarAnimation[slideDirection]
-                      }}>
+                      {/* Scroll Tracker for Mobile */}
+                      {isMobile && (
                         <div style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
+                          width: '100%',
+                          height: '3px',
+                          backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                          borderRadius: '2px',
+                          marginBottom: '8px',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          alignItems: 'center',
+                          position: 'relative'
+                        }}>
+                          <div style={{
+                            width: '33%', // Fixed width indicator (represents visible portion)
+                            height: '100%',
+                            backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 103)',
+                            borderRadius: '2px',
+                            transition: 'transform 0.1s ease-out',
+                            position: 'absolute',
+                            left: 0,
+                            transform: `translateX(${studentScrollProgress * 2}%)` // Map 0-100% progress to remaining 66% width
+                          }} />
+                        </div>
+                      )}
+
+                      <div
+                        ref={studentScrollRef}
+                        onScroll={() => handleScroll(studentScrollRef, setStudentScrollProgress)}
+                        style={{
+                          ...styles.calendarGrid,
+                          ...calendarAnimation[slideDirection],
+                          height: 'auto',
+                          minHeight: 'auto',
+                          overflow: isAnimating ? 'hidden' : 'visible',
+                          overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible'),
+                          scrollbarWidth: 'none', // Firefox
+                          msOverflowStyle: 'none'  // IE 10+
+                        }}>
+                        <style>
+                          {`
+                            /* Hide scrollbar for Chrome, Safari and Opera */
+                            div::-webkit-scrollbar {
+                              display: none;
+                            }
+                          `}
+                        </style>
+                        <div style={{
+                          position: 'relative',
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(7, 1fr)',
+                          gridTemplateColumns: isMobile ? 'repeat(7, calc(100% / 3))' : 'repeat(7, 1fr)',
                           gap: '1px',
                           backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
                           border: 'none',
                           borderRadius: '8px',
-                          overflow: 'hidden',
+                          overflow: 'visible',
                         }}>
                           {weekDays.map((day, i) => {
                             const currentDate = addDays(currentWeekStart, i);
@@ -3014,7 +3875,9 @@ const HomePage = () => {
                     <div style={{
                       position: 'relative',
                       width: '100%',
-                      minHeight: '500px'
+                      minHeight: '500px',
+                      // Ensure the outer container allows visibility so the inner scroll container works
+                      overflow: isAnimating ? 'hidden' : 'visible'
                     }}>
                       {isLoadingAvailability ? (
                         <div style={{
@@ -3027,17 +3890,18 @@ const HomePage = () => {
                           right: 0
                         }}>
                           <i className="fas fa-spinner fa-spin" style={{ fontSize: '24px', marginBottom: '10px' }}></i>
-                          <div>Loading availability...</div>
+                          <div>Loading your calendar...</div>
                         </div>
                       ) : (
                         <>
+                          {/* Legend / Info Header */}
                           <div style={{
                             position: 'sticky',
                             top: '0',
-                            zIndex: 1,
+                            zIndex: 6, // Higher z-index than sticky time labels
                             marginBottom: isMobile ? '6px' : '10px',
                             padding: isMobile ? '4px 6px' : '8px 12px',
-                            backgroundColor: darkMode ? 'rgba(110, 110, 110, 0.32)' : 'rgba(237, 237, 237, 0.9)',
+                            backgroundColor: darkMode ? 'rgba(55, 55, 55, 0.95)' : 'rgba(237, 237, 237, 0.95)',
                             borderRadius: isMobile ? '4px' : '6px',
                             border: '1px solid rgba(0, 0, 0, 0.1)',
                             fontSize: isMobile ? '0.6rem' : '0.85rem',
@@ -3047,9 +3911,11 @@ const HomePage = () => {
                             justifyContent: 'space-between',
                             flexWrap: 'wrap',
                             gap: isMobile ? '6px' : '16px',
-                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                            backdropFilter: 'blur(4px)'
                           }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
+                              {/* Legend Items */}
                               <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
                                 <div style={{
                                   width: isMobile ? '10px' : '16px',
@@ -3074,7 +3940,7 @@ const HomePage = () => {
                                 <div style={{
                                   minWidth: isMobile ? '16px' : '26px',
                                   height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(53, 0, 109, 0.31)',
+                                  backgroundColor: 'rgba(53, 0, 109, 0.51)',
                                   borderRadius: isMobile ? '2px' : '4px',
                                   borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 0.95)`,
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
@@ -3100,25 +3966,93 @@ const HomePage = () => {
                                   height: isMobile ? '12px' : '20px',
                                   backgroundColor: 'rgba(255, 255, 255, 0.7)',
                                   borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 1)`,
+                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(95, 0, 196, 1)`,
                                   boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
                                 }}></div>
                                 <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Your session</span>
                               </div>
                             </div>
                           </div>
+
+                          {/* Scroll Tracker for Mobile */}
+                          {isMobile && (
+                            <div style={{
+                              width: '100%',
+                              height: '3px',
+                              backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                              borderRadius: '2px',
+                              marginBottom: '8px',
+                              marginTop: '-2px',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              position: 'relative'
+                            }}>
+                              <div style={{
+                                width: '33%', // Fixed width for 3-day view out of 7? Actually roughly 3/7 is 42%, but let's use 33% as a visual indicator
+                                height: '100%',
+                                backgroundColor: darkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 103)',
+                                borderRadius: '2px',
+                                transition: 'transform 0.1s ease-out',
+                                position: 'absolute',
+                                left: 0,
+                                transform: `translateX(${tutorScrollProgress * 2}%)` // Map 0-100% progress to accessible width
+                              }} />
+                            </div>
+                          )}
+
+                          {/* Calendar Content */}
                           <div style={{
                             position: 'relative',
-                            minHeight: '500px'
+                            minHeight: '500px',
+                            overflow: isAnimating ? 'hidden' : 'visible'
                           }}>
+                            {/* Animation Wrapper */}
                             <div style={{
-                              ...styles.tutorCalendarGrid,
                               ...calendarAnimation[slideDirection],
+                              width: '100%',
+                              backgroundColor: 'transparent',
+                              boxShadow: 'none',
+                              border: 'none',
                               willChange: 'transform, opacity',
                               backfaceVisibility: 'hidden',
                               transformStyle: 'preserve-3d'
                             }}>
-                              {renderTutorCalendar()}
+                              {/* Scrollable Grid Container - ALL styles inline to ensure isMobile is fresh */}
+                              <div
+                                ref={tutorScrollRef}
+                                onScroll={() => handleScroll(tutorScrollRef, setTutorScrollProgress)}
+                                style={{
+                                  width: '100%',
+                                  display: 'grid',
+                                  gridTemplateColumns: isMobile
+                                    ? 'clamp(25px, 4vw, 30px) repeat(7, calc((100% - clamp(25px, 4vw, 30px)) / 3))'
+                                    : 'clamp(50px, 6vw, 60px) repeat(7, 1fr)',
+                                  backgroundColor: darkMode ? '#2d2d2d' : '#f5f5f5',
+                                  border: darkMode ? '1px solid #3d3d3d' : '1px solid #e0e0e0',
+                                  borderRadius: '8px',
+                                  overflowX: isMobile ? 'auto' : 'visible',
+                                  overflowY: 'visible',
+                                  position: 'relative',
+                                  '--tutor-cell-bg': darkMode ? '#1e1e1e' : '#fff',
+                                  '--tutor-cell-border': darkMode ? '#333' : '#f0f0f0',
+                                  '--tutor-time-bg': darkMode ? '#2d2d2d' : '#fff',
+                                  '--tutor-time-text': darkMode ? '#bbb' : '#666',
+                                  '--tutor-time-border': darkMode ? '#3d3d3d' : '#e0e0e0',
+                                  '--tutor-striped-bg': darkMode ? '#252525' : '#f8f9fa',
+                                  scrollbarWidth: 'none', // Firefox
+                                  msOverflowStyle: 'none' // IE 10+
+                                }}>
+                                <style>
+                                  {`
+                                      /* Hide scrollbar for Chrome, Safari and Opera */
+                                      div::-webkit-scrollbar {
+                                        display: none;
+                                      }
+                                    `}
+                                </style>
+                                {renderTutorCalendar()}
+                              </div>
                             </div>
                           </div>
                         </>
@@ -3150,19 +4084,19 @@ const HomePage = () => {
                         <li
                           onClick={() => selectCategory('default')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >All</li>
                         <li
                           onClick={() => selectCategory('tutor')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Tutors</li>
                         <li
                           onClick={() => selectCategory('course')}
                           style={{ cursor: 'pointer', padding: '8px 16px' }}
-                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = darkMode ? '#444' : '#f8f9fa'}
                           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                         >Courses</li>
                       </ul>
@@ -3189,7 +4123,9 @@ const HomePage = () => {
                       justifyContent: 'center',
                       gap: '8px',
                       fontWeight: '500',
-                      transition: 'all 0.2s'
+                      transition: 'all 0.2s',
+                      width: isMobile ? '100%' : 'auto',
+                      marginTop: isMobile ? '6px' : '0'
                     }}
                     onMouseOver={(e) => {
                       e.currentTarget.style.backgroundColor = '#4b1a80';
@@ -3216,8 +4152,150 @@ const HomePage = () => {
           </div>
         </div>
       </div>
+      {/* Add Course Modal */}
+      {
+        isAddCourseModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              backgroundColor: darkMode ? '#2a2a2a' : 'white',
+              padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+              maxHeight: '80vh', overflowY: 'auto',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              color: darkMode ? 'white' : 'black'
+            }}>
+              <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Request to Add Course</h3>
+              <input
+                type="text"
+                placeholder="Search course (e.g. CSC 300)..."
+                value={courseSearchQuery}
+                onChange={(e) => {
+                  setCourseSearchQuery(e.target.value);
+                  handleCourseSearch(e.target.value);
+                }}
+                style={{
+                  width: '100%', padding: '10px', marginBottom: '15px',
+                  borderRadius: '4px', border: '1px solid #ccc',
+                  backgroundColor: darkMode ? '#333' : '#fff',
+                  color: darkMode ? '#fff' : '#000'
+                }}
+              />
+
+              <div style={{ marginBottom: '15px', maxHeight: '300px', overflowY: 'auto' }}>
+                {isSearchingCourses && <p>Searching...</p>}
+                {!isSearchingCourses && courseSearchQuery && courseSearchResults.length === 0 && <p>No courses found.</p>}
+                {courseSearchResults.map(course => {
+                  const isRequested = requestedCourses.has(course.course_id);
+                  const isAlreadyHas = tutorCourses.some(c => (c.course_id || c.id) === course.course_id);
+
+                  return (
+                    <div key={course.course_id} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px', borderBottom: '1px solid #eee'
+                    }}>
+                      <div>
+                        <strong>{course.department_code} {course.course_number}</strong>
+                        <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{course.title}</div>
+                      </div>
+                      <button
+                        onClick={() => !isRequested && !isAlreadyHas && requestAddCourse(course.course_id)}
+                        disabled={isRequested || isAlreadyHas}
+                        style={{
+                          backgroundColor: (isRequested || isAlreadyHas) ? '#28a745' : '#35006D',
+                          color: 'white', border: 'none',
+                          padding: '5px 10px', borderRadius: '4px',
+                          cursor: (isRequested || isAlreadyHas) ? 'default' : 'pointer',
+                          opacity: isAlreadyHas ? 0.7 : 1,
+                          minWidth: '60px'
+                        }}
+                      >
+                        {isRequested ? <i className="fas fa-check"></i> : (isAlreadyHas ? "Added" : "Add")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  onClick={() => setIsAddCourseModalOpen(false)}
+                  style={{
+                    padding: '8px 16px', backgroundColor: 'transparent',
+                    border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                    color: darkMode ? 'white' : 'black'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
+      {/* Remove Course Modal */}
+      {
+        isRemoveCourseModalOpen && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <div style={{
+              backgroundColor: darkMode ? '#2a2a2a' : 'white',
+              padding: '20px', borderRadius: '8px', width: '90%', maxWidth: '500px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+              color: darkMode ? 'white' : 'black'
+            }}>
+              <h3 style={{ marginTop: 0, color: darkMode ? 'white' : 'black' }}>Remove Course</h3>
+              <p>Select a course to remove from your profile.</p>
+
+              <div style={{ marginBottom: '15px', maxHeight: '400px', overflowY: 'auto' }}>
+                {tutorCourses.length === 0 && <p>No courses to remove.</p>}
+                {tutorCourses.map((course, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px', borderBottom: '1px solid #eee',
+                    backgroundColor: darkMode ? '#333' : '#f9f9f9', marginBottom: '5px', borderRadius: '4px'
+                  }}>
+                    <div>
+                      <strong>{course.department_code} {course.course_number}</strong>
+                    </div>
+                    <button
+                      onClick={() => removeCourse(course.course_id || course.id)}
+                      style={{
+                        backgroundColor: '#dc3545', color: 'white', border: 'none',
+                        padding: '5px 10px', borderRadius: '4px', cursor: 'pointer'
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ textAlign: 'right' }}>
+                <button
+                  onClick={() => setIsRemoveCourseModalOpen(false)}
+                  style={{
+                    padding: '8px 16px', backgroundColor: 'transparent',
+                    border: '1px solid #ccc', borderRadius: '4px', cursor: 'pointer',
+                    color: darkMode ? 'white' : 'black'
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      }
+
       <Footer />
-    </div>
+    </div >
   );
 };
 

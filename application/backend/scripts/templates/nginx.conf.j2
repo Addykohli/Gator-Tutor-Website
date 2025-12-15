@@ -1,0 +1,65 @@
+upstream team08_backend {
+    server unix:{{ server.backend_socket }};
+}
+
+server {
+    listen 80;
+    server_name {{ server.server_name }};
+
+    root {{ server.static_root }};
+    index index.html;
+
+{% for route in routes|sort(attribute='prefix', reverse=True) %}
+    # Proxy {{ route.prefix }} routes
+    location {{ route.prefix }}/ {
+        proxy_pass http://team08_backend{{ route.prefix }}/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+{% if route.websocket %}
+        # WebSocket support
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 86400;
+{% else %}
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection keep-alive;
+        proxy_read_timeout 65s;
+        proxy_send_timeout 65s;
+{% endif %}
+    }
+
+{% endfor %}
+    # Health check endpoint
+    location /healthz {
+        proxy_pass http://team08_backend/healthz;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
+    location /health {
+        proxy_pass http://team08_backend/health;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Cache static assets
+    location /static/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # Enable gzip compression
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+    client_max_body_size 16m;
+    add_header X-Frame-Options DENY;
+    add_header X-Content-Type-Options nosniff;
+}

@@ -33,6 +33,143 @@ const TutorProfile = () => {
   const [isLoadingUserBookings, setIsLoadingUserBookings] = useState(false);
   const [isLoadingTutorBookings, setIsLoadingTutorBookings] = useState(false);
 
+  // Admin specific state
+  const [courseRequests, setCourseRequests] = useState([]);
+  const [allTutorBookings, setAllTutorBookings] = useState([]);
+  const [stats, setStats] = useState({ pending: 0, upcoming: 0, past: 0 });
+  const [selectedStatType, setSelectedStatType] = useState(null); // 'pending', 'upcoming', 'past'
+
+  // Fetch all tutor bookings for stats
+  useEffect(() => {
+    const fetchAllTutorBookings = async () => {
+      if (!tutorId) return;
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        // Fetch bookings where tutor is the tutor (not student)
+        const response = await fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${tutorId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            setAllTutorBookings(data);
+
+            // Calculate stats
+            const now = new Date();
+            const pending = data.filter(b => b.status === 'pending').length;
+            const upcoming = data.filter(b => b.status === 'confirmed' && new Date(b.end_time) > now).length;
+            const past = data.filter(b => b.status === 'completed' || (b.status === 'confirmed' && new Date(b.end_time) <= now)).length;
+
+            setStats({ pending, upcoming, past });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching all tutor bookings:', err);
+      }
+    };
+
+    if (user?.role === 'admin') {
+      fetchAllTutorBookings();
+    }
+  }, [tutorId, user]);
+
+  // Fetch course requests
+  useEffect(() => {
+    const fetchCourseRequests = async () => {
+      if (!tutorId || user?.role !== 'admin') return;
+
+      try {
+        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const response = await fetch(`${apiBaseUrl}/api/admin/all-tutor-course-requests`);
+        if (response.ok) {
+          const data = await response.json();
+          if (Array.isArray(data)) {
+            // Filter for this tutor's requests
+            const tutorRequests = data.filter(req =>
+              req.tutor_id === parseInt(tutorId) || req.tutor_id === tutorId
+            );
+            setCourseRequests(tutorRequests);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching course requests:', err);
+      }
+    };
+
+    fetchCourseRequests();
+  }, [tutorId, user]);
+
+  // Admin Actions
+  const handleRemoveCourse = async (courseId) => {
+    if (!window.confirm('Are you sure you want to remove this course from the tutor?')) return;
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/admin/tutor/${tutorId}/course/${courseId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        // Update local state
+        setTutor(prev => ({
+          ...prev,
+          courses: prev.courses.filter(c => c.course_id !== courseId && c.id !== courseId)
+        }));
+        alert('Course removed successfully');
+      } else {
+        alert('Failed to remove course');
+      }
+    } catch (err) {
+      console.error('Error removing course:', err);
+      alert('Error removing course');
+    }
+  };
+
+  const handleRequestAction = async (requestId, action) => {
+    if (!window.confirm(`Are you sure you want to ${action} this request?`)) return;
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const response = await fetch(`${apiBaseUrl}/api/admin/tutor-course-request/${requestId}/${action}`, {
+        method: 'PATCH'
+      });
+
+      if (response.ok) {
+        // Update requests list
+        setCourseRequests(prev => prev.map(req =>
+          req.request_id === requestId
+            ? { ...req, status: action === 'approve' ? 'approved' : 'rejected' }
+            : req
+        ));
+
+        // If approved, refresh tutor data to show new course
+        if (action === 'approve') {
+          // Re-fetch tutor data
+          const tutorRes = await fetch(`${apiBaseUrl}/search/tutors/${tutorId}`);
+          if (tutorRes.ok) {
+            const tutorData = await tutorRes.json();
+            setTutor(tutorData);
+          }
+        }
+        // alert(`Request ${action}d successfully`); // Removed as requested
+      } else {
+        alert(`Failed to ${action} request`);
+      }
+    } catch (err) {
+      console.error('Error processing request:', err);
+      alert('Error processing request');
+    }
+  };
+
+  // Mobile detection
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth <= 768;
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Helper function to parse time string to local time
   const parseTimeToLocal = (timeStr) => {
     if (!timeStr) return null;
@@ -583,10 +720,11 @@ const TutorProfile = () => {
   }
 
   const styles = {
+
     container: {
       maxWidth: '1200px',
-      margin: '20px auto',
-      padding: '20px',
+      margin: "clamp(10px, 2vw, 20px) auto",
+      padding: "clamp(12px, 2.5vw, 20px)",
       backgroundColor: darkMode ? '#1a1a1a' : '#fff',
       color: darkMode ? '#e0e0e0' : '#333',
       minHeight: '100vh',
@@ -594,22 +732,116 @@ const TutorProfile = () => {
     },
     bookingContainer: {
       backgroundColor: darkMode ? '#2d2d2d' : '#f9f9f9',
-      borderRadius: '15px',
-      padding: '25px',
-      marginTop: '30px',
+      borderRadius: "clamp(10px, 2vw, 15px)",
+      padding: "clamp(16px, 3vw, 25px)",
+      marginTop: "clamp(20px, 3vw, 30px)",
       boxShadow: '0 2px 5px rgba(0,0,0,0.1)',
     },
-    bookingHeader: {
+    // Admin Styles
+    adminContainer: {
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      borderRadius: '16px',
+      padding: '24px',
+      marginTop: '30px',
+      border: darkMode ? '1px solid #444' : '1px solid #e0e0e0',
+      boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.2)' : '0 4px 20px rgba(0,0,0,0.05)',
+    },
+    adminHeader: {
       fontSize: '24px',
+      fontWeight: '600',
+      marginBottom: '24px',
+      paddingBottom: '12px',
+      borderBottom: `2px solid ${darkMode ? '#444' : '#f0f0f0'}`,
       color: darkMode ? '#fff' : '#2c3e50',
-      marginBottom: '25px',
-      paddingBottom: '10px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    },
+    statsGrid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+      gap: '20px',
+      marginBottom: '30px'
+    },
+    statCard: {
+      padding: '20px',
+      borderRadius: '12px',
+      backgroundColor: darkMode ? '#363636' : '#f8f9fa',
+      border: darkMode ? '1px solid #444' : '1px solid #e9ecef',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      gap: '10px'
+    },
+    statValue: {
+      fontSize: '32px',
+      fontWeight: '700',
+      color: '#9A2250'
+    },
+    statLabel: {
+      fontSize: '14px',
+      color: darkMode ? '#aaa' : '#666',
+      textTransform: 'uppercase',
+      letterSpacing: '0.5px'
+    },
+    adminSection: {
+      marginBottom: '32px'
+    },
+    adminSubTitle: {
+      fontSize: '18px',
+      fontWeight: '600',
+      marginBottom: '16px',
+      color: darkMode ? '#e0e0e0' : '#444'
+    },
+    courseListItem: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      padding: '16px',
+      backgroundColor: darkMode ? '#363636' : '#fff',
+      border: darkMode ? '1px solid #444' : '1px solid #eee',
+      borderRadius: '8px',
+      marginBottom: '10px'
+    },
+    removeBtn: {
+      padding: '6px 12px',
+      backgroundColor: 'rgba(220, 53, 69, 0.1)',
+      color: '#dc3545',
+      border: '1px solid #dc3545',
+      borderRadius: '6px',
+      cursor: 'pointer',
+      fontSize: '13px',
+      fontWeight: '500',
+      transition: 'all 0.2s',
+    },
+    statusBadge: (status) => {
+      const colors = {
+        pending: { bg: '#fff3cd', text: '#856404' },
+        approved: { bg: '#d4edda', text: '#155724' },
+        rejected: { bg: '#f8d7da', text: '#721c24' }
+      };
+      const style = colors[status] || colors.pending;
+      return {
+        backgroundColor: style.bg,
+        color: style.text,
+        padding: '4px 8px',
+        borderRadius: '4px',
+        fontSize: '12px',
+        fontWeight: '600',
+        textTransform: 'uppercase'
+      };
+    },
+    bookingHeader: {
+      fontSize: "clamp(18px, 3vw, 24px)",
+      color: darkMode ? '#fff' : '#2c3e50',
+      marginBottom: "clamp(16px, 2.5vw, 25px)",
+      paddingBottom: "clamp(8px, 1.2vw, 10px)",
       borderBottom: '2px solid #eee',
     },
     bookingGrid: {
       display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: '30px',
+      gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',  // Single column on mobile
+      gap: isMobile ? '20px' : '30px',
       marginTop: '20px',
     },
     timeSlotsGrid: {
@@ -743,74 +975,75 @@ const TutorProfile = () => {
       display: 'flex',
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: '30px',
-      gap: '30px',
+      marginBottom: "clamp(20px, 3vw, 30px)",
+      gap: "clamp(16px, 3vw, 30px)",
       flexWrap: 'wrap',
     },
     infoSection: {
       flex: 1,
-      minWidth: '300px',
+      minWidth: "clamp(250px, 40vw, 300px)",
     },
     name: {
-      fontSize: '38px',
-      margin: '0 0 8px 0',
+      fontSize: "clamp(24px, 5vw, 38px)",
+      margin: '0 0 clamp(6px, 1vw, 8px) 0',
       color: darkMode ? '#fff' : '#2c3e50',
       fontWeight: '600',
       lineHeight: '1.2',
       display: 'block',
     },
     price: {
-      fontSize: '20px',
-      color: '#9A2250',
-      margin: '0 0 10px 0',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
+      color: 'rgb(255, 220, 112)',
+      margin: '0 0 clamp(8px, 1.2vw, 10px) 0',
       fontWeight: '600',
       display: 'block',
     },
     email: {
       color: darkMode ? '#aaa' : '#666',
-      margin: '0 0 15px 0',
-      fontSize: '16px',
+      margin: '0 0 clamp(12px, 2vw, 15px) 0',
+      fontSize: "clamp(14px, 2vw, 16px)",
       display: 'block',
     },
     profileImage: {
-      width: '200px',
-      height: '200px',
+      width: "clamp(120px, 25vw, 200px)",
+      height: "clamp(120px, 25vw, 200px)",
       borderRadius: '50%',
       objectFit: 'cover',
       border: `3px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     section: {
-      marginBottom: '25px',
+      marginBottom: "clamp(16px, 2.5vw, 25px)",
     },
     sectionTitle: {
-      fontSize: '20px',
+      fontSize: "clamp(16px, 2.5vw, 20px)",
       color: darkMode ? '#fff' : '#2c3e50',
-      margin: '0 0 0px 20px',
-      paddingBottom: '5px',
+      margin: '0 0 0px clamp(12px, 2vw, 20px)',
+      paddingBottom: "clamp(4px, 0.8vw, 5px)",
       borderBottom: `2px solid ${darkMode ? '#444' : '#f0f0f0'}`,
     },
     tag: {
       display: 'inline-block',
       backgroundColor: '#f0f0f0',
-      padding: '5px 10px',
-      borderRadius: '15px',
-      margin: '0 10px 10px 0',
-      fontSize: '14px',
+      padding: "clamp(4px, 0.6vw, 5px) clamp(8px, 1.2vw, 10px)",
+      borderRadius: "clamp(12px, 2vw, 15px)",
+      margin: '0 clamp(8px, 1.2vw, 10px) clamp(8px, 1.2vw, 10px) 0',
+      fontSize: "clamp(12px, 1.8vw, 14px)",
     },
     bio: {
       lineHeight: '1.6',
       color: darkMode ? '#bbb' : '#555',
-      margin: '0 0 0px 20px',
+      margin: '0 0 0px clamp(12px, 2vw, 20px)',
+      fontSize: "clamp(14px, 2vw, 16px)",
     },
     button: {
       backgroundColor: '#9A2250',
       color: 'white',
       border: 'none',
-      padding: '12px 25px',
-      borderRadius: '5px',
-      fontSize: '16px',
+      padding: "clamp(10px, 1.5vw, 12px) clamp(20px, 3vw, 25px)",
+      borderRadius: "clamp(4px, 0.8vw, 5px)",
+      fontSize: "clamp(14px, 2vw, 16px)",
       cursor: 'pointer',
-      marginTop: '10px',
+      marginTop: "clamp(8px, 1.2vw, 10px)",
       transition: 'background-color 0.3s',
     },
   };
@@ -842,38 +1075,185 @@ const TutorProfile = () => {
               <h2 style={styles.sectionTitle}>About Me</h2>
               <p style={styles.bio}>{tutor.bio}</p>
             </div>
+
           </div>
         </div>
 
-        <div style={styles.bookingContainer}>
-          <h2 style={styles.bookingHeader}>Book a Session</h2>
-
-          {/* Self-booking restriction message */}
-          {user && tutor && user.id === tutor.id && (
-            <div style={{
-              padding: '15px',
-              backgroundColor: '#fff3cd',
-              color: '#856404',
-              border: '1px solid #ffeeba',
-              borderRadius: '5px',
-              marginBottom: '20px',
-              textAlign: 'center'
-            }}>
-              <strong>Note:</strong> You cannot book a session with yourself.
+        {/* Conditional Rendering: Admin Dashboard or Booking Form */}
+        {user?.role === 'admin' ? (
+          <div style={styles.adminContainer}>
+            <div style={styles.adminHeader}>
+              <i className="fas fa-user-shield"></i>
+              <span>Admin Management</span>
             </div>
-          )}
 
-          <div style={{
-            ...styles.bookingGrid,
-            opacity: (user && tutor && user.id === tutor.id) ? 0.5 : 1,
-            pointerEvents: (user && tutor && user.id === tutor.id) ? 'none' : 'auto'
-          }}>
-            {/* Left side - Time selection */}
-            <div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Select a time slot</label>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Pick a day: *</label>
+            {/* 1. Appointment Stats */}
+            <div style={styles.statsGrid}>
+              <div
+                style={{
+                  ...styles.statCard,
+                  cursor: 'pointer',
+                  border: selectedStatType === 'pending' ? '2px solid #9A2250' : (darkMode ? '1px solid #444' : '1px solid #e9ecef'),
+                  backgroundColor: selectedStatType === 'pending' ? (darkMode ? '#3a2a30' : '#fff5f8') : styles.statCard.backgroundColor
+                }}
+                onClick={() => setSelectedStatType(selectedStatType === 'pending' ? null : 'pending')}
+              >
+                <div style={styles.statValue}>{stats.pending}</div>
+                <div style={styles.statLabel}>Pending Appointments</div>
+              </div>
+              <div
+                style={{
+                  ...styles.statCard,
+                  cursor: 'pointer',
+                  border: selectedStatType === 'upcoming' ? '2px solid #9A2250' : (darkMode ? '1px solid #444' : '1px solid #e9ecef'),
+                  backgroundColor: selectedStatType === 'upcoming' ? (darkMode ? '#3a2a30' : '#fff5f8') : styles.statCard.backgroundColor
+                }}
+                onClick={() => setSelectedStatType(selectedStatType === 'upcoming' ? null : 'upcoming')}
+              >
+                <div style={styles.statValue}>{stats.upcoming}</div>
+                <div style={styles.statLabel}>Upcoming Appointments</div>
+              </div>
+              <div
+                style={{
+                  ...styles.statCard,
+                  cursor: 'pointer',
+                  border: selectedStatType === 'past' ? '2px solid #9A2250' : (darkMode ? '1px solid #444' : '1px solid #e9ecef'),
+                  backgroundColor: selectedStatType === 'past' ? (darkMode ? '#3a2a30' : '#fff5f8') : styles.statCard.backgroundColor
+                }}
+                onClick={() => setSelectedStatType(selectedStatType === 'past' ? null : 'past')}
+              >
+                <div style={styles.statValue}>{stats.past}</div>
+                <div style={styles.statLabel}>Past Appointments</div>
+              </div>
+            </div>
+
+            {/* Selected Appointments List */}
+            {selectedStatType && (
+              <div style={styles.adminSection}>
+                <h3 style={styles.adminSubTitle}>
+                  {selectedStatType.charAt(0).toUpperCase() + selectedStatType.slice(1)} Appointments
+                </h3>
+                {allTutorBookings.filter(b => {
+                  const now = new Date();
+                  if (selectedStatType === 'pending') return b.status === 'pending';
+                  if (selectedStatType === 'upcoming') return b.status === 'confirmed' && new Date(b.end_time) > now;
+                  if (selectedStatType === 'past') return b.status === 'completed' || (b.status === 'confirmed' && new Date(b.end_time) <= now);
+                  return false;
+                }).length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {allTutorBookings.filter(b => {
+                      const now = new Date();
+                      if (selectedStatType === 'pending') return b.status === 'pending';
+                      if (selectedStatType === 'upcoming') return b.status === 'confirmed' && new Date(b.end_time) > now;
+                      if (selectedStatType === 'past') return b.status === 'completed' || (b.status === 'confirmed' && new Date(b.end_time) <= now);
+                      return false;
+                    }).map(booking => (
+                      <div key={booking.id} style={{
+                        padding: '15px',
+                        backgroundColor: darkMode ? '#363636' : '#fff',
+                        border: darkMode ? '1px solid #444' : '1px solid #eee',
+                        borderRadius: '8px',
+                        borderLeft: `4px solid ${booking.status === 'pending' ? '#ffc107' :
+                          booking.status === 'confirmed' ? 'rgb(53, 0, 103)' : '#6c757d'
+                          }`
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px' }}>
+                          <span style={{ fontWeight: 'bold', fontSize: '14px', color: darkMode ? '#fff' : '#333' }}>
+                            {new Date(booking.start_time).toLocaleDateString()} at {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '14px', color: darkMode ? '#ddd' : '#555' }}>
+                          Student ID: {booking.student_id} {booking.student_email ? `(${booking.student_email})` : ''}
+                        </div>
+                        {booking.course_code && (
+                          <div style={{ fontSize: '13px', marginTop: '4px', color: '#9A2250' }}>
+                            Course: {booking.course_code}
+                          </div>
+                        )}
+                        {booking.notes && (
+                          <div style={{ fontSize: '13px', marginTop: '4px', color: darkMode ? '#ccc' : '#666', fontStyle: 'italic' }}>
+                            "{booking.notes}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ color: darkMode ? '#aaa' : '#666', fontStyle: 'italic' }}>No appointments found.</p>
+                )}
+              </div>
+            )}
+
+            {/* 2. Course Management */}
+            <div style={styles.adminSection}>
+              <h3 style={styles.adminSubTitle}>Active Courses</h3>
+              {tutor.courses && tutor.courses.length > 0 ? (
+                <div>
+                  {tutor.courses.map(course => (
+                    <div key={course.course_id || course.id} style={styles.courseListItem}>
+                      <div>
+                        <strong style={{ display: 'block', color: darkMode ? '#fff' : '#333' }}>
+                          {course.department_code} {course.course_number}
+                        </strong>
+                        <span style={{ fontSize: '14px', color: darkMode ? '#aaa' : '#666' }}>
+                          {course.title}
+                        </span>
+                      </div>
+                      <button
+                        style={styles.removeBtn}
+                        onClick={() => handleRemoveCourse(course.course_id || course.id)}
+                      >
+                        <i className="fas fa-trash-alt" style={{ marginRight: '6px' }}></i>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: darkMode ? '#aaa' : '#666' }}>No active courses.</p>
+              )}
+            </div>
+
+            {/* 3. Pending Course Requests */}
+            <div style={styles.adminSection}>
+              <h3 style={styles.adminSubTitle}>Pending Course Requests</h3>
+              {courseRequests.filter(req => req.status === 'pending').length > 0 ? (
+                <div>
+                  {courseRequests.filter(req => req.status === 'pending').map(req => (
+                    <div key={req.request_id} style={styles.courseListItem}>
+                      <div>
+                        <strong style={{ display: 'block', color: darkMode ? '#fff' : '#333' }}>
+                          {req.course?.department_code} {req.course?.course_number}
+                        </strong>
+                        <span style={{ fontSize: '12px', ...styles.statusBadge(req.status) }}>Pending Approval</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          style={{ ...styles.removeBtn, backgroundColor: 'rgba(40, 167, 69, 0.1)', color: '#28a745', borderColor: '#28a745' }}
+                          onClick={() => handleRequestAction(req.request_id, 'approve')}
+                        >
+                          Approve
+                        </button>
+                        <button
+                          style={{ ...styles.removeBtn }}
+                          onClick={() => handleRequestAction(req.request_id, 'reject')}
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ color: darkMode ? '#aaa' : '#666' }}>No pending course requests.</p>
+              )}
+            </div>
+
+            {/* 4. Availability Calendar (Read-Only) */}
+            <div style={styles.adminSection}>
+              <h3 style={styles.adminSubTitle}>Availability Calendar</h3>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                <div>
                   <DatePicker
                     selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
                     onChange={(date) => {
@@ -893,150 +1273,236 @@ const TutorProfile = () => {
                       return availableDates.includes(dateStr);
                     }}
                     onMonthChange={(date) => fetchMonthAvailability(date)}
-                    placeholderText="Select a date"
-                    className="form-control"
-                    wrapperClassName="datePickerWrapper"
-                    customInput={
-                      <input
-                        style={{
-                          ...styles.input,
-                          width: '100%',
-                          cursor: 'pointer'
-                        }}
-                      />
-                    }
+                    inline
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ fontSize: '16px', marginBottom: '10px', color: darkMode ? '#fff' : '#333' }}>
+                    Slots for {selectedDate || 'Select a date'}
+                  </h4>
+                  {selectedDate && (
+                    <div>
+                      {isLoadingSlots && <p>Loading...</p>}
+                      {!isLoadingSlots && availableTimeSlots.length === 0 && <p>No available slots.</p>}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '8px' }}>
+                        {availableTimeSlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            style={{
+                              ...styles.timeSlot,
+                              // Make it look read-only but informative
+                              cursor: 'default',
+                              backgroundColor: slot.disabled ? (darkMode ? '#333' : '#eee') : (darkMode ? '#2d2d2d' : '#fff'),
+                              opacity: slot.disabled ? 0.7 : 1
+                            }}
+                          >
+                            <span style={{ fontSize: '13px' }}>{slot.display}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {!selectedDate && <p style={{ color: darkMode ? '#aaa' : '#666' }}>Select a date to view available time slots.</p>}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        ) : (
+          /* Normal User Booking View */
+          <div style={styles.bookingContainer}>
+            <h2 style={styles.bookingHeader}>Book a Session</h2>
+
+            {/* Self-booking restriction message */}
+            {user && tutor && user.id === tutor.id && (
+              <div style={{
+                padding: '15px',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                border: '1px solid #ffeeba',
+                borderRadius: '5px',
+                marginBottom: '20px',
+                textAlign: 'center'
+              }}>
+                <strong>Note:</strong> You cannot book a session with yourself.
+              </div>
+            )}
+
+            <div style={{
+              ...styles.bookingGrid,
+              opacity: (user && tutor && user.id === tutor.id) ? 0.5 : 1,
+              pointerEvents: (user && tutor && user.id === tutor.id) ? 'none' : 'auto'
+            }}>
+              {/* Left side - Time selection */}
+              <div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Select a time slot</label>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Pick a day: *</label>
+                    <DatePicker
+                      selected={selectedDate ? new Date(selectedDate + 'T00:00:00') : null}
+                      onChange={(date) => {
+                        if (date) {
+                          setSelectedDate(formatDateLocal(date));
+                        } else {
+                          setSelectedDate('');
+                        }
+                      }}
+                      minDate={new Date()}
+                      maxDate={new Date(new Date().setFullYear(new Date().getFullYear() + 2))}
+                      filterDate={(date) => {
+                        // Disable past dates
+                        if (date < new Date().setHours(0, 0, 0, 0)) return false;
+                        // Check if date is in availableDates
+                        const dateStr = formatDateLocal(date);
+                        return availableDates.includes(dateStr);
+                      }}
+                      onMonthChange={(date) => fetchMonthAvailability(date)}
+                      placeholderText="Select a date"
+                      className="form-control"
+                      wrapperClassName="datePickerWrapper"
+                      customInput={
+                        <input
+                          style={{
+                            ...styles.input,
+                            width: '100%',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      }
+                    />
+                  </div>
+
+                  {selectedDate && (
+                    <div>
+                      <label style={styles.label}>
+                        Available Times: *
+                        {isLoadingSlots && <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>Loading...</span>}
+                        {!isLoadingSlots && availableTimeSlots.length === 0 && (
+                          <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>No available time slots for this date</span>
+                        )}
+                      </label>
+                      <div style={styles.timeSlotsGrid}>
+                        {availableTimeSlots.map((slot) => (
+                          <div
+                            key={slot.id}
+                            style={{
+                              ...styles.timeSlot,
+                              ...(selectedTime === slot.display ? styles.selectedTimeSlot : {}),
+                              ...(slot.disabled ? styles.disabledTimeSlot : {}),
+                            }}
+                            onClick={() => !slot.disabled && setSelectedTime(slot.display)}
+                          >
+                            <span style={{ textDecoration: slot.disabled ? 'line-through' : 'none' }}>
+                              {slot.display}
+                            </span>
+                            {slot.disabled && <span style={{ fontSize: '0.7em', display: 'block' }}>{slot.conflictLabel}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Right side - Session details */}
+              <div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Course: *</label>
+                  <select
+                    style={styles.select}
+                    value={selectedCourse}
+                    onChange={(e) => setSelectedCourse(e.target.value)}
+                    required
+                  >
+                    <option value="" style={{ color: darkMode ? '#fff' : '#000' }}>Select a course</option>
+                    {tutor.courses.map((course, index) => (
+                      <option
+                        key={index}
+                        value={`${course.department_code} ${course.course_number}`}
+                        style={{ color: '#000' }}
+                      >
+                        {course.department_code} {course.course_number} - {course.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Notes (optional):</label>
+                  <textarea
+                    style={styles.textarea}
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Any specific topics or questions you'd like to cover?"
                   />
                 </div>
 
-                {selectedDate && (
-                  <div>
-                    <label style={styles.label}>
-                      Available Times: *
-                      {isLoadingSlots && <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>Loading...</span>}
-                      {!isLoadingSlots && availableTimeSlots.length === 0 && (
-                        <span style={{ marginLeft: '10px', fontSize: '0.9em', color: '#666' }}>No available time slots for this date</span>
-                      )}
-                    </label>
-                    <div style={styles.timeSlotsGrid}>
-                      {availableTimeSlots.map((slot) => (
-                        <div
-                          key={slot.id}
-                          style={{
-                            ...styles.timeSlot,
-                            ...(selectedTime === slot.display ? styles.selectedTimeSlot : {}),
-                            ...(slot.disabled ? styles.disabledTimeSlot : {}),
-                          }}
-                          onClick={() => !slot.disabled && setSelectedTime(slot.display)}
-                        >
-                          <span style={{ textDecoration: slot.disabled ? 'line-through' : 'none' }}>
-                            {slot.display}
-                          </span>
-                          {slot.disabled && <span style={{ fontSize: '0.7em', display: 'block' }}>{slot.conflictLabel}</span>}
-                        </div>
-                      ))}
-                    </div>
+                <div style={styles.sessionTypeContainer}>
+                  <div
+                    style={{
+                      ...styles.sessionTypeOption,
+                      ...styles.firstSessionTypeOption,
+                      ...(sessionType === 'in-person' ? styles.selectedSessionType : {})
+                    }}
+                    onClick={() => setSessionType('in-person')}
+                  >
+                    In-Person
+                  </div>
+                  <div
+                    style={{
+                      ...styles.sessionTypeOption,
+                      ...(sessionType === 'online' ? styles.selectedSessionType : {})
+                    }}
+                    onClick={() => setSessionType('online')}
+                  >
+                    Online (Video)
+                  </div>
+                </div>
+
+                {bookingError && (
+                  <div style={{
+                    color: '#dc3545',
+                    backgroundColor: '#f8d7da',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginBottom: '15px',
+                    fontSize: '14px',
+                    border: '1px solid #f5c6cb'
+                  }}>
+                    {bookingError}
                   </div>
                 )}
-              </div>
-            </div>
 
-            {/* Right side - Session details */}
-            <div>
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Course: *</label>
-                <select
-                  style={styles.select}
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  required
-                >
-                  <option value="" style={{ color: darkMode ? '#fff' : '#000' }}>Select a course</option>
-                  {tutor.courses.map((course, index) => (
-                    <option
-                      key={index}
-                      value={`${course.department_code} ${course.course_number}`}
-                      style={{ color: '#000' }}
-                    >
-                      {course.department_code} {course.course_number} - {course.title}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                {bookingSuccess && (
+                  <div style={{
+                    color: '#0f5132',
+                    backgroundColor: '#d1e7dd',
+                    padding: '10px',
+                    borderRadius: '4px',
+                    marginBottom: '15px',
+                    fontSize: '14px',
+                    border: '1px solid #badbcc'
+                  }}>
+                    Booking successful! The tutor will confirm your appointment shortly.
+                  </div>
+                )}
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Notes (optional):</label>
-                <textarea
-                  style={styles.textarea}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Any specific topics or questions you'd like to cover?"
-                />
-              </div>
-
-              <div style={styles.sessionTypeContainer}>
-                <div
+                <button
                   style={{
-                    ...styles.sessionTypeOption,
-                    ...styles.firstSessionTypeOption,
-                    ...(sessionType === 'in-person' ? styles.selectedSessionType : {})
+                    ...styles.bookButton,
+                    opacity: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 0.7 : 1,
+                    cursor: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 'not-allowed' : 'pointer'
                   }}
-                  onClick={() => setSessionType('in-person')}
+                  onClick={handleSubmit}
+                  disabled={!selectedDate || !selectedTime || !selectedCourse || isBooking}
                 >
-                  In-Person
-                </div>
-                <div
-                  style={{
-                    ...styles.sessionTypeOption,
-                    ...(sessionType === 'online' ? styles.selectedSessionType : {})
-                  }}
-                  onClick={() => setSessionType('online')}
-                >
-                  Online (Video)
-                </div>
+                  {isBooking ? 'Booking...' : 'Book Session'}
+                </button>
               </div>
-
-              {bookingError && (
-                <div style={{
-                  color: '#dc3545',
-                  backgroundColor: '#f8d7da',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  marginBottom: '15px',
-                  fontSize: '14px',
-                  border: '1px solid #f5c6cb'
-                }}>
-                  {bookingError}
-                </div>
-              )}
-
-              {bookingSuccess && (
-                <div style={{
-                  color: '#0f5132',
-                  backgroundColor: '#d1e7dd',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  marginBottom: '15px',
-                  fontSize: '14px',
-                  border: '1px solid #badbcc'
-                }}>
-                  Booking successful! The tutor will confirm your appointment shortly.
-                </div>
-              )}
-
-              <button
-                style={{
-                  ...styles.bookButton,
-                  opacity: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 0.7 : 1,
-                  cursor: (!selectedDate || !selectedTime || !selectedCourse || isBooking) ? 'not-allowed' : 'pointer'
-                }}
-                onClick={handleSubmit}
-                disabled={!selectedDate || !selectedTime || !selectedCourse || isBooking}
-              >
-                {isBooking ? 'Booking...' : 'Book Session'}
-              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
       <Footer />
     </div>
