@@ -55,3 +55,21 @@ def update_tutor_languages(db: Session, tutor_id: int, languages: Optional[List[
     db.commit()
     db.refresh(profile)
     return profile
+
+def update_tutor_profile_image(
+    db: Session, 
+    tutor_id: int, 
+    image_path_full: str,
+    image_path_thumb: Optional[str] = None
+) -> TutorProfile:
+    """Update tutor profile image paths in the database."""
+    profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == tutor_id).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="tutor profile not found")
+
+    profile.profile_image_path_full = image_path_full
+    profile.profile_image_path_thumb = image_path_thumb or image_path_full
+    
+    db.commit()
+    db.refresh(profile)
+    return profile

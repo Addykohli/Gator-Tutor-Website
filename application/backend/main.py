@@ -17,6 +17,7 @@ app = FastAPI(title="Team08 API", version="0.1.0")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MULTIMEDIA_DIR = os.path.join(BASE_DIR, "multimedia")
 app.mount("/static", StaticFiles(directory=MULTIMEDIA_DIR), name="static")
+app.mount("/media", StaticFiles(directory=MULTIMEDIA_DIR), name="media")  # Also mount as /media for frontend
 
 app.add_middleware(
     CORSMiddleware,

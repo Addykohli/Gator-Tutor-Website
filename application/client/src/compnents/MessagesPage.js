@@ -63,8 +63,8 @@ const MessagesPage = () => {
   const [unreadPartners, setUnreadPartners] = useState({});
 
   const hasUnreadMessages = (partnerId) => {
-  return unreadPartners[partnerId] === true;
-};
+    return unreadPartners[partnerId] === true;
+  };
   const [partnerLastMessageTime, setPartnerLastMessageTime] = useState({});
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
@@ -195,10 +195,10 @@ const MessagesPage = () => {
         const userIds = await response.json();
         const partnersPromises = userIds.map(id => fetchUserInfo(id));
         const partners = await Promise.all(partnersPromises);
-  
+
         const unreadStatus = {};
         const lastMsgTimes = {};
-        
+
         for (const partner of partners) {
           try {
             const msgResponse = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partner.id}`);
@@ -278,7 +278,7 @@ const MessagesPage = () => {
     setSelectedPartnerId(partner.id);
     setSending(false);
     fetchMessages(partner.id);
-    
+
     // Mark messages as read in the database
     try {
       await fetch(`${CHAT_API_BASE}/api/chat/messages/mark-read?receiver_id=${currentUserId}&sender_id=${partner.id}`, {
@@ -289,7 +289,7 @@ const MessagesPage = () => {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
-    
+
     // On mobile, hide sidebar when chat is selected
     if (isMobile) {
       setSidebarVisible(false);
@@ -416,13 +416,13 @@ const MessagesPage = () => {
   };
 
   const filteredPartners = chatPartners
-  .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  .sort((a, b) => {
-    // Sort by last message time (most recent first)
-    const aTime = partnerLastMessageTime[a.id] || 0;
-    const bTime = partnerLastMessageTime[b.id] || 0;
-    return bTime - aTime;
-  });
+    .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      // Sort by last message time (most recent first)
+      const aTime = partnerLastMessageTime[a.id] || 0;
+      const bTime = partnerLastMessageTime[b.id] || 0;
+      return bTime - aTime;
+    });
 
   const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) ||
     allUsers.find(u => u.id === selectedPartnerId);

@@ -9,6 +9,7 @@ import startOfWeek from 'date-fns/startOfWeek';
 import addDays from 'date-fns/addDays';
 import isSameDay from 'date-fns/isSameDay';
 import Header from './Header';
+import { getProfileImageUrl } from '../media_handling';
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ const HomePage = () => {
   const [tutorAvailability, setTutorAvailability] = useState([]);
   const [tutorBookings, setTutorBookings] = useState([]);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0); // Added unread messages count
   const [tutorCourses, setTutorCourses] = useState([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(false);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
@@ -67,6 +69,11 @@ const HomePage = () => {
   });
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
+  // Profile Image State
+  const [profileImagePath, setProfileImagePath] = useState(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const profileImageInputRef = useRef(null);
+
   // Fetch tutor profile data
   useEffect(() => {
     const fetchTutorProfile = async () => {
@@ -89,6 +96,8 @@ const HomePage = () => {
               hourly_rate: hourlyRate.toString(),
               languages: (data.languages || []).join(', ')
             });
+            // Set profile image path
+            setProfileImagePath(data.profile_image_path_full || null);
           }
         } catch (error) {
           console.error("Error fetching tutor profile:", error);
@@ -149,6 +158,56 @@ const HomePage = () => {
       alert("Failed to update profile");
     } finally {
       setIsSavingProfile(false);
+    }
+  };
+
+  // Handle profile image upload
+  const handleProfileImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploadingImage(true);
+
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${apiBaseUrl}/api/tutors/${user.id}/profile-image`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProfileImagePath(data.profile_image_path_full);
+        // Show success message
+        console.log('Profile image uploaded successfully:', data);
+      } else {
+        const error = await response.json();
+        alert(error.detail || 'Failed to upload profile image');
+      }
+    } catch (error) {
+      console.error('Error uploading profile image:', error);
+      alert('Error uploading profile image');
+    } finally {
+      setIsUploadingImage(false);
+      // Reset the input
+      if (profileImageInputRef.current) {
+        profileImageInputRef.current.value = '';
+      }
     }
   };
 
@@ -403,9 +462,25 @@ const HomePage = () => {
     }
   }, [user?.id, user?.isTutor, apiBaseUrl]);
 
+  // Fetch unread messages count
+  const fetchUnreadMessages = React.useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/chat/unread-count/${user.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadMessagesCount(data.unread_conversations || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching unread messages count:', error);
+    }
+  }, [user?.id, apiBaseUrl]);
+
   // Memoized fetch functions for the main effect
   const fetchData = React.useCallback(() => {
     if (!user) return;
+
+    fetchUnreadMessages();
 
     if (user.isTutor) {
       fetchTutorAvailability();
@@ -414,7 +489,7 @@ const HomePage = () => {
     } else {
       fetchStudentBookings();
     }
-  }, [user, fetchTutorAvailability, fetchTutorBookings, fetchStudentBookings]);
+  }, [user, fetchTutorAvailability, fetchTutorBookings, fetchStudentBookings, fetchTutorCourses, fetchUnreadMessages]);
 
   // Effect to fetch data when component mounts or when user changes
   useEffect(() => {
@@ -2480,38 +2555,124 @@ const HomePage = () => {
                           }}>
                             <span style={{ fontSize: '0.65rem', fontWeight: '500' }}>Messages</span>
                           </div>
+                          {unreadMessagesCount > 0 && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-4px',
+                              right: '-4px',
+                              backgroundColor: '#dc3545',
+                              color: 'white',
+                              borderRadius: '50%',
+                              minWidth: '18px',
+                              height: '18px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.65rem',
+                              fontWeight: 'bold',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                              border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
+                              zIndex: 2
+                            }}>
+                              {unreadMessagesCount > 9 ? '9+' : unreadMessagesCount}
+                            </div>
+                          )}
                         </button>
                       </div>
                     </div>
                   )}
                   <div style={{
+                    position: 'relative',
                     width: isMobile ? '60px' : '90px',
                     height: isMobile ? '60px' : '90px',
-                    borderRadius: '50%',
-                    backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
                     marginBottom: isMobile ? '0' : '16px',
-                    overflow: 'hidden',
-                    border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`,
                     flexShrink: 0
                   }}>
-                    {user?.firstName && user?.lastName ? (
-                      <div style={{
-                        fontSize: isMobile ? '20px' : '36px',
-                        fontWeight: '600',
-                        color: '#9A2250',
-                        textTransform: 'uppercase'
-                      }}>
-                        {user.firstName[0]}{user.lastName[0]}
-                      </div>
-                    ) : (
-                      <i className="fas fa-user" style={{
-                        fontSize: isMobile ? '20px' : '36px',
-                        color: '#9A2250',
-                        opacity: 0.7
-                      }}></i>
+                    <div style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: '50%',
+                      backgroundColor: user ? '#f0f7ff' : '#f8f9fa',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      border: `2px solid ${user ? '#d0e3ff' : '#e9ecef'}`
+                    }}>
+                      {/* Show profile image if tutor and has image */}
+                      {user?.isTutor && profileImagePath ? (
+                        <img
+                          src={getProfileImageUrl(profileImagePath)}
+                          alt="Profile"
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover'
+                          }}
+                          onError={(e) => {
+                            // Hide broken image and show initials fallback
+                            e.target.style.display = 'none';
+                            setProfileImagePath(null);
+                          }}
+                        />
+                      ) : user?.firstName && user?.lastName ? (
+                        <div style={{
+                          fontSize: isMobile ? '20px' : '36px',
+                          fontWeight: '600',
+                          color: '#9A2250',
+                          textTransform: 'uppercase'
+                        }}>
+                          {user.firstName[0]}{user.lastName[0]}
+                        </div>
+                      ) : (
+                        <i className="fas fa-user" style={{
+                          fontSize: isMobile ? '20px' : '36px',
+                          color: '#9A2250',
+                          opacity: 0.7
+                        }}></i>
+                      )}
+                    </div>
+
+                    {/* Upload button for tutors */}
+                    {user?.isTutor && (
+                      <>
+                        <input
+                          type="file"
+                          ref={profileImageInputRef}
+                          onChange={handleProfileImageUpload}
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                        />
+                        <button
+                          onClick={() => profileImageInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          style={{
+                            position: 'absolute',
+                            bottom: '-2px',
+                            right: '-2px',
+                            width: isMobile ? '24px' : '28px',
+                            height: isMobile ? '24px' : '28px',
+                            borderRadius: '50%',
+                            backgroundColor: '#35006D',
+                            border: '2px solid white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: isUploadingImage ? 'wait' : 'pointer',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            transition: 'transform 0.2s, background-color 0.2s'
+                          }}
+                          onMouseOver={(e) => { if (!isUploadingImage) e.currentTarget.style.backgroundColor = '#5a1e96'; }}
+                          onMouseOut={(e) => { e.currentTarget.style.backgroundColor = '#35006D'; }}
+                          title="Upload profile picture"
+                        >
+                          {isUploadingImage ? (
+                            <i className="fas fa-spinner fa-spin" style={{ fontSize: isMobile ? '10px' : '12px', color: 'white' }}></i>
+                          ) : (
+                            <i className="fas fa-camera" style={{ fontSize: isMobile ? '10px' : '12px', color: 'white' }}></i>
+                          )}
+                        </button>
+                      </>
                     )}
                   </div>
 
@@ -2708,6 +2869,28 @@ const HomePage = () => {
                       >
                         <i className="fas fa-envelope" style={{ fontSize: '1rem' }}></i>
                         Messages
+                        {unreadMessagesCount > 0 && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '-8px',
+                            right: '-8px',
+                            backgroundColor: '#dc3545',
+                            color: 'white',
+                            borderRadius: '50%',
+                            minWidth: '24px',
+                            height: '24px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                            border: '2px solid ' + (darkMode ? 'rgb(60, 60, 60)' : '#fff'),
+                            padding: '0 6px'
+                          }}>
+                            {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                          </div>
+                        )}
                       </button>
                     </div>
                   </div>

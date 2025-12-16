@@ -76,3 +76,10 @@ def get_user_chats(db: Session, user_id: int):
         else:
             other_users.add(message.sender_id)
     return list(other_users)
+
+def get_unread_count(db: Session, user_id: int) -> int:
+    """Get the number of conversations with unread messages for a user"""
+    return db.query(ChatMessage.sender_id).filter(
+        ChatMessage.receiver_id == user_id,
+        ChatMessage.is_read == False
+    ).distinct().count()

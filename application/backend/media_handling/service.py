@@ -8,7 +8,13 @@ from typing import Optional
 from fastapi import UploadFile
 
 # Media root directory on server
-MEDIA_ROOT = os.getenv("MEDIA_ROOT", "/home/atharva/media")
+# For local development on Windows, use relative path from backend directory
+if os.getenv("MEDIA_ROOT"):
+    MEDIA_ROOT = os.getenv("MEDIA_ROOT")
+elif os.name == 'nt':  # Windows
+    MEDIA_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "multimedia")
+else:
+    MEDIA_ROOT = "/home/atharva/media"
 
 # Supported image extensions
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}

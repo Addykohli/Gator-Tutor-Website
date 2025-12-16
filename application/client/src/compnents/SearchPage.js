@@ -5,6 +5,7 @@ import Footer from './Footer';
 import { useAuth } from '../Context/Context';
 import gatorLogo from '../assets/logo_blue.png';
 import logoIcon from '../assets/logo_icon.png';
+import { getProfileImageUrl } from '../media_handling';
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
@@ -741,7 +742,28 @@ export default function SearchPage() {
           <div style={styles.tutorCardContent}>
             <div style={styles.tutorHeader}>
               <div style={styles.tutorAvatar}>
-                {initials}
+                {item.profile_image_path_full ? (
+                  <img
+                    src={getProfileImageUrl(item.profile_image_path_full)}
+                    alt={fullName}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      borderRadius: '50%'
+                    }}
+                    onError={(e) => {
+                      // Replace image with initials on error
+                      const parent = e.target.parentNode;
+                      if (parent) {
+                        e.target.remove();
+                        parent.textContent = initials;
+                      }
+                    }}
+                  />
+                ) : (
+                  initials
+                )}
               </div>
               <div>
                 <div style={styles.tutorName}>{fullName}</div>
