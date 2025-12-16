@@ -11,8 +11,17 @@ from chat.routers.chat_router import router as chat_router
 from tutors.router import router as tutors_router
 from ai.router import router as ai_router
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# ... existing imports ...
 
 app = FastAPI(title="Team08 API", version="0.1.0")
+
+# Mount media directory for local development
+# In production, Nginx serves this, but this ensures it works locally too.
+if os.path.exists("multimedia"):
+    app.mount("/media", StaticFiles(directory="multimedia"), name="media")
 
 app.add_middleware(
     CORSMiddleware,
