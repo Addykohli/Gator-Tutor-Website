@@ -14,17 +14,17 @@ const MEDIA_BASE_URL = process.env.REACT_APP_MEDIA_URL || window.location.origin
  */
 export const getMediaUrl = (mediaPath) => {
   if (!mediaPath) return null;
-  
+
   // If already absolute URL, return as-is
   if (mediaPath.startsWith('http://') || mediaPath.startsWith('https://')) {
     return mediaPath;
   }
-  
+
   // If relative path starts with /media/, use media server
   if (mediaPath.startsWith('/media/')) {
     return `${MEDIA_BASE_URL}${mediaPath}`;
   }
-  
+
   // Legacy paths - migrate to /media/ format
   if (mediaPath.startsWith('/api/chat/media/')) {
     // Convert old chat media paths to new format
@@ -39,7 +39,7 @@ export const getMediaUrl = (mediaPath) => {
     }
     return `${MEDIA_BASE_URL}/media/${category}/chat/${filename}`;
   }
-  
+
   // Legacy static paths
   if (mediaPath.startsWith('/static/')) {
     // Convert /static/images/... to /media/photos/profile/...
@@ -47,7 +47,7 @@ export const getMediaUrl = (mediaPath) => {
     const filename = pathParts[pathParts.length - 1];
     return `${MEDIA_BASE_URL}/media/photos/profile/${filename}`;
   }
-  
+
   // Default: assume it's a relative path from media root
   return `${MEDIA_BASE_URL}/media/${mediaPath}`;
 };
@@ -61,13 +61,13 @@ export const getMediaUrl = (mediaPath) => {
 export const getProfileImageUrl = (imagePath) => {
   // If no image, return default
   if (!imagePath) {
-    return `${MEDIA_BASE_URL}/media/photos/profile/default_photo.jpg`;
+    return `${MEDIA_BASE_URL}/media/default_silhouette.png`;
   }
-  
+
   // Use getMediaUrl to handle the path
   const url = getMediaUrl(imagePath);
-  
+
   // If getMediaUrl returns null, fall back to default
-  return url || `${MEDIA_BASE_URL}/media/photos/profile/default_photo.jpg`;
+  return url || `${MEDIA_BASE_URL}/media/default_silhouette.png`;
 };
 
