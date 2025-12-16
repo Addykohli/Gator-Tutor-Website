@@ -916,6 +916,8 @@ const TutorProfile = () => {
       border: '1px solid #ddd',
       minHeight: '80px',
       resize: 'vertical',
+      backgroundColor: darkMode ? '#2d2d2d' : '#fff',
+      color: darkMode ? '#fff' : '#000',
     },
     sessionTypeContainer: {
       display: 'flex',

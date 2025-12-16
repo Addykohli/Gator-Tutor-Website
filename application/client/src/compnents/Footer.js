@@ -6,16 +6,15 @@ const Footer = () => {
       marginTop: '0px',
       backgroundColor: '#666666',
       color: 'white',
-      padding: '40px 0px',
+      padding: '20px 0px',
       display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      flexWrap: 'wrap',
-      gap: '30px',
+      justifyContent: 'space-around',
+      alignItems: 'center',
+      flexWrap: 'nowrap',
+      gap: 'clamp(10px, 2vw, 30px)',
     },
     footerSection: {
       flex: '1',
-      minWidth: '200px',
       padding: '0px',
       textAlign: 'center',
     },
@@ -27,8 +26,8 @@ const Footer = () => {
     },
     sectionTitle: {
       color: 'white',
-      marginBottom: '15px',
-      fontSize: '1.2rem',
+      marginBottom: '10px',
+      fontSize: 'clamp(0.6rem, 1.5vw, 1.5rem)',
       fontWeight: '500',
     },
     addressContainer: {
@@ -37,11 +36,11 @@ const Footer = () => {
       alignItems: 'center',
     },
     logo: {
-      height: '110px',
+      height: 'clamp(40px, 10vw, 120px)',
       width: 'auto',
     },
     address: {
-      fontSize: '14px',
+      fontSize: 'clamp(0.5rem, 1.2vw, 1rem)',
       lineHeight: '1.5',
       margin: 0,
     },
@@ -52,7 +51,7 @@ const Footer = () => {
       marginTop: '10px',
     },
     icon: {
-      fontSize: '24px',
+      fontSize: 'clamp(0.8rem, 2vw, 1.8rem)',
       color: 'white',
       transition: 'color 0.3s ease',
       '&:hover': {
@@ -66,9 +65,9 @@ const Footer = () => {
       {/* Logo Section */}
       <div style={styles.footerSection}>
         <div style={styles.logoContainer}>
-          <img 
-            src={require('../assets/logo bw.png')} 
-            alt="TutorMe Logo" 
+          <img
+            src={require('../assets/logo bw.png')}
+            alt="TutorMe Logo"
             style={styles.logo}
             onError={(e) => {
               e.target.onerror = null;
@@ -91,30 +90,30 @@ const Footer = () => {
       </div>
 
       {/* Social Icons Section */}
-      <div style={{...styles.footerSection, textAlign: 'center'}}>
+      <div style={{ ...styles.footerSection, textAlign: 'center' }}>
         <h3 style={styles.sectionTitle}>Follow Us</h3>
         <div style={styles.socialIcons}>
-          <a 
-            href="https://www.facebook.com/people/Software-Engineering-Team08/61583430222270/?mibextid=wwXIfr" 
-            target="_blank" 
+          <a
+            href="https://www.facebook.com/people/Software-Engineering-Team08/61583430222270/?mibextid=wwXIfr"
+            target="_blank"
             rel="noopener noreferrer"
             style={styles.icon}
             aria-label="Facebook"
           >
             <i className="fab fa-facebook-f"></i>
           </a>
-          <a 
-            href="https://www.instagram.com/thegatortutor/" 
-            target="_blank" 
+          <a
+            href="https://www.instagram.com/thegatortutor/"
+            target="_blank"
             rel="noopener noreferrer"
             style={styles.icon}
             aria-label="Instagram"
           >
             <i className="fab fa-instagram"></i>
           </a>
-          <a 
-            href="https://x.com/GatorTutor" 
-            target="_blank" 
+          <a
+            href="https://x.com/GatorTutor"
+            target="_blank"
             rel="noopener noreferrer"
             style={styles.icon}
             aria-label="Twitter"
