@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 import os
 
 from auth.routers.auth_router import router as auth_router
@@ -12,12 +11,17 @@ from chat.routers.chat_router import router as chat_router
 from tutors.router import router as tutors_router
 from ai.router import router as ai_router
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+# ... existing imports ...
 
 app = FastAPI(title="Team08 API", version="0.1.0")
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MULTIMEDIA_DIR = os.path.join(BASE_DIR, "multimedia")
-app.mount("/static", StaticFiles(directory=MULTIMEDIA_DIR), name="static")
-app.mount("/media", StaticFiles(directory=MULTIMEDIA_DIR), name="media")  # Also mount as /media for frontend
+
+# Mount media directory for local development
+# In production, Nginx serves this, but this ensures it works locally too.
+if os.path.exists("multimedia"):
+    app.mount("/media", StaticFiles(directory="multimedia"), name="media")
 
 app.add_middleware(
     CORSMiddleware,

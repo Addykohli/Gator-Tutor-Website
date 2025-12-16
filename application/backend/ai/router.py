@@ -147,17 +147,10 @@ async def ai_health():
     """
     Check if the AI service is properly configured.
     """
-    has_api_key = bool(ai_config.GEMINI_API_KEY)
-    
-    try:
-        import google.generativeai
-        gemini_installed = True
-    except ImportError:
-        gemini_installed = False
+    has_api_key = bool(ai_config.OPENROUTER_API_KEY)
     
     return {
-        "status": "ok" if (has_api_key and gemini_installed) else "not_configured",
-        "gemini_package_installed": gemini_installed,
+        "status": "ok" if has_api_key else "not_configured",
         "api_key_configured": has_api_key,
-        "model": ai_config.GEMINI_MODEL if has_api_key else None
+        "model": ai_config.OPENROUTER_MODEL if has_api_key else None
     }

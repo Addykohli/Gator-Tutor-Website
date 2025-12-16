@@ -31,7 +31,7 @@ from schedule.schemas.booking_schemas import (
 from datetime import date, time
 
 
-router = APIRouter(prefix="/search", tags=["search"])
+router = APIRouter(prefix="/api/search", tags=["search"])
 
 
 @router.get("/tutors", response_model=TutorSearchResponse)

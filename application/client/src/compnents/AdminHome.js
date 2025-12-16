@@ -53,9 +53,7 @@ const AdminHome = () => {
       localStorage.removeItem('searchCategory');
     }
 
-    const apiBaseUrl = window.location.hostname === 'localhost'
-      ? 'http://localhost:8000'
-      : '';
+    const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
 
     const typeMap = {
       'tutor': 'tutor',
@@ -76,7 +74,7 @@ const AdminHome = () => {
         });
 
         const response = await fetch(
-          `${apiBaseUrl}/search/tutors?${params.toString()}`
+          `${apiBaseUrl}/api/search/tutors?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'tutor', ...item }))];
@@ -90,7 +88,7 @@ const AdminHome = () => {
         });
 
         const response = await fetch(
-          `${apiBaseUrl}/search/courses?${params.toString()}`
+          `${apiBaseUrl}/api/search/courses?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'course', ...item }))];

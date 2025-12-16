@@ -1,10 +1,12 @@
+
 import { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
 import { getMediaUrl } from '../media_handling';
 
-const CHAT_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const CHAT_API_BASE = process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}`);
 
 const userCache = {};
 
@@ -136,6 +138,14 @@ const MessagesPage = () => {
   useEffect(() => {
     fetchChatPartners();
     connectWebSocket();
+
+    // Restore selected partner from localStorage on mount/refresh
+    const savedPartnerId = localStorage.getItem('selectedPartnerId');
+    if (savedPartnerId) {
+      const partnerId = parseInt(savedPartnerId, 10);
+      setSelectedPartnerId(partnerId);
+      fetchMessages(partnerId);
+    }
 
     return () => {
       if (wsRef.current) {
@@ -278,6 +288,9 @@ const MessagesPage = () => {
     setSelectedPartnerId(partner.id);
     setSending(false);
     fetchMessages(partner.id);
+
+    // Save to localStorage for persistence across refreshes
+    localStorage.setItem('selectedPartnerId', partner.id.toString());
 
     // Mark messages as read in the database
     try {
@@ -554,6 +567,7 @@ const MessagesPage = () => {
     conversationList: {
       flex: 1,
       overflowY: 'auto',
+      minHeight: 0, // Important for flex children with overflow
     },
     loadingContainer: {
       display: 'flex',

@@ -9,7 +9,7 @@ from datetime import date, time as time_type, timedelta
 from ..models import TutorProfile, User, Course, TutorCourse, AvailabilitySlot
 from admin.models.tutor_course_request import TutorCourseRequest
 
-DEFAULT_TUTOR_IMAGE = "/static/images/default_photo.jpg"
+DEFAULT_TUTOR_IMAGE = "/media/default_silhouette.png"
 
 def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]:
     """

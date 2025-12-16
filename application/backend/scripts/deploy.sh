@@ -86,6 +86,69 @@ echo "Extracting package..."
 mkdir -p "\$EXTRACT_DIR"
 tar -xzf "\${SERVER_HOME}/\${PACKAGE_NAME}" -C "\$EXTRACT_DIR"
 
+echo "Creating media directories..."
+mkdir -p /home/atharva/media/photos/profile
+mkdir -p /home/atharva/media/photos/chat
+mkdir -p /home/atharva/media/videos/chat
+mkdir -p /home/atharva/media/pdfs/chat
+chmod 755 /home/atharva/media
+chmod -R 755 /home/atharva/media/*
+
+# Copy default tutor profile image if it doesn't exist
+if [ ! -f /home/atharva/media/photos/profile/default_photo.jpg ]; then
+    echo "Warning: default_photo.jpg not found. Please ensure it exists at /home/atharva/media/photos/profile/default_photo.jpg"
+fi
+
+# Migrate old uploads to new structure
+echo "Migrating old uploads to new media structure..."
+OLD_UPLOADS="\${SERVER_HOME}/csc648-fa25-145-team08/application/backend/uploads/chat_media"
+
+if [ -d "\$OLD_UPLOADS" ] && [ "\$(ls -A \$OLD_UPLOADS 2>/dev/null)" ]; then
+    echo "Found old uploads directory, migrating files..."
+    
+    # Function to get file category based on extension
+    get_file_category() {
+        local filename="\$1"
+        local ext="\${filename##*.}"
+        ext=\$(echo "\$ext" | tr '[:upper:]' '[:lower:]')
+        
+        case "\$ext" in
+            jpg|jpeg|png|gif|webp|bmp)
+                echo "photos"
+                ;;
+            mp4|webm|mov|avi|mkv)
+                echo "videos"
+                ;;
+            pdf)
+                echo "pdfs"
+                ;;
+            *)
+                echo "photos"
+                ;;
+        esac
+    }
+    
+    # Migrate files to appropriate directories
+    migrated=0
+    for file in "\$OLD_UPLOADS"/*; do
+        if [ -f "\$file" ]; then
+            filename=\$(basename "\$file")
+            category=\$(get_file_category "\$filename")
+            dest_dir="/home/atharva/media/\${category}/chat"
+            dest_path="\${dest_dir}/\${filename}"
+            
+            # Move file to appropriate category directory
+            if mv "\$file" "\$dest_path" 2>/dev/null; then
+                migrated=\$((migrated + 1))
+            fi
+        fi
+    done
+    
+    echo "Migration complete. Migrated \$migrated files. Old directory can be removed after verification."
+else
+    echo "No old uploads to migrate."
+fi
+
 echo "Deploying frontend..."
 # Backup existing build if it exists
 if [ -d "\${SERVER_HOME}/build" ]; then

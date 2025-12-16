@@ -2,9 +2,12 @@
 Configuration for the Gemini AI service.
 """
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the backend directory (parent of ai/)
+env_path = Path(__file__).parent.parent / '.env'
+load_dotenv(dotenv_path=env_path, override=True)
 
 
 class AIConfig:
