@@ -29,7 +29,7 @@ const AdminCourseCoverageRequestsPage = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-requests`, {
+      const response = await fetch(`${apiBaseUrl}/api/admin/all-coverage-requests`, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -49,14 +49,14 @@ const AdminCourseCoverageRequestsPage = () => {
     setProcessing(true);
     setActionError(null);
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-requests/${requestId}/status`, {
+      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-request/${requestId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({ status: newStatus })
-        
+
       });
       if (!response.ok) throw new Error('Failed to update status');
       await fetchRequests();
@@ -102,7 +102,7 @@ const AdminCourseCoverageRequestsPage = () => {
     title: {
       fontSize: '28px',
       fontWeight: '600',
-      color: '#35006D',
+      color: darkMode ? 'rgb(255, 220, 112)' : 'rgb(53, 0, 109)',
       margin: 0,
     },
     backButton: {
@@ -275,7 +275,7 @@ const AdminCourseCoverageRequestsPage = () => {
           </div>
         ) : (
           filteredRequests.map((request) => (
-            <div key={request.id} style={styles.card}>
+            <div key={request.course_req_id} style={styles.card}>
               <div style={styles.cardHeader}>
                 <h3 style={styles.courseName}>{request.course_number || request.courseNumber}</h3>
                 <span style={{ ...styles.statusBadge, ...getStatusColor(request.status) }}>
@@ -286,7 +286,11 @@ const AdminCourseCoverageRequestsPage = () => {
               <div style={styles.infoRow}>
                 <div>
                   <span style={styles.label}>Submitted by: </span>
-                  <span style={styles.value}>{request.email}</span>
+                  <span style={styles.value}>
+                    {request.user_name && request.email
+                      ? `${request.user_name} (${request.email})`
+                      : request.user_name || request.email || 'Unknown'}
+                  </span>
                 </div>
                 <div>
                   <span style={styles.label}>Date: </span>
@@ -314,14 +318,14 @@ const AdminCourseCoverageRequestsPage = () => {
                 <div style={styles.actionButtons}>
                   <button
                     style={styles.approveButton}
-                    onClick={() => handleUpdateStatus(request.id, 'approved')}
+                    onClick={() => handleUpdateStatus(request.course_req_id, 'approved')}
                     disabled={processing}
                   >
                     {processing ? 'Processing...' : 'Approve'}
                   </button>
                   <button
                     style={styles.rejectButton}
-                    onClick={() => handleUpdateStatus(request.id, 'rejected')}
+                    onClick={() => handleUpdateStatus(request.course_req_id, 'rejected')}
                     disabled={processing}
                   >
                     {processing ? 'Processing...' : 'Reject'}

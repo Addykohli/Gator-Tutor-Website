@@ -628,6 +628,142 @@ const AppointmentRequestsPage = () => {
           </>
         )}
       </div>
+
+      {/* Report Modal */}
+      {showReportModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeReportModal();
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: darkMode ? '#2a2a4a' : 'white',
+              borderRadius: '12px',
+              padding: '24px',
+              maxWidth: '500px',
+              width: '90%',
+              boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
+            }}
+          >
+            <h3 style={{
+              margin: '0 0 16px 0',
+              fontSize: '20px',
+              fontWeight: '600',
+              color: darkMode ? '#fff' : '#333'
+            }}>
+              Report Student
+            </h3>
+
+            {reportSuccess && (
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#d4edda',
+                color: '#155724',
+                borderRadius: '6px',
+                marginBottom: '16px'
+              }}>
+                {reportSuccess}
+              </div>
+            )}
+
+            {reportError && (
+              <div style={{
+                padding: '12px',
+                backgroundColor: '#f8d7da',
+                color: '#721c24',
+                borderRadius: '6px',
+                marginBottom: '16px'
+              }}>
+                {reportError}
+              </div>
+            )}
+
+            {!reportSuccess && (
+              <>
+                <p style={{
+                  marginBottom: '12px',
+                  color: darkMode ? '#ccc' : '#666'
+                }}>
+                  Reason for reporting {selectedSessionForReport?.student_name || 'this student'}:
+                </p>
+                <textarea
+                  style={{
+                    width: '100%',
+                    minHeight: '120px',
+                    padding: '12px',
+                    borderRadius: '6px',
+                    border: darkMode ? '1px solid #444' : '1px solid #ddd',
+                    backgroundColor: darkMode ? '#1a1a2e' : '#fff',
+                    color: darkMode ? '#fff' : '#333',
+                    fontSize: '14px',
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
+                  }}
+                  value={reportReason}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  placeholder="Please describe the issue..."
+                  disabled={reportLoading}
+                />
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  marginTop: '20px',
+                  justifyContent: 'flex-end'
+                }}>
+                  <button
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: '1px solid ' + (darkMode ? '#555' : '#ccc'),
+                      backgroundColor: 'transparent',
+                      color: darkMode ? '#ccc' : '#666',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                    onClick={closeReportModal}
+                    disabled={reportLoading}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      backgroundColor: '#dc3545',
+                      color: '#fff',
+                      cursor: reportLoading ? 'not-allowed' : 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      opacity: reportLoading ? 0.7 : 1
+                    }}
+                    onClick={submitReport}
+                    disabled={reportLoading}
+                  >
+                    {reportLoading ? 'Submitting...' : 'Submit Report'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       <Footer />
     </div>
   );

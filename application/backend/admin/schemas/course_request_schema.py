@@ -20,6 +20,8 @@ class CourseRequestResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: Optional[datetime]
+    email: Optional[str] = None
+    user_name: Optional[str] = None
 
     class Config:
         orm_mode = True

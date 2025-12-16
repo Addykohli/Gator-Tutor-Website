@@ -31,8 +31,6 @@ const TutorProfile = () => {
   const [userBookings, setUserBookings] = useState([]);
   const [tutorBookings, setTutorBookings] = useState([]);
   const [availableDates, setAvailableDates] = useState([]);
-  const [isLoadingUserBookings, setIsLoadingUserBookings] = useState(false);
-  const [isLoadingTutorBookings, setIsLoadingTutorBookings] = useState(false);
 
   // Admin specific state
   const [courseRequests, setCourseRequests] = useState([]);
@@ -1339,7 +1337,6 @@ const TutorProfile = () => {
               {/* Left side - Time selection */}
               <div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Select a time slot</label>
                   <div style={styles.formGroup}>
                     <label style={styles.label}>Pick a day: *</label>
                     <DatePicker

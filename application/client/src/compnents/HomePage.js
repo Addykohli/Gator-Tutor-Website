@@ -860,7 +860,6 @@ const HomePage = () => {
       '--tutor-striped-bg': darkMode ? '#252525' : '#f8f9fa',
     },
     timeLabel: {
-      backgroundColor: 'var(--tutor-time-bg, #fff)',
       padding: "clamp(0px, 0.5vw, 4px) clamp(1px, 0.5vw, 4px) clamp(4px, 2vw, 20px)",
       textAlign: 'center',
       backgroundColor: darkMode ? '#2d2d2d' : '#fff',
@@ -918,7 +917,7 @@ const HomePage = () => {
         ? "linear-gradient(145deg, rgba(40, 40, 40, 0.6), rgba(25, 25, 25, 0.6))"
         : "#fff",
       borderRadius: "clamp(16px, 3vw, 24px)",
-      padding: "clamp(16px, 3vw, 32px)",
+      padding: "clamp(12px, 2.4vw, 22px)",
       boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.4)' : '0 8px 32px rgba(0,0,0,0.1)',
       border: darkMode ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.03)',
       boxSizing: 'border-box',
@@ -952,7 +951,6 @@ const HomePage = () => {
       width: isMobile ? '35%' : '120px'
     },
     categoryButton: {
-      padding: "clamp(10px, 1.5vw, 12px) clamp(12px, 2vw, 16px)",
       backgroundColor: darkMode ? "rgb(80, 80, 80)" : '#f8f9fa',
       color: darkMode ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)",
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
@@ -1601,11 +1599,28 @@ const HomePage = () => {
     return cells;
   };
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [slideDirection, setSlideDirection] = useState('none');
   const [editingDate, setEditingDate] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState({ success: false, message: '' });
+  const [isHelpTooltipOpen, setIsHelpTooltipOpen] = useState(false);
+  const helpTooltipRef = useRef(null);
+
+  // Close tooltip when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (helpTooltipRef.current && !helpTooltipRef.current.contains(event.target)) {
+        setIsHelpTooltipOpen(false);
+      }
+    }
+
+    if (isHelpTooltipOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isHelpTooltipOpen]);
 
   // Scroll tracking for mobile calendars
   const studentScrollRef = useRef(null);
@@ -2207,6 +2222,14 @@ const HomePage = () => {
       from { transform: translateX(0); opacity: 1; }
       to { transform: translateX(-100%); opacity: 0; }
     }
+    @keyframes slideInRight {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOutRight {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
     @keyframes slideInFromRight {
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -2350,7 +2373,7 @@ const HomePage = () => {
                   gap: isMobile ? '12px' : '0',
                   paddingBottom: isMobile ? '20px' : '20px',
                   marginBottom: '20px',
-                  borderBottom: user ? '1px solid rgb(100, 100, 100)' : 'none',
+                  borderBottom: user ? (darkMode ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(0, 0, 0, 0.05)') : 'none',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -2379,12 +2402,10 @@ const HomePage = () => {
                               position: 'relative',
                               padding: '4px 10px',
                               minWidth: 'clamp(60px, 12vw, 80px)',
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(10px)',
-                              WebkitBackdropFilter: 'blur(10px)',
-                              color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                              border: '1px solid rgba(180, 180, 190, 0.4)',
-                              borderRadius: '8px',
+                              background: 'transparent',
+                              color: darkMode ? '#eee' : '#333',
+                              border: '1px solid transparent',
+                              borderRadius: '0',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
@@ -2392,17 +2413,15 @@ const HomePage = () => {
                               transition: 'all 0.2s',
                               zIndex: 1,
                               minHeight: '28px',
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                              boxShadow: 'none'
                             }}
                             onMouseOver={(e) => {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                              e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                               e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                             }}
                             onMouseOut={(e) => {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              e.currentTarget.style.border = '1px solid transparent';
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                             }}
                           >
                             <i className="fas fa-calendar-check" style={{ fontSize: '0.85rem' }}></i>
@@ -2457,12 +2476,10 @@ const HomePage = () => {
                               position: 'relative',
                               padding: '4px 10px',
                               minWidth: 'clamp(60px, 12vw, 80px)',
-                              background: 'rgba(255, 255, 255, 0.15)',
-                              backdropFilter: 'blur(10px)',
-                              WebkitBackdropFilter: 'blur(10px)',
-                              color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                              border: '1px solid rgba(180, 180, 190, 0.4)',
-                              borderRadius: '8px',
+                              background: 'transparent',
+                              color: darkMode ? '#eee' : '#333',
+                              border: '1px solid transparent',
+                              borderRadius: '0',
                               cursor: 'pointer',
                               display: 'flex',
                               alignItems: 'center',
@@ -2470,17 +2487,15 @@ const HomePage = () => {
                               transition: 'all 0.2s',
                               zIndex: 1,
                               minHeight: '28px',
-                              boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                              boxShadow: 'none'
                             }}
                             onMouseOver={(e) => {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                              e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                               e.currentTarget.style.transform = 'translateY(-1px)';
-                              e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                             }}
                             onMouseOut={(e) => {
-                              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                              e.currentTarget.style.border = '1px solid transparent';
                               e.currentTarget.style.transform = 'translateY(0)';
-                              e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                             }}
                           >
                             <i className="fas fa-chalkboard" style={{ fontSize: '0.85rem' }}></i>
@@ -2512,12 +2527,10 @@ const HomePage = () => {
                             position: 'relative',
                             padding: '4px 10px',
                             minWidth: 'clamp(60px, 12vw, 80px)',
-                            background: 'rgba(255, 255, 255, 0.15)',
-                            backdropFilter: 'blur(10px)',
-                            WebkitBackdropFilter: 'blur(10px)',
-                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: '1px solid rgba(180, 180, 190, 0.4)',
-                            borderRadius: '8px',
+                            background: 'transparent',
+                            color: darkMode ? '#eee' : '#333',
+                            border: '1px solid transparent',
+                            borderRadius: '0',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -2525,17 +2538,15 @@ const HomePage = () => {
                             transition: 'all 0.2s',
                             zIndex: 1,
                             minHeight: '28px',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            boxShadow: 'none'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                            e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.border = '1px solid transparent';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-envelope" style={{ fontSize: '0.85rem' }}></i>
@@ -2683,7 +2694,8 @@ const HomePage = () => {
                     flex: 1,
                     minWidth: 0,
                     gap: isMobile ? '4px' : '0',
-                    paddingRight: isMobile ? '110px' : '0'
+                    paddingRight: isMobile ? '10px' : '0',
+                    whiteSpace: 'normal'
                   }}>
                     <h3 style={{
                       margin: isMobile ? '0' : '8px 0 6px',
@@ -2691,8 +2703,7 @@ const HomePage = () => {
                       fontSize: isMobile ? '1.3rem' : '1.2rem',
                       fontWeight: user ? '600' : '500',
                       width: '100%',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
+                      wordBreak: 'break-word',
                       lineHeight: '1.2'
                     }}>
                       {user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Welcome User' : 'Welcome to Gator Tutor'}
@@ -2724,7 +2735,7 @@ const HomePage = () => {
                     width: '100%',
                     marginBottom: '20px',
                     paddingBottom: '20px',
-                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.1)' : '#f0f0f0')
+                    borderBottom: '1px solid ' + (darkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)')
                   }}>
                     {/* Appointment Requests Button */}
                     {user?.isTutor && (
@@ -2734,12 +2745,10 @@ const HomePage = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            background: 'rgba(255, 255, 255, 0.15)',
-                            backdropFilter: 'blur(10px)',
-                            WebkitBackdropFilter: 'blur(10px)',
-                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: '1px solid rgba(180, 180, 190, 0.4)',
-                            borderRadius: '8px',
+                            background: 'transparent',
+                            color: darkMode ? '#eee' : '#333',
+                            border: '1px solid transparent',
+                            borderRadius: '0',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -2749,17 +2758,15 @@ const HomePage = () => {
                             fontWeight: '600',
                             fontSize: '0.95rem',
                             position: 'relative',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            boxShadow: 'none'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                            e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.border = '1px solid transparent';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-calendar-check" style={{ fontSize: '1rem' }}></i>
@@ -2798,12 +2805,10 @@ const HomePage = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            background: 'rgba(255, 255, 255, 0.15)',
-                            backdropFilter: 'blur(10px)',
-                            WebkitBackdropFilter: 'blur(10px)',
-                            color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                            border: '1px solid rgba(180, 180, 190, 0.4)',
-                            borderRadius: '8px',
+                            background: 'transparent',
+                            color: darkMode ? '#eee' : '#333',
+                            border: '1px solid transparent',
+                            borderRadius: '0',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
@@ -2813,17 +2818,15 @@ const HomePage = () => {
                             fontWeight: '600',
                             fontSize: '0.95rem',
                             position: 'relative',
-                            boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                            boxShadow: 'none'
                           }}
                           onMouseOver={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                            e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                             e.currentTarget.style.transform = 'translateY(-1px)';
-                            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                           }}
                           onMouseOut={(e) => {
-                            e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                            e.currentTarget.style.border = '1px solid transparent';
                             e.currentTarget.style.transform = 'translateY(0)';
-                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                           }}
                         >
                           <i className="fas fa-chalkboard" style={{ fontSize: '1rem' }}></i>
@@ -2839,12 +2842,10 @@ const HomePage = () => {
                         style={{
                           width: '100%',
                           padding: '12px 16px',
-                          background: 'rgba(255, 255, 255, 0.15)',
-                          backdropFilter: 'blur(10px)',
-                          WebkitBackdropFilter: 'blur(10px)',
-                          color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                          border: '1px solid rgba(180, 180, 190, 0.4)',
-                          borderRadius: '8px',
+                          background: 'transparent',
+                          color: darkMode ? '#eee' : '#333',
+                          border: '1px solid transparent',
+                          borderRadius: '0',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -2854,17 +2855,15 @@ const HomePage = () => {
                           fontWeight: '600',
                           fontSize: '0.95rem',
                           position: 'relative',
-                          boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                          boxShadow: 'none'
                         }}
                         onMouseOver={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                          e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                           e.currentTarget.style.transform = 'translateY(-1px)';
-                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                         }}
                         onMouseOut={(e) => {
-                          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                          e.currentTarget.style.border = '1px solid transparent';
                           e.currentTarget.style.transform = 'translateY(0)';
-                          e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                         }}
                       >
                         <i className="fas fa-envelope" style={{ fontSize: '1rem' }}></i>
@@ -2902,12 +2901,10 @@ const HomePage = () => {
                       style={{
                         width: '100%',
                         padding: '12px 16px',
-                        background: 'rgba(255, 255, 255, 0.15)',
-                        backdropFilter: 'blur(10px)',
-                        WebkitBackdropFilter: 'blur(10px)',
-                        color: darkMode ? 'white' : 'rgba(14, 14, 14, 0.9)',
-                        border: '1px solid rgba(180, 180, 190, 0.4)',
-                        borderRadius: '8px',
+                        background: 'transparent',
+                        color: darkMode ? '#eee' : '#333',
+                        border: '1px solid transparent',
+                        borderRadius: '0',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -2917,17 +2914,15 @@ const HomePage = () => {
                         fontWeight: '600',
                         fontSize: '0.95rem',
                         position: 'relative',
-                        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
+                        boxShadow: 'none'
                       }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.25)';
+                        e.currentTarget.style.border = darkMode ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(0,0,0,0.2)';
                         e.currentTarget.style.transform = 'translateY(-1px)';
-                        e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.15)';
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
+                        e.currentTarget.style.border = '1px solid transparent';
                         e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
                       }}
                     >
                       <i className="fas fa-graduation-cap" style={{ fontSize: '1rem' }}></i>
@@ -3157,7 +3152,6 @@ const HomePage = () => {
                         fontWeight: '600',
                         letterSpacing: '0.3px'
                       }}>
-                        <i className="fas fa-user-circle" style={{ color: darkMode ? '#fff' : '#35006D' }}></i>
                         My Profile
                       </h4>
                       <button
@@ -3484,10 +3478,10 @@ const HomePage = () => {
                       flex: isMobile ? '1' : 'none'
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.backgroundColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(53, 0, 109, 0.1)';
+                      e.currentTarget.backgroundColor = darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(53, 10, 98, 0.63)';
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.backgroundColor = 'transparent';
+                      e.currentTarget.backgroundColor = 'rgba(66, 19, 115, 0.45)';
                     }}
                   >
                     Create Account
@@ -3759,13 +3753,13 @@ const HomePage = () => {
                       </button>
                     </div>
 
-                    <div style={{ flex: 1, position: 'relative' }}>
+                    <div style={{ flex: 1, display: 'flex', gap: '6px' }}>
                       <button
                         onClick={handleApplyToAllFutureDays}
                         disabled={isSaving}
                         style={{
-                          width: '100%',
-                          padding: "clamp(10px, 2vw, 12px) clamp(35px, 3vw, 40px) clamp(10px, 2vw, 12px) clamp(10px, 2vw, 12px)",
+                          flex: 1,
+                          padding: "clamp(10px, 2vw, 12px)",
                           backgroundColor: isSaving ? 'rgb(173, 181, 189)' : 'rgb(53, 0, 109)',
                           color: 'white',
                           border: 'none',
@@ -3776,40 +3770,91 @@ const HomePage = () => {
                           transition: 'background-color 0.2s',
                           opacity: isSaving ? 0.7 : 1,
                           textAlign: 'center',
-                          position: 'relative',
                           boxSizing: 'border-box',
                           height: "clamp(42px, 6vw, 44px)",
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          minWidth: 0
                         }}
                         onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(75, 26, 128)')}
                         onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = 'rgb(53, 0, 109)')}
                       >
-                        {isSaving ? 'Saving...' : `Apply to All Future ${format(editingDate, 'EEEE')}s`}
-                        <div
+                        <span style={{
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          width: '100%'
+                        }}>
+                          {isSaving ? 'Saving...' : `Apply to Future ${format(editingDate, 'EEEE')}s`}
+                        </span>
+                      </button>
+
+                      <div ref={helpTooltipRef} style={{ position: 'relative' }}>
+                        <button
                           style={{
-                            position: 'absolute',
-                            right: "clamp(8px, 1.5vw, 12px)",
-                            top: '50%',
-                            transform: 'translateY(-50%)',
-                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
-                            borderRadius: '50%',
-                            width: "clamp(18px, 2.5vw, 20px)",
-                            height: "clamp(18px, 2.5vw, 20px)",
+                            width: "clamp(42px, 6vw, 44px)",
+                            height: "clamp(42px, 6vw, 44px)",
+                            padding: 0,
+                            backgroundColor: isHelpTooltipOpen
+                              ? (darkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgb(53, 0, 109)')
+                              : (darkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(66, 19, 115, 0.1)'),
+                            color: isHelpTooltipOpen || darkMode ? '#fff' : 'rgb(53, 0, 109)',
+                            border: darkMode ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid rgb(53, 0, 109)',
+                            borderRadius: '6px',
+                            cursor: 'help',
+                            fontSize: "clamp(1rem, 2vw, 1.2rem)",
+                            fontWeight: 'bold',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: "clamp(10px, 1.5vw, 12px)",
-                            fontWeight: 'bold',
-                            cursor: 'help',
-                            pointerEvents: 'auto'
+                            flexShrink: 0,
+                            boxSizing: 'border-box',
+                            transition: 'all 0.2s'
                           }}
-                          title={`Change all the future ${format(editingDate, 'EEEE')}s availability to current selection. \n\nIf these days have other recurring or one time slots they will be DELETED and replaced by current selection.`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setIsHelpTooltipOpen(!isHelpTooltipOpen);
+                          }}
                         >
                           ?
-                        </div>
-                      </button>
+                        </button>
+                        {isHelpTooltipOpen && (
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '120%',
+                            right: 0,
+                            width: '250px',
+                            backgroundColor: darkMode ? '#333' : '#fff',
+                            color: darkMode ? '#eee' : '#333',
+                            padding: '12px',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                            fontSize: '0.85rem',
+                            lineHeight: '1.5',
+                            border: darkMode ? '1px solid #555' : '1px solid #ddd',
+                            zIndex: 10,
+                            textAlign: 'left'
+                          }}>
+                            Change all the future {format(editingDate, 'EEEE')}s availability to current selection.
+                            <br /><br />
+                            <strong>Note:</strong> If these days have other recurring or one time slots they will be DELETED and replaced by current selection.
+
+                            {/* Arrow/Triangle at bottom */}
+                            <div style={{
+                              position: 'absolute',
+                              bottom: '-6px',
+                              right: '15px',
+                              width: '12px',
+                              height: '12px',
+                              backgroundColor: darkMode ? '#333' : '#fff',
+                              transform: 'rotate(45deg)',
+                              borderRight: darkMode ? '1px solid #555' : '1px solid #ddd',
+                              borderBottom: darkMode ? '1px solid #555' : '1px solid #ddd',
+                            }}></div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -3941,7 +3986,7 @@ const HomePage = () => {
                     <div style={{
                       position: 'relative',
                       minHeight: 'auto',
-                      overflow: isAnimating ? 'hidden' : (isMobile ? 'auto' : 'visible')
+                      overflow: isAnimating ? 'hidden' : 'visible'
                     }}>
                       {/* Scroll Tracker for Mobile */}
                       {isMobile && (
@@ -3969,85 +4014,103 @@ const HomePage = () => {
                         </div>
                       )}
 
-                      <div
-                        ref={studentScrollRef}
-                        onScroll={() => handleScroll(studentScrollRef, setStudentScrollProgress)}
-                        style={{
-                          ...styles.calendarGrid,
-                          ...calendarAnimation[slideDirection],
-                          height: 'auto',
-                          minHeight: 'auto',
-                          overflow: isAnimating ? 'hidden' : 'visible',
-                          overflowX: isMobile ? 'auto' : (isAnimating ? 'hidden' : 'visible'),
-                          scrollbarWidth: 'none', // Firefox
-                          msOverflowStyle: 'none'  // IE 10+
-                        }}>
-                        <style>
-                          {`
-                            /* Hide scrollbar for Chrome, Safari and Opera */
-                            div::-webkit-scrollbar {
-                              display: none;
-                            }
-                          `}
-                        </style>
+                      {/* Calendar Content - Animation wrapper same as tutor */}
+                      <div style={{
+                        position: 'relative',
+                        minHeight: 'auto',
+                        overflow: isAnimating ? 'hidden' : 'visible'
+                      }}>
+                        {/* Animation Wrapper */}
                         <div style={{
-                          position: 'relative',
-                          display: 'grid',
-                          gridTemplateColumns: isMobile ? 'repeat(7, calc(100% / 3))' : 'repeat(7, 1fr)',
-                          gap: '1px',
-                          backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
+                          ...calendarAnimation[slideDirection],
+                          width: '100%',
+                          backgroundColor: 'transparent',
+                          boxShadow: 'none',
                           border: 'none',
-                          borderRadius: '8px',
-                          overflow: 'visible',
+                          willChange: 'transform, opacity',
+                          backfaceVisibility: 'hidden',
+                          transformStyle: 'preserve-3d'
                         }}>
-                          {weekDays.map((day, i) => {
-                            const currentDate = addDays(currentWeekStart, i);
-                            const isToday = isSameDay(currentDate, today);
-                            return (
-                              <div key={day} style={{
-                                ...styles.dayHeader,
-                                backgroundColor: isToday
-                                  ? (darkMode ? '#4b1a80' : '#4b1a80')
-                                  : (darkMode ? '#35006D' : 'rgb(53, 0, 109)'),
-                                borderRight: i < 6 ? (darkMode ? '1px solid #4b1a80' : '1px solid #2d0054') : 'none'
-                              }}>
-                                <div style={{
-                                  fontSize: isMobile ? '0.5rem' : '0.75rem',
-                                  fontWeight: '500',
-                                  letterSpacing: isMobile ? '0.2px' : '0.5px',
-                                  textTransform: 'uppercase',
-                                  lineHeight: isMobile ? '1.1' : '1.3'
-                                }}>
-                                  {day}
-                                </div>
-                                <div style={{
-                                  fontSize: isMobile ? '0.7rem' : '1.1rem',
-                                  fontWeight: '600',
-                                  lineHeight: isMobile ? '1.1' : '1.3'
-                                }}>
-                                  {format(currentDate, 'd')}
-                                </div>
-                                {isToday && (
-                                  <div style={{
-                                    fontSize: isMobile ? '0.5rem' : '0.6rem',
-                                    marginTop: isMobile ? '2px' : '4px',
-                                    backgroundColor: 'rgba(255, 220, 100, 0.9)',
-                                    color: '#333',
-                                    padding: isMobile ? '1px 3px' : '1px 5px',
-                                    borderRadius: isMobile ? '6px' : '8px',
-                                    fontWeight: '700',
-                                    lineHeight: isMobile ? '1.2' : '1.3',
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px',
-                                    boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                          <div
+                            ref={studentScrollRef}
+                            onScroll={() => handleScroll(studentScrollRef, setStudentScrollProgress)}
+                            style={{
+                              ...styles.calendarGrid,
+                              height: 'auto',
+                              minHeight: 'auto',
+                              overflow: 'visible',
+                              overflowX: isMobile ? 'auto' : 'visible',
+                              scrollbarWidth: 'none', // Firefox
+                              msOverflowStyle: 'none'  // IE 10+
+                            }}>
+                            <style>
+                              {`
+                                /* Hide scrollbar for Chrome, Safari and Opera */
+                                div::-webkit-scrollbar {
+                                  display: none;
+                                }
+                              `}
+                            </style>
+                            <div style={{
+                              position: 'relative',
+                              display: 'grid',
+                              gridTemplateColumns: isMobile ? 'repeat(7, calc(100% / 3))' : 'repeat(7, 1fr)',
+                              gap: '1px',
+                              backgroundColor: darkMode ? '#2d3748' : '#e9ecef',
+                              border: 'none',
+                              borderRadius: '8px',
+                              overflow: 'visible',
+                            }}>
+                              {weekDays.map((day, i) => {
+                                const currentDate = addDays(currentWeekStart, i);
+                                const isToday = isSameDay(currentDate, today);
+                                return (
+                                  <div key={day} style={{
+                                    ...styles.dayHeader,
+                                    backgroundColor: isToday
+                                      ? (darkMode ? '#4b1a80' : '#4b1a80')
+                                      : (darkMode ? '#35006D' : 'rgb(53, 0, 109)'),
+                                    borderRight: i < 6 ? (darkMode ? '1px solid #4b1a80' : '1px solid #2d0054') : 'none'
                                   }}>
-                                    Today
+                                    <div style={{
+                                      fontSize: isMobile ? '0.5rem' : '0.75rem',
+                                      fontWeight: '500',
+                                      letterSpacing: isMobile ? '0.2px' : '0.5px',
+                                      textTransform: 'uppercase',
+                                      lineHeight: isMobile ? '1.1' : '1.3'
+                                    }}>
+                                      {day}
+                                    </div>
+                                    <div style={{
+                                      fontSize: isMobile ? '0.7rem' : '1.1rem',
+                                      fontWeight: '600',
+                                      lineHeight: isMobile ? '1.1' : '1.3'
+                                    }}>
+                                      {format(currentDate, 'd')}
+                                    </div>
+                                    {isToday && (
+                                      <div style={{
+                                        fontSize: isMobile ? '0.5rem' : '0.6rem',
+                                        marginTop: isMobile ? '2px' : '4px',
+                                        backgroundColor: 'rgba(255, 220, 100, 0.9)',
+                                        color: '#333',
+                                        padding: isMobile ? '1px 3px' : '1px 5px',
+                                        borderRadius: isMobile ? '6px' : '8px',
+                                        fontWeight: '700',
+                                        lineHeight: isMobile ? '1.2' : '1.3',
+                                        textTransform: 'uppercase',
+                                        letterSpacing: '0.5px',
+                                        boxShadow: '0 1px 2px rgba(0,0,0,0.1)'
+                                      }}>
+                                        Today
+                                      </div>
+                                    )}
                                   </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                          {renderStudentDays()}
+                                );
+                              })}
+                              {renderStudentDays()}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -4097,62 +4160,83 @@ const HomePage = () => {
                             boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
                             backdropFilter: 'blur(4px)'
                           }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
-                              {/* Legend Items */}
-                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
-                                <div style={{
-                                  width: isMobile ? '10px' : '16px',
-                                  height: isMobile ? '10px' : '16px',
-                                  backgroundColor: darkMode ? 'rgba(255, 219, 100, 0.6)' : 'rgba(255, 220, 100, 0.4)',
-                                  borderRadius: '0px',
-                                }}></div>
-                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Available</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '20px', flexWrap: 'wrap', width: '100%', justifyContent: 'space-between' }}>
+                              {/* Tutor Events Group */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '8px' }}>
+                                <span style={{
+                                  fontWeight: '700',
+                                  fontSize: isMobile ? '0.6rem' : '0.85rem',
+                                  color: darkMode ? '#ddd' : '#555',
+                                  marginRight: '2px'
+                                }}>Tutor events:</span>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '2px' : '4px' }}>
+                                  <div style={{
+                                    width: isMobile ? '8px' : '14px',
+                                    height: isMobile ? '8px' : '14px',
+                                    backgroundColor: darkMode ? 'rgba(255, 219, 100, 0.6)' : 'rgba(255, 220, 100, 0.4)',
+                                    borderRadius: '0px',
+                                  }}></div>
+                                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Available</span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '2px' : '4px' }}>
+                                  <div style={{
+                                    minWidth: isMobile ? '12px' : '20px',
+                                    height: isMobile ? '10px' : '16px',
+                                    backgroundColor: 'rgba(255, 193, 7, 0.27)',
+                                    borderRadius: isMobile ? '2px' : '4px',
+                                    borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 0.95)`,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                  }}></div>
+                                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Pending</span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '2px' : '4px' }}>
+                                  <div style={{
+                                    minWidth: isMobile ? '12px' : '20px',
+                                    height: isMobile ? '10px' : '16px',
+                                    backgroundColor: 'rgba(53, 0, 109, 0.51)',
+                                    borderRadius: isMobile ? '2px' : '4px',
+                                    borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 0.95)`,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                  }}></div>
+                                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Confirmed</span>
+                                </div>
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
-                                <div style={{
-                                  minWidth: isMobile ? '16px' : '26px',
-                                  height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(255, 193, 7, 0.27)',
-                                  borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 0.95)`,
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                }}></div>
-                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Pending</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
-                                <div style={{
-                                  minWidth: isMobile ? '16px' : '26px',
-                                  height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(53, 0, 109, 0.51)',
-                                  borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(53, 0, 109, 0.95)`,
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                }}></div>
-                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Confirmed</span>
-                              </div>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '16px', flexWrap: 'wrap' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
-                                <div style={{
-                                  minWidth: isMobile ? '16px' : '26px',
-                                  height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                                  borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 1)`,
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                }}></div>
-                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Sent</span>
-                              </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '3px' : '6px' }}>
-                                <div style={{
-                                  minWidth: isMobile ? '16px' : '26px',
-                                  height: isMobile ? '12px' : '20px',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.7)',
-                                  borderRadius: isMobile ? '2px' : '4px',
-                                  borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(95, 0, 196, 1)`,
-                                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
-                                }}></div>
-                                <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Your session</span>
+
+                              {/* Student Events Group */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '8px' }}>
+                                <span style={{
+                                  fontWeight: '700',
+                                  fontSize: isMobile ? '0.6rem' : '0.85rem',
+                                  color: darkMode ? '#ddd' : '#555',
+                                  marginRight: '2px'
+                                }}>Student events:</span>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '2px' : '4px' }}>
+                                  <div style={{
+                                    minWidth: isMobile ? '12px' : '20px',
+                                    height: isMobile ? '10px' : '16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                    borderRadius: isMobile ? '2px' : '4px',
+                                    borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(255, 193, 7, 1)`,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                  }}></div>
+                                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Sent</span>
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '2px' : '4px' }}>
+                                  <div style={{
+                                    minWidth: isMobile ? '12px' : '20px',
+                                    height: isMobile ? '10px' : '16px',
+                                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                    borderRadius: isMobile ? '2px' : '4px',
+                                    borderLeft: `${isMobile ? '3px' : '5px'} solid rgba(95, 0, 196, 1)`,
+                                    boxShadow: '0 1px 3px rgba(0,0,0,0.08)'
+                                  }}></div>
+                                  <span style={{ fontSize: isMobile ? '0.55rem' : '0.85rem' }}>Your session</span>
+                                </div>
                               </div>
                             </div>
                           </div>

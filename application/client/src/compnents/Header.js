@@ -7,7 +7,6 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
   const menuRef = useRef(null);
   const { isAuthenticated, user, logout, darkMode, toggleDarkMode, unreadMessageCount = 0 } = useAuth();
 
@@ -397,10 +396,6 @@ const Header = () => {
     setShowLogoutConfirm(false);
   };
 
-
-  // Determine if we're at the top of the page
-  const isAtTop = lastScrollY < 10;
-
   return (
     <>
       <div
@@ -547,113 +542,7 @@ const Header = () => {
                 <i className="fas fa-cog"></i>
               </button>
 
-              {isSettingsOpen && (
-                <div
-                  style={{
-                    position: 'fixed',
-                    top: 0,
-                    left: 0,
-                    width: '100vw',
-                    height: '100vh',
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    zIndex: 2000,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backdropFilter: 'blur(3px)'
-                  }}
-                  onClick={(e) => {
-                    if (e.target === e.currentTarget) setIsSettingsOpen(false);
-                  }}
-                >
-                  <div style={{
-                    backgroundColor: 'rgb(35, 17, 97)',
-                    padding: '30px',
-                    borderRadius: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '20px',
-                    alignItems: 'center',
-                    border: '1px solid rgb(255, 220, 112)',
-                    minWidth: '200px',
-                    boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
-                  }}>
-                    {/* Dark Mode Toggle */}
-                    <div
-                      style={{ ...toggleContainerStyle, margin: 0 }}
-                      onClick={toggleDarkMode}
-                      title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-                    >
-                      <div style={toggleCircleStyle}>
-                        <i
-                          className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
-                          style={{
-                            ...toggleIconStyle,
-                            left: darkMode ? '4px' : '4px'
-                          }}
-                        />
-                      </div>
-                    </div>
 
-                    {!isAuthenticated ? (
-                      <>
-                        <button
-                          className="header-btn auth-btn"
-                          style={{ width: '100%', justifyContent: 'center', margin: 0 }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigate('/login');
-                            setIsSettingsOpen(false);
-                          }}
-                        >
-                          <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
-                          Login
-                        </button>
-                        <button
-                          className="header-btn auth-btn"
-                          style={{ width: '100%', justifyContent: 'center', margin: 0 }}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigate('/register');
-                            setIsSettingsOpen(false);
-                          }}
-                        >
-                          <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
-                          Sign Up
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        className="header-btn"
-                        style={{ width: '100%', justifyContent: 'center', margin: 0 }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          handleLogoutConfirm();
-                          setIsSettingsOpen(false);
-                        }}
-                      >
-                        <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
-                        Logout
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => setIsSettingsOpen(false)}
-                      style={{
-                        marginTop: '10px',
-                        background: 'none',
-                        border: 'none',
-                        color: 'rgba(255, 220, 112, 0.7)',
-                        cursor: 'pointer',
-                        fontSize: '14px',
-                        textDecoration: 'underline'
-                      }}
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
-              )}
             </>
           ) : (
             <>
@@ -734,6 +623,115 @@ const Header = () => {
       </div>
       {/* Spacer to prevent content overlap - only needed when header is fixed */}
       {shouldShowFixed && <div style={{ height: '60px' }} />}
+
+      {/* Settings Modal - Moved outside header container for proper z-index stacking */}
+      {isSettingsOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            zIndex: 2000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(3px)'
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsSettingsOpen(false);
+          }}
+        >
+          <div style={{
+            backgroundColor: 'rgb(35, 17, 97)',
+            padding: '30px',
+            borderRadius: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            alignItems: 'center',
+            border: '1px solid rgb(255, 220, 112)',
+            minWidth: '200px',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.5)'
+          }}>
+            {/* Dark Mode Toggle */}
+            <div
+              style={{ ...toggleContainerStyle, margin: 0 }}
+              onClick={toggleDarkMode}
+              title={darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              <div style={toggleCircleStyle}>
+                <i
+                  className={darkMode ? 'fas fa-moon' : 'fas fa-sun'}
+                  style={{
+                    ...toggleIconStyle,
+                    left: darkMode ? '4px' : '4px'
+                  }}
+                />
+              </div>
+            </div>
+
+            {!isAuthenticated ? (
+              <>
+                <button
+                  className="header-btn auth-btn"
+                  style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/login');
+                    setIsSettingsOpen(false);
+                  }}
+                >
+                  <i className="fas fa-sign-in-alt" style={{ marginRight: '8px' }} />
+                  Login
+                </button>
+                <button
+                  className="header-btn auth-btn"
+                  style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    navigate('/register');
+                    setIsSettingsOpen(false);
+                  }}
+                >
+                  <i className="fas fa-pen-to-square" style={{ marginRight: '8px' }} />
+                  Sign Up
+                </button>
+              </>
+            ) : (
+              <button
+                className="header-btn"
+                style={{ width: '100%', justifyContent: 'center', margin: 0 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleLogoutConfirm();
+                  setIsSettingsOpen(false);
+                }}
+              >
+                <i className="fas fa-sign-out-alt" style={{ marginRight: '8px' }} />
+                Logout
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              style={{
+                marginTop: '10px',
+                background: 'none',
+                border: 'none',
+                color: 'rgba(255, 220, 112, 0.7)',
+                cursor: 'pointer',
+                fontSize: '14px',
+                textDecoration: 'underline'
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 };

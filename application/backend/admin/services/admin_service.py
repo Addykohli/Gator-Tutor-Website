@@ -180,7 +180,31 @@ def get_all_courses(db:Session):
 
 #for admin to easily view all course requests
 def get_all_course_requests(db: Session):
-    return db.query(CourseRequest).all()
+    from admin.schemas.course_request_schema import CourseRequestResponse
+    
+    # Join CourseRequest with User to get email and name
+    results = db.query(CourseRequest, User).join(
+        User, CourseRequest.user_id == User.user_id
+    ).all()
+    
+    # Manually construct response objects with user info
+    requests_with_user_info = []
+    for course_req, user in results:
+        req_dict = {
+            "course_req_id": course_req.course_req_id,
+            "user_id": course_req.user_id,
+            "course_number": course_req.course_number,
+            "title": course_req.title,
+            "notes": course_req.notes,
+            "status": course_req.status,
+            "created_at": course_req.created_at,
+            "updated_at": course_req.updated_at,
+            "email": user.sfsu_email,
+            "user_name": f"{user.first_name} {user.last_name}"
+        }
+        requests_with_user_info.append(CourseRequestResponse(**req_dict))
+    
+    return requests_with_user_info
 
 #adding course_request entry to db table
 def create_course_request(db: Session, data: CourseRequestCreate):
@@ -350,10 +374,27 @@ def drop_user(db: Session, user_id: int, role: str = None):
     db.commit()
     db.refresh(user)
     
+    # Count related records (for informational purposes)
+    related_records = {
+        "bookings": db.query(Booking).filter(
+            (Booking.student_id == user_id) | (Booking.tutor_id == user_id)
+        ).count(),
+        "messages": db.query(ChatMessage).filter(
+            (ChatMessage.sender_id == user_id) | (ChatMessage.receiver_id == user_id)
+        ).count(),
+        "reports_submitted": db.query(Reports).filter(
+            Reports.reporter_id == user_id
+        ).count(),
+        "reports_received": db.query(Reports).filter(
+            Reports.reported_user_id == user_id
+        ).count()
+    }
+    
     return {
         "message": f"User {user_name} ({user_email}) successfully deleted",
         "deleted_user_id": user_id,
         "deleted_email": user.sfsu_email,
         "deleted_name": user_name,
-        "deleted_role": user_role
+        "deleted_role": user_role,
+        "related_records_deleted": related_records
     }

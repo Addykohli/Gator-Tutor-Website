@@ -1,5 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
@@ -36,6 +37,8 @@ const fetchUserInfo = async (userId) => {
 };
 
 const MessagesPage = () => {
+  const navigate = useNavigate();
+  
   const getLoggedInUserId = () => {
     try {
       const userData = localStorage.getItem('user');
@@ -930,7 +933,18 @@ const MessagesPage = () => {
                 )}
                 <div style={styles.chatAvatar}>{getInitials(selectedPartner.name)}</div>
                 <div>
-                  <h2 style={styles.chatName}>{selectedPartner.name}</h2>
+                  {selectedPartner.role === 'tutor' ? (
+                    <h2 
+                      style={{...styles.chatName, cursor: 'pointer', textDecoration: 'none'}}
+                      onClick={() => navigate(`/tutor/${selectedPartner.id}`)}
+                      onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
+                    >
+                      {selectedPartner.name}
+                    </h2>
+                  ) : (
+                    <h2 style={styles.chatName}>{selectedPartner.name}</h2>
+                  )}
                   <p style={styles.chatStatus}>{selectedPartner.role}</p>
                 </div>
               </div>
@@ -1067,359 +1081,6 @@ const MessagesPage = () => {
       <Footer />
     </div>
   );
-};
-
-const styles = {
-  pageContainer: {
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-  },
-  container: {
-    display: 'flex',
-    height: 'calc(100vh - 80px)',
-    maxWidth: '1400px',
-    margin: '0px',
-    backgroundColor: '#fff',
-    overflow: 'hidden',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-  },
-  sidebar: {
-    width: '280px',
-    backgroundColor: '#35006D',
-    color: '#fff',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  sidebarHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-  },
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  backButton: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    color: '#fff',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'background-color 0.2s',
-  },
-  sidebarTitle: {
-    margin: 0,
-    fontSize: '20px',
-  },
-  newChatButton: {
-    width: '36px',
-    height: '36px',
-    borderRadius: '50%',
-    backgroundColor: '#FFCF01',
-    color: '#35006D',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  searchInput: {
-    margin: '10px 20px',
-    padding: '10px 15px',
-    borderRadius: '20px',
-    border: 'none',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  conversationList: {
-    flex: 1,
-    overflowY: 'auto',
-  },
-  conversationItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '15px 20px',
-    cursor: 'pointer',
-    borderLeft: '4px solid transparent',
-  },
-  avatar: {
-    width: '45px',
-    height: '45px',
-    borderRadius: '50%',
-    backgroundColor: '#FFCF01',
-    color: '#35006D',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold',
-    marginRight: '12px',
-    fontSize: '14px',
-  },
-  conversationInfo: {
-    flex: 1,
-  },
-  conversationName: {
-    margin: 0,
-    fontSize: '15px',
-    fontWeight: '500',
-  },
-  conversationRole: {
-    margin: '4px 0 0',
-    fontSize: '12px',
-    opacity: 0.7,
-  },
-  chatArea: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#fff',
-  },
-  chatHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '15px 20px',
-    borderBottom: '1px solid #eee',
-    backgroundColor: '#fafafa',
-  },
-  chatAvatar: {
-    width: '45px',
-    height: '45px',
-    borderRadius: '50%',
-    backgroundColor: '#35006D',
-    color: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontWeight: 'bold',
-    marginRight: '12px',
-    fontSize: '14px',
-  },
-  chatName: {
-    margin: 0,
-    fontSize: '16px',
-    color: '#333',
-  },
-  chatStatus: {
-    margin: '2px 0 0',
-    fontSize: '13px',
-    color: '#888',
-  },
-  messagesContainer: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '20px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  loadingContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    color: '#888',
-  },
-  messageWrapper: {
-    display: 'flex',
-    marginBottom: '12px',
-  },
-  messageBubble: {
-    maxWidth: '70%',
-    padding: '12px 16px',
-    borderRadius: '18px',
-  },
-  messageText: {
-    margin: 0,
-    fontSize: '14px',
-    lineHeight: '1.4',
-  },
-  messageTime: {
-    display: 'block',
-    fontSize: '11px',
-    marginTop: '5px',
-    textAlign: 'right',
-  },
-  mediaImage: {
-    maxWidth: '250px',
-    maxHeight: '200px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    marginBottom: '8px',
-  },
-  mediaVideo: {
-    maxWidth: '250px',
-    borderRadius: '8px',
-    marginBottom: '8px',
-  },
-  mediaAudio: {
-    maxWidth: '250px',
-    marginBottom: '8px',
-  },
-  fileLink: {
-    color: '#FFCF01',
-    textDecoration: 'underline',
-  },
-  inputContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '15px 20px',
-    borderTop: '1px solid #eee',
-    backgroundColor: '#fafafa',
-    gap: '10px',
-  },
-  attachButton: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    backgroundColor: '#f0f0f0',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  filePreview: {
-    display: 'flex',
-    alignItems: 'center',
-    backgroundColor: '#e8e8e8',
-    padding: '5px 10px',
-    borderRadius: '15px',
-    maxWidth: '200px',
-  },
-  fileName: {
-    fontSize: '12px',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    marginRight: '8px',
-  },
-  removeFileButton: {
-    background: 'none',
-    border: 'none',
-    color: '#e74c3c',
-    fontSize: '18px',
-    cursor: 'pointer',
-    padding: 0,
-  },
-  messageInput: {
-    flex: 1,
-    padding: '12px 20px',
-    borderRadius: '25px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  sendButton: {
-    width: '45px',
-    height: '45px',
-    borderRadius: '50%',
-    backgroundColor: '#35006D',
-    color: '#fff',
-    border: 'none',
-    fontSize: '18px',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noChat: {
-    flex: 1,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    color: '#888',
-    fontSize: '16px',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: '#fff',
-    borderRadius: '12px',
-    width: '400px',
-    maxHeight: '500px',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  modalHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '20px',
-    borderBottom: '1px solid #eee',
-  },
-  modalTitle: {
-    margin: 0,
-    fontSize: '18px',
-    color: '#35006D',
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#888',
-  },
-  modalSearchInput: {
-    margin: '15px 20px',
-    padding: '10px 15px',
-    borderRadius: '8px',
-    border: '1px solid #ddd',
-    fontSize: '14px',
-    outline: 'none',
-  },
-  userList: {
-    flex: 1,
-    overflowY: 'auto',
-    padding: '0 10px 20px',
-  },
-  userItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '12px 15px',
-    cursor: 'pointer',
-    borderRadius: '8px',
-    marginBottom: '5px',
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    margin: 0,
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#333',
-  },
-  userRole: {
-    margin: '2px 0 0',
-    fontSize: '12px',
-    color: '#888',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '20px',
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: '14px',
-  },
 };
 
 export default MessagesPage;

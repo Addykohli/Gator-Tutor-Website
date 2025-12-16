@@ -289,7 +289,7 @@ const SessionsPage = () => {
       position: 'relative',
       borderBottom: isMobile ? 'none' : (darkMode ? '1px solid #444' : '1px solid #e0e0e0'),
       paddingBottom: isMobile ? '0' : '1px',
-      marginBottom: '20px',
+      marginBottom: isMobile ? '0' : '20px',
     },
     tab: {
       padding: "12px 24px",

@@ -1037,14 +1037,11 @@ export default function SearchPage() {
       padding: '0 16px',
       backgroundColor: darkMode ? 'rgb(80, 80, 80)' : '#f8f9fa',
       color: darkMode ? 'rgb(255, 255, 255)' : 'rgb(0, 0, 0)',
-      border: `1px solid ${darkMode ? 'rgba(255, 255, 255, 0.1)' : '#ddd'}`,
-      borderRadius: '6px',
       cursor: 'pointer',
       fontSize: '14px',
       whiteSpace: 'nowrap',
       border: darkMode ? '1px solid rgb(0, 0, 0)' : '1px solid #ced4da',
       borderRadius: '6px',
-      cursor: 'pointer',
       width: '100%',
       height: '40px',
       textAlign: 'center',
@@ -1996,6 +1993,19 @@ export default function SearchPage() {
                       </div>
                     </FilterSection>
 
+                    <FilterSection title="Availability" darkMode={darkMode}>
+                      <select
+                        value={q.get('weekday') || ''}
+                        onChange={(e) => updateFilters({ weekday: e.target.value })}
+                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '8px', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
+                      >
+                        <option value="">Any Day</option>
+                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
+                          <option key={idx} value={idx}>{day}</option>
+                        ))}
+                      </select>
+                    </FilterSection>
+
                     <FilterSection title="Departments" darkMode={darkMode}>
                       <CheckboxGroup
                         options={filterOptions.departments.map(d => ({ label: d.code, value: d.code, count: d.count }))}
@@ -2012,20 +2022,6 @@ export default function SearchPage() {
                         onChange={(val) => updateFilters({ languages: val })}
                         darkMode={darkMode}
                       />
-                    </FilterSection>
-
-                    <FilterSection title="Availability" darkMode={darkMode}>
-                      <select
-                        value={q.get('weekday') || ''}
-                        onChange={(e) => updateFilters({ weekday: e.target.value })}
-                        style={{ width: '100%', padding: '6px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '8px', backgroundColor: darkMode ? '#333' : '#fff', color: darkMode ? '#fff' : '#333', fontSize: '13px' }}
-                      >
-                        <option value="">Any Day</option>
-                        {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, idx) => (
-                          <option key={idx} value={idx}>{day}</option>
-                        ))}
-                      </select>
-
                     </FilterSection>
                   </div>
                 ) : (

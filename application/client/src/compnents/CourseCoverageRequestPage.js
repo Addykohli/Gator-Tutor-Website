@@ -178,15 +178,15 @@ const CourseCoverageRequestPage = () => {
       : '/api';
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/admin/coverage-requests`, {
+      const response = await fetch(`${apiBaseUrl}/api/admin/submit-coverage-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
         body: JSON.stringify({
-          courseNumber: data.courseNumber,
-          topics: data.topics || '',
+          course_number: data.courseNumber,
+          title: data.title || '',
           notes: data.notes || '',
           email: JSON.parse(localStorage.getItem('user'))?.email || ''
         })
@@ -218,7 +218,7 @@ const CourseCoverageRequestPage = () => {
       <div style={styles.content}>
         {showSuccess && (
           <div style={styles.successMessage}>
-            ✓ Request submitted successfully! We'll notify tutors about this course.
+            ✓ Request submitted successfully! We'll notify our team about this course.
           </div>
         )}
 
