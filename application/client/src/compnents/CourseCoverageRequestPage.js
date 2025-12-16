@@ -175,7 +175,7 @@ const CourseCoverageRequestPage = () => {
   const onSubmit = async (data) => {
     const apiBaseUrl = window.location.hostname === 'localhost'
       ? 'http://localhost:8000'
-      : '/api';
+      : '';
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/admin/submit-coverage-request`, {

@@ -51,6 +51,14 @@ def approve_application(db: Session, application_id: int):
     )
     db.add(tutor_profile)
 
+    # Update user role to 'tutor' so they see the tutor dashboard
+    user = db.query(User).filter(User.user_id == app.user_id).first()
+    if user:
+        # If user is currently a student, change to tutor
+        # If they're already 'both' or 'tutor', keep it as is
+        if user.role == "student":
+            user.role = "tutor"
+
     try:
         db.commit()
     except Exception as e:
