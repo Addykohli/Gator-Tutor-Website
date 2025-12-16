@@ -9,3 +9,7 @@ cryptography
 passlib[argon2]
 jinja2>=3.0.0
 pyyaml>=6.0
+pytest
+pytest-asyncio
+pytest-cov
+python-multipart

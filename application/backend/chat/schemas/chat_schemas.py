@@ -21,3 +21,4 @@ class MessageResponse(BaseModel):
     media_path: str | None = None
     media_type: str | None = None
     created_at: datetime
+    is_read: bool = False

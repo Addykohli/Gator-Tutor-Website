@@ -5,6 +5,7 @@ import Header from './Header';
 import Footer from './Footer';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import { getProfileImageUrl } from '../media_handling';
 
 const TutorProfile = () => {
   const { tutorId } = useParams();
@@ -1054,12 +1055,12 @@ const TutorProfile = () => {
       <div style={styles.container}>
         <div style={styles.header}>
           <img
-            src={tutor.image || require('../assets/default_silhouette.png')}
+            src={getProfileImageUrl(tutor.profile_image_path_full)}
             alt={`${tutor.first_name || 'User'} profile`}
             style={styles.profileImage}
             onError={(e) => {
               e.target.onerror = null;
-              e.target.src = require('../assets/default_silhouette.png');
+              e.target.src = getProfileImageUrl(null);
             }}
           />
           <div style={styles.infoSection}>

@@ -9,6 +9,7 @@ from datetime import date, time as time_type, timedelta
 from ..models import TutorProfile, User, Course, TutorCourse, AvailabilitySlot
 from admin.models.tutor_course_request import TutorCourseRequest
 
+DEFAULT_TUTOR_IMAGE = "/static/images/default_photo.jpg"
 
 def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]:
     """
@@ -255,6 +256,8 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
     results = []
     for tutor in tutors:
         user = tutor.user
+        image_full = tutor.profile_image_path_full or DEFAULT_TUTOR_IMAGE
+        image_thumb = tutor.profile_image_path_thumb or image_full
         
         # Get courses
         tutor_courses = db.query(Course).join(
@@ -307,8 +310,8 @@ def search_tutors(db: Session, params: Dict) -> Tuple[List[Dict[str, Any]], int]
             "sessions_completed": None,
             "courses": courses,
             "availability": availability[:3] if availability else [], # Limit to 3 slots for display
-            "profile_image_path_thumb": tutor.profile_image_path_thumb,
-            "profile_image_path_full": tutor.profile_image_path_full
+            "profile_image_path_thumb": image_thumb,
+            "profile_image_path_full": image_full,
         })
     
     return results, total_count
@@ -557,6 +560,9 @@ def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
         }
         for c in tutor_courses
     ]
+
+    image_full = tutor.profile_image_path_full or DEFAULT_TUTOR_IMAGE
+    image_thumb = tutor.profile_image_path_thumb or image_full
     
     return {
         "id": tutor.tutor_id,
@@ -569,8 +575,8 @@ def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
         "languages": tutor.get_languages(),
         "avg_rating": None,  # TODO: Implement when reviews are added
         "sessions_completed": None,  # TODO: Implement when sessions are tracked
-        "profile_image_path_full": tutor.profile_image_path_full,
-        "profile_image_path_thumb": tutor.profile_image_path_thumb
+        "profile_image_path_full": image_full,
+        "profile_image_path_thumb": image_thumb
     }
 
 
@@ -668,4 +674,3 @@ def request_tutor_course(db: Session, tutor_id: int, course_id: int):
         print(f"Error requesting tutor course: {str(e)}")
         db.rollback()
         raise e
-

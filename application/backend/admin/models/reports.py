@@ -22,7 +22,5 @@ class Reports(Base):
     reporter_id = Column(Integer, ForeignKey("users.user_id"))
     reported_user_id = Column(Integer, ForeignKey("users.user_id"))
     reason = Column(Text, nullable =True)
-    status = Column(Enum("submitted", "reviewing", "closed", name=""), nullable=False, default="submitted", index=True)
+    status = Column(Enum("submitted", "reviewing", "closed"), default="submitted")
     created_at = Column(DateTime, default = datetime.utcnow)
-
-    #relationships?
