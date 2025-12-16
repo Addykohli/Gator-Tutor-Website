@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./Header";
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
-
+import gatorLogo from '../assets/logo_blue.png';
+import logoIcon from '../assets/logo_icon.png';
 function useQuery() {
   const { search } = useLocation();
   return useMemo(() => new URLSearchParams(search), [search]);
@@ -153,7 +154,6 @@ export default function SearchPage() {
 
   const [windowWidth, setWindowWidth] = useState(window.innerWidth);
   const isMobile = windowWidth <= 768;
-  const isSmallMobile = windowWidth <= 430;
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -545,6 +545,7 @@ export default function SearchPage() {
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
+  const [lastSearchedQuery, setLastSearchedQuery] = useState(""); // Track which query the results belong to
 
   const statusRef = React.useRef(status);
 
@@ -630,6 +631,8 @@ export default function SearchPage() {
     console.log('Search params:', { searchTerm, searchType });
 
     const fetchResults = () => {
+      // Clear results immediately and show loading
+      setResults([]);
       setStatus("loading");
       setError("");
 
@@ -682,6 +685,7 @@ export default function SearchPage() {
               ]);
             }
             setStatus("done");
+            setLastSearchedQuery(searchTerm); // Track which query these results are for
           })
           .catch(e => {
             console.error("Search error:", e);
@@ -1090,11 +1094,19 @@ export default function SearchPage() {
       });
 
     navigate(`/search?${params.toString()}`);
+    setIsAiMode(false);
+    setAiResponse(null);
   };
 
   // Handle search
   const handleSearch = (e) => {
     e.preventDefault();
+
+    // Clear results and show loading immediately to prevent flash of "No results"
+    setResults([]);
+    setStatus("loading");
+    setLastSearchedQuery(""); // Clear so stale "No results" won't show
+
     const searchType = searchCategory === 'default' ? 'all' : searchCategory;
     // Update the URL with the current search query and type
     const params = new URLSearchParams();
@@ -1110,6 +1122,8 @@ export default function SearchPage() {
       });
 
     navigate(`/search?${params.toString()}`);
+    setIsAiMode(false);
+    setAiResponse(null);
   };
 
   // Initialize search query and category from URL
@@ -1118,6 +1132,136 @@ export default function SearchPage() {
   const [isCategoryOpen, setIsCategoryOpen] = useState(false);
   const [tutorSortOrder, setTutorSortOrder] = useState(q.get('sort_order')); // null, 'asc', 'desc'
   const [isFilterCollapsed, setIsFilterCollapsed] = useState(false);
+  const [searchMode, setSearchMode] = useState('search'); // 'search' or 'ai'
+
+  // AI Mode State
+  const [isAiMode, setIsAiMode] = useState(false);
+  const [aiResponse, setAiResponse] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState(null);
+
+  // Handle AI Query
+  const handleAskAi = async () => {
+    if (!searchQuery.trim()) {
+      setAiError('Please enter a question to ask AI');
+      return;
+    }
+
+    setIsAiMode(true);
+    setAiLoading(true);
+    setAiError(null);
+    setAiResponse(null);
+
+    try {
+      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+
+      // Include user info in the request so AI can personalize responses
+      const requestBody = {
+        prompt: searchQuery,
+        user_id: user?.id || null,
+        user_role: user?.role || null
+      };
+
+      const response = await fetch(`${apiBaseUrl}/api/ai/query`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Extract tutor data from query results if available
+        const tutorData = extractTutorDataFromAI(data);
+        console.log('[AI] Tutor data extracted:', tutorData);
+        setAiResponse({ ...data, tutorCards: tutorData });
+      } else {
+        setAiError(data.error || 'AI query failed');
+      }
+    } catch (err) {
+      console.error('AI Query error:', err);
+      setAiError('Failed to connect to AI service');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  // Extract tutor data from AI query results
+  const extractTutorDataFromAI = (aiData) => {
+    console.log('[AI] Full AI Data:', JSON.stringify(aiData, null, 2));
+
+    if (!aiData.queries_executed || aiData.queries_executed.length === 0) {
+      console.log('[AI] No queries executed');
+      return [];
+    }
+
+    const tutorsMap = new Map();
+
+    // Find queries that returned tutor data
+    aiData.queries_executed.forEach((queryExec, index) => {
+      console.log(`[AI] Query ${index}:`, {
+        success: queryExec.success,
+        row_count: queryExec.row_count,
+        has_rows: !!queryExec.rows,
+        rows_length: queryExec.rows ? queryExec.rows.length : 0
+      });
+
+      if (queryExec.success && queryExec.rows && Array.isArray(queryExec.rows) && queryExec.rows.length > 0) {
+        const firstRow = queryExec.rows[0];
+        console.log('[AI] First row keys:', Object.keys(firstRow));
+        console.log('[AI] First row data:', firstRow);
+
+        // Check if this looks like tutor data (has user_id and name fields)
+        if (firstRow.user_id !== undefined && (firstRow.first_name || firstRow.last_name)) {
+          console.log(`[AI] ✅ Found tutor data in query ${index}! Converting ${queryExec.rows.length} rows`);
+
+          // Convert each row to a tutor object
+          queryExec.rows.forEach((row, rowIndex) => {
+            if (!row.user_id) return;
+
+            // Deduplicate by user_id
+            if (!tutorsMap.has(row.user_id)) {
+              const tutor = {
+                _kind: 'tutor',
+                id: row.user_id,
+                user_id: row.user_id,
+                first_name: row.first_name || '',
+                last_name: row.last_name || '',
+                name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+                hourly_rate_cents: row.hourly_rate_cents || 0,
+                sfsu_email: row.sfsu_email || row.email || `${(row.first_name || '').toLowerCase()}.${(row.last_name || '').toLowerCase()}@sfsu.edu`,
+                courses: [],
+                // Add any other fields from the query
+                ...row
+              };
+              console.log(`[AI] Created tutor ${rowIndex + 1}:`, tutor);
+              tutorsMap.set(row.user_id, tutor);
+            } else {
+              console.log(`[AI] Duplicate tutor found for user_id ${row.user_id}, skipping.`);
+            }
+          });
+          // Don't break - check all queries in case there are multiple result sets
+        } else {
+          console.log(`[AI] ❌ Query ${index} is not tutor data - has user_id: ${firstRow.user_id !== undefined}, has name: ${!!(firstRow.first_name || firstRow.last_name)}`);
+        }
+      } else {
+        console.log(`[AI] ⏭️ Skipping query ${index} - success: ${queryExec.success}, has rows: ${!!queryExec.rows}, is array: ${Array.isArray(queryExec.rows)}`);
+      }
+    });
+
+    const tutors = Array.from(tutorsMap.values());
+    console.log(`[AI] 🎯 Total tutors extracted: ${tutors.length}`);
+    return tutors;
+  };
+
+  // Exit AI mode and return to search
+  const exitAiMode = () => {
+    setIsAiMode(false);
+    setAiResponse(null);
+    setAiError(null);
+  };
 
   // Update tutorSortOrder when q changes
   useEffect(() => {
@@ -1335,13 +1479,15 @@ export default function SearchPage() {
 
         <div style={{ ...styles.content, display: 'flex', gap: '30px', flexDirection: isMobile ? 'column' : 'row', flexWrap: isMobile ? 'wrap' : 'nowrap', padding: isMobile ? '20px 10px' : '40px 20px' }}>
 
-          {/* Filters Sidebar - Only show for tutors or all, hidden on mobile */}
+          {/* Filters Sidebar - Only show for tutors or all, hidden on mobile and AI mode */}
           <div style={{
             width: isMobile ? '100%' : (isFilterCollapsed ? '60px' : '280px'),
             flexShrink: 0,
-            display: (isMobile || searchCategory === 'course') ? 'none' : 'block',
+            display: (isMobile || searchCategory === 'course' || isAiMode) ? 'none' : 'block',
             order: 1,
-            transition: 'width 0.3s ease'
+            transition: 'width 0.3s ease',
+            opacity: isAiMode ? 0.5 : 1,
+            pointerEvents: isAiMode ? 'none' : 'auto'
           }}>
             <div style={{
               backgroundColor: darkMode ? 'rgb(60, 60, 60)' : '#fff',
@@ -1518,21 +1664,77 @@ export default function SearchPage() {
           {/* Main Content Area */}
           <div style={{ flex: 1, order: 2, display: 'flex', flexDirection: 'column', width: isMobile ? '100%' : 'auto' }}>
             <div style={{ ...searchBarStyles.searchContainer }}>
-              <h3 style={{
-                margin: '0 0 8px 0',
-                color: darkMode ? '#fff' : '#2c3e50',
-                fontSize: '1.3rem',
-                fontWeight: '600',
-                transition: 'color 0.3s'
-              }}>
-                {isAdmin ? 'Search Tutor by Name' : 'Find Tutors & Courses'}
-              </h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                <h3 style={{
+                  margin: 0,
+                  color: darkMode ? '#fff' : '#2c3e50',
+                  fontSize: '1.3rem',
+                  fontWeight: '600',
+                  transition: 'color 0.3s'
+                }}>
+                  {isAdmin ? 'Search Tutor by Name' : (searchMode === 'search' ? 'Find Tutors & Courses' : 'Ask Gator Assistant')}
+                </h3>
+
+                {/* Search Mode Toggle */}
+                {!isAdmin && (
+                  <div style={{
+                    display: 'flex',
+                    backgroundColor: darkMode ? 'rgba(255,255,255,0.1)' : '#f0f0f0',
+                    borderRadius: '20px',
+                    padding: '4px',
+                    gap: '4px'
+                  }}>
+                    <button
+                      onClick={() => setSearchMode('search')}
+                      style={{
+                        background: searchMode === 'search' ? (darkMode ? '#fff' : '#fff') : 'transparent',
+                        color: searchMode === 'search' ? '#35006D' : (darkMode ? '#aaa' : '#666'),
+                        border: 'none',
+                        borderRadius: '16px',
+                        padding: '6px 16px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s',
+                        boxShadow: searchMode === 'search' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                    >
+                      <i className="fas fa-search"></i>
+                      Search
+                    </button>
+                    <button
+                      onClick={() => setSearchMode('ai')}
+                      style={{
+                        background: searchMode === 'ai' ? '#FFCF01' : 'transparent',
+                        color: searchMode === 'ai' ? '#35006D' : (darkMode ? '#aaa' : '#666'),
+                        border: 'none',
+                        borderRadius: '16px',
+                        padding: '6px 16px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.2s',
+                        boxShadow: searchMode === 'ai' ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                      }}
+                    >
+                      <img src={gatorLogo} alt="Gator" style={{ height: '16px', width: 'auto' }} />
+                      Ask Gator
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <div style={searchBarStyles.searchInputContainer}>
-                {/* Mobile: 2 Rows (Row 1: Dropdown+Input, Row 2: Btn) */}
                 {isMobile ? (
                   <>
-                    <div style={searchBarStyles.mobileSearchTopRow}>
-                      {!isAdmin && (
+                    <div style={{ display: 'flex', width: '100%', gap: '8px' }}>
+                      {!isAdmin && searchMode === 'search' && (
                         <div style={searchBarStyles.categoryDropdown}>
                           <button
                             style={{
@@ -1550,10 +1752,10 @@ export default function SearchPage() {
                             {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
                           </button>
                           {isCategoryOpen && (
-                            <ul style={{ ...searchBarStyles.categoryList, width: '140px' }}>
-                              <li onClick={() => selectCategory('default')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>All</li>
-                              <li onClick={() => selectCategory('tutor')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
-                              <li onClick={() => selectCategory('course')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
+                            <ul style={{ ...searchBarStyles.categoryList, width: '140px', zIndex: 10 }}>
+                              <li onClick={() => selectCategory('default')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>All</li>
+                              <li onClick={() => selectCategory('tutor')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>Tutors</li>
+                              <li onClick={() => selectCategory('course')} style={{ padding: '10px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>Courses</li>
                             </ul>
                           )}
                         </div>
@@ -1562,62 +1764,133 @@ export default function SearchPage() {
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                        placeholder={`Search...`}
+                        onKeyDown={(e) => e.key === 'Enter' && (searchMode === 'search' ? handleSearch(e) : handleAskAi())}
+                        placeholder={searchMode === 'search' ? "Search..." : "Ask Gator..."}
                         style={{
                           ...searchBarStyles.searchInput,
                           width: 'auto',
+                          flex: 1,
                           height: '40px',
                           boxSizing: 'border-box'
                         }}
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      style={{ ...searchBarStyles.searchButton, width: '100%', marginTop: '4px' }}
-                    >
-                      <i className="fas fa-search"></i>
-                      Search
-                    </button>
+
+                    <div style={{ width: '100%', marginTop: '4px' }}>
+                      {searchMode === 'search' ? (
+                        <button
+                          type="button"
+                          onClick={handleSearch}
+                          style={{
+                            ...searchBarStyles.searchButton,
+                            width: '100%',
+                            height: '42px'
+                          }}
+                        >
+                          <i className="fas fa-search"></i>
+                          Search
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleAskAi}
+                          disabled={aiLoading}
+                          style={{
+                            ...searchBarStyles.searchButton,
+                            width: '100%',
+                            height: '42px',
+                            backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#FFCF01',
+                            color: '#35006D',
+                            opacity: aiLoading ? 0.7 : 1
+                          }}
+                        >
+                          {aiLoading ? (
+                            <i className="fas fa-spinner fa-spin"></i>
+                          ) : (
+                            <img src={gatorLogo} alt="Gator" style={{ height: '20px', width: 'auto' }} />
+                          )}
+                          {aiLoading ? 'Thinking...' : 'Ask Gator'}
+                        </button>
+                      )}
+                    </div>
                   </>
                 ) : (
-                  // Desktop: 1 Row
                   <>
-                    {!isAdmin && (
+                    {!isAdmin && searchMode === 'search' && (
                       <div style={searchBarStyles.categoryDropdown}>
                         <button
-                          style={searchBarStyles.categoryButton}
+                          style={{
+                            ...searchBarStyles.categoryButton,
+                            width: '100%'
+                          }}
                           onClick={toggleCategory}
                           type="button"
                         >
                           {searchCategory === 'default' ? 'All' : searchCategory.charAt(0).toUpperCase() + searchCategory.slice(1)} ▼
                         </button>
                         {isCategoryOpen && (
-                          <ul style={searchBarStyles.categoryList}>
-                            <li onClick={() => selectCategory('default')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>All</li>
-                            <li onClick={() => selectCategory('tutor')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Tutors</li>
-                            <li onClick={() => selectCategory('course')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529' }}>Courses</li>
+                          <ul style={{ ...searchBarStyles.categoryList, width: '100%', zIndex: 10 }}>
+                            <li onClick={() => selectCategory('default')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>All</li>
+                            <li onClick={() => selectCategory('tutor')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>Tutors</li>
+                            <li onClick={() => selectCategory('course')} style={{ padding: '10px 16px', color: darkMode ? '#fff' : '#212529', cursor: 'pointer' }}>Courses</li>
                           </ul>
                         )}
                       </div>
                     )}
+
                     <input
                       type="text"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch(e)}
-                      placeholder={searchQuery === '' && searchCategory === 'default' ? 'Search all' : searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}${searchCategory === 'all' ? '' : 's'}...`}
-                      style={searchBarStyles.searchInput}
+                      onKeyDown={(e) => e.key === 'Enter' && (searchMode === 'search' ? handleSearch(e) : handleAskAi())}
+                      placeholder={
+                        searchMode === 'search'
+                          ? (searchQuery === '' && searchCategory === 'default' ? 'Search all' : searchCategory === 'default' ? 'Search for tutors or courses...' : `Search ${searchCategory}${searchCategory === 'all' ? '' : 's'}...`)
+                          : "Ask Gator e.g., 'find me a math tutor for Thursday'"
+                      }
+                      style={{
+                        ...searchBarStyles.searchInput,
+                        height: '42px'
+                      }}
                     />
-                    <button
-                      type="button"
-                      onClick={handleSearch}
-                      style={searchBarStyles.searchButton}
-                    >
-                      <i className="fas fa-search"></i>
-                      Search
-                    </button>
+
+                    {searchMode === 'search' ? (
+                      <button
+                        type="button"
+                        onClick={handleSearch}
+                        style={{
+                          ...searchBarStyles.searchButton,
+                          width: 'auto',
+                          padding: '0 24px',
+                          height: '42px'
+                        }}
+                      >
+                        <i className="fas fa-search"></i>
+                        Search
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAskAi}
+                        disabled={aiLoading}
+                        style={{
+                          ...searchBarStyles.searchButton,
+                          backgroundColor: darkMode ? 'rgb(255, 220, 100)' : '#FFCF01',
+                          color: '#35006D',
+                          opacity: aiLoading ? 0.7 : 1,
+                          width: 'auto',
+                          padding: '0 24px',
+                          height: '42px'
+                        }}
+                      >
+                        {aiLoading ? (
+                          <i className="fas fa-spinner fa-spin"></i>
+                        ) : (
+                          <img src={gatorLogo} alt="Gator" style={{ height: '20px', width: 'auto' }} />
+                        )}
+                        {aiLoading ? 'Thinking...' : 'Ask Gator'}
+                      </button>
+                    )}
                   </>
                 )}
               </div>
@@ -1741,13 +2014,131 @@ export default function SearchPage() {
 
             <div style={{ ...styles.columnsContainer, marginTop: '20px' }}>
               <div style={{ width: '100%' }}>
-                {status === "idle" && (
+                {/* AI Response Display */}
+                {isAiMode && (
+                  <div style={{
+                    backgroundColor: darkMode ? 'rgb(45, 45, 45)' : '#fff',
+                    borderRadius: '16px',
+                    padding: '24px',
+                    boxShadow: darkMode ? '0 4px 20px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.1)',
+                    border: darkMode ? '1px solid rgba(255, 220, 100, 0.3)' : '2px solid #FFCF01',
+                    marginBottom: '24px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <img src={logoIcon} alt="Gator" style={{ height: '40px', width: '40px', borderRadius: '50%', objectFit: 'cover' }} />
+                        <h3 style={{ margin: 0, color: darkMode ? '#fff' : '#2c3e50', fontSize: '20px', fontWeight: '600' }}>
+                          Gator Response
+                        </h3>
+                      </div>
+                      <button
+                        onClick={exitAiMode}
+                        style={{
+                          background: 'none',
+                          border: '1px solid ' + (darkMode ? 'rgba(255,255,255,0.2)' : '#ddd'),
+                          borderRadius: '8px',
+                          padding: '8px 16px',
+                          color: darkMode ? '#fff' : '#666',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          fontSize: '14px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <i className="fas fa-arrow-left"></i>
+                        Back to Search
+                      </button>
+                    </div>
+                    {/* Loading State */}
+                    {aiLoading && (
+                      <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+                        <div style={{
+                          width: '60px',
+                          height: '60px',
+                          margin: '0 auto 16px',
+                          border: '4px solid ' + (darkMode ? 'rgba(255,255,255,0.1)' : '#f3f3f3'),
+                          borderTop: '4px solid #FFCF01',
+                          borderRadius: '50%',
+                          animation: 'spin 1s linear infinite'
+                        }}></div>
+                        <p style={{ color: darkMode ? '#aaa' : '#666', margin: 0 }}>Asking Gator...</p>
+                        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+                      </div>
+                    )}
+
+                    {/* Error State */}
+                    {aiError && (
+                      <div style={{
+                        backgroundColor: darkMode ? 'rgba(220, 53, 69, 0.1)' : '#fff5f5',
+                        border: '1px solid #dc3545',
+                        borderRadius: '8px',
+                        padding: '16px',
+                        color: '#dc3545'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <i className="fas fa-exclamation-circle"></i>
+                          <strong>Error</strong>
+                        </div>
+                        <p style={{ margin: 0 }}>{aiError}</p>
+                      </div>
+                    )}
+
+                    {/* Success Response */}
+                    {aiResponse && (
+                      <div>
+                        <div style={{
+                          backgroundColor: darkMode ? 'rgba(255,255,255,0.05)' : '#fafafa',
+                          borderRadius: '12px',
+                          padding: '20px',
+                          lineHeight: '1.7',
+                          color: darkMode ? '#e0e0e0' : '#333',
+                          fontSize: '15px',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {aiResponse.response}
+                        </div>
+
+                        {/* Tutor Cards if available */}
+                        {aiResponse.tutorCards && aiResponse.tutorCards.length > 0 && (
+                          <div style={{ marginTop: '24px' }}>
+                            <h4 style={{
+                              color: darkMode ? '#fff' : '#2c3e50',
+                              marginBottom: '16px',
+                              fontSize: '18px',
+                              fontWeight: '600'
+                            }}>
+                              {aiResponse.tutorCards.length} {aiResponse.tutorCards.length === 1 ? 'Tutor' : 'Tutors'} Found
+                            </h4>
+                            <div style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                              gap: '16px'
+                            }}>
+                              {aiResponse.tutorCards.map((tutor, idx) => (
+                                <ResultCard
+                                  key={tutor.user_id || idx}
+                                  item={tutor}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Regular Search Results - Hidden when in AI mode */}
+                {!isAiMode && status === "idle" && (
                   <div style={styles.noResults}>
                     <div style={styles.noResultsTitle}>Loading results...</div>
                   </div>
                 )}
 
-                {status === "loading" && (
+                {!isAiMode && status === "loading" && (
                   <div style={styles.noResults}>
                     <div style={styles.noResultsTitle}>
                       Searching for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}...
@@ -1755,7 +2146,7 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {status === "error" && (
+                {!isAiMode && status === "error" && (
                   <div style={styles.noResults}>
                     <div style={styles.noResultsTitle}>Error: {error}</div>
                     <button
@@ -1767,7 +2158,7 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {status === "done" && results.length === 0 && q.get("q") && (
+                {!isAiMode && status === "done" && results.length === 0 && q.get("q") && lastSearchedQuery === (q.get("q") || "").toLowerCase() && (
                   <div style={styles.noResults}>
                     <div style={styles.noResultsTitle}>
                       No results found for "{q.get("q")}" in {q.get("type") === 'tutor' ? 'tutors' : q.get("type") === 'course' ? 'courses' : 'all'}
@@ -1781,7 +2172,7 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {status === "done" && (
+                {!isAiMode && status === "done" && (
                   <div style={styles.resultsContainer}>
                     {/* Only show Tutors section if search category is 'all', 'default', or 'tutor' */}
                     {(searchCategory === 'default' || searchCategory === 'all' || searchCategory === 'tutor') && (
