@@ -175,3 +175,61 @@ def drop_user_endpoint(user_id: int, role: Optional[str] = None, db: Session = D
         role: Optional role verification (tutor, student, admin, both)
     """
     return drop_user(db=db, user_id=user_id, role=role)
+
+#----------------------------------------------------------
+# Admin: Get All Students Endpoint
+
+@router.get("/registered-students")
+def get_all_students(db: Session = Depends(get_db)):
+    """
+    Get all registered students with their session counts and information.
+    Returns students who are not deleted and not tutors.
+    """
+    from search.models.user import User
+    from search.models.tutor_profile import TutorProfile
+    from schedule.models.booking import Booking
+    from sqlalchemy import func, and_
+    
+    # Get all non-deleted users who are NOT tutors
+    students_query = db.query(User).outerjoin(
+        TutorProfile, User.user_id == TutorProfile.tutor_id
+    ).filter(
+        and_(
+            User.is_deleted == False,
+            TutorProfile.tutor_id == None  # Not a tutor
+        )
+    )
+    
+    students = students_query.all()
+    
+    result = []
+    for student in students:
+        # Count total sessions (confirmed + completed bookings where user is student)
+        total_sessions = db.query(func.count(Booking.booking_id)).filter(
+            and_(
+                Booking.student_id == student.user_id,
+                Booking.status.in_(['confirmed', 'completed'])
+            )
+        ).scalar() or 0
+        
+        # Count pending sessions
+        pending_sessions = db.query(func.count(Booking.booking_id)).filter(
+            and_(
+                Booking.student_id == student.user_id,
+                Booking.status == 'pending'
+            )
+        ).scalar() or 0
+        
+        result.append({
+            "user_id": student.user_id,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "email": student.sfsu_email,
+            "role": student.role,
+            "total_sessions": total_sessions,
+            "pending_sessions": pending_sessions,
+            "created_at": student.created_at.isoformat() if student.created_at else None
+        })
+    
+    return {"items": result}
+

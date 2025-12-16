@@ -292,9 +292,6 @@ const MessagesPage = () => {
     // Save to localStorage for persistence across refreshes
     localStorage.setItem('selectedPartnerId', partner.id.toString());
 
-    // Mark messages as read in the database for persistence across refreshes
-    localStorage.setItem('selectedPartnerId', partner.id.toString());
-
     // Mark messages as read in the database
     try {
       await fetch(`${CHAT_API_BASE}/api/chat/messages/mark-read?receiver_id=${currentUserId}&sender_id=${partner.id}`, {
@@ -570,6 +567,7 @@ const MessagesPage = () => {
     conversationList: {
       flex: 1,
       overflowY: 'auto',
+      minHeight: 0, // Important for flex children with overflow
     },
     loadingContainer: {
       display: 'flex',

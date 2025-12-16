@@ -1,5 +1,5 @@
 from chat.schemas.chat_schemas import MessageInfo, MessageResponse
-from chat.services.chat_service import send_message, send_message_with_media, get_chat, get_user_chats
+from chat.services.chat_service import send_message, send_message_with_media, get_chat, get_user_chats, get_unread_count
 from chat.models.chat_message import ChatMessage
 from auth.services.auth_service import get_user_by_id
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
@@ -11,6 +11,12 @@ from media_handling.service import save_media_file
 from typing import Optional
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
+
+@router.get("/unread-count/{user_id}")
+def get_unread_count_endpoint(user_id: int, db: Session = Depends(get_db)):
+    """Get the number of conversations with at least one unread message"""
+    count = get_unread_count(db, user_id)
+    return {"unread_conversations": count}
 
 @router.post("/send", response_model=MessageResponse)
 def send_endpoint(req: MessageInfo, db: Session = Depends(get_db), user_id: int = None):
