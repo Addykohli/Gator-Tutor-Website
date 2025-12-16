@@ -854,7 +854,23 @@ export default function SearchPage() {
             )}
 
             <div style={{ ...styles.tutorActions, flexDirection: isMobile ? 'column' : 'row', gap: '8px' }}>
-              <button style={{ ...styles.contactButton, fontSize: isMobile ? '12px' : 'inherit', padding: isMobile ? '8px' : '10px' }}>
+              <button
+                style={{ ...styles.contactButton, fontSize: isMobile ? '12px' : 'inherit', padding: isMobile ? '8px' : '10px' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const tutorId = item.id || item.tutor_id || item.user_id;
+                  navigate('/messages', {
+                    state: {
+                      startChatWith: {
+                        id: tutorId,
+                        name: fullName,
+                        email: item.sfsu_email || item.email || '',
+                        role: 'Tutor'
+                      }
+                    }
+                  });
+                }}
+              >
                 Contact
               </button>
               {isAdmin ? (

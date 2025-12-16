@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
@@ -38,7 +38,8 @@ const fetchUserInfo = async (userId) => {
 
 const MessagesPage = () => {
   const navigate = useNavigate();
-  
+  const location = useLocation();
+
   const getLoggedInUserId = () => {
     try {
       const userData = localStorage.getItem('user');
@@ -156,6 +157,37 @@ const MessagesPage = () => {
       }
     };
   }, [currentUserId]);
+
+  // Handle incoming navigation state to start a chat with a specific user
+  useEffect(() => {
+    if (location.state?.startChatWith && !loading) {
+      const userToChat = location.state.startChatWith;
+
+      // Check if this user already exists in chatPartners
+      const existingPartner = chatPartners.find(p => p.id === userToChat.id);
+
+      if (existingPartner) {
+        // User already exists in chat partners, just select them
+        setSelectedPartnerId(userToChat.id);
+        fetchMessages(userToChat.id);
+        localStorage.setItem('selectedPartnerId', userToChat.id.toString());
+      } else {
+        // New user, add to partners list and select them
+        setChatPartners(prev => [userToChat, ...prev]);
+        setSelectedPartnerId(userToChat.id);
+        setMessages([]);
+        localStorage.setItem('selectedPartnerId', userToChat.id.toString());
+      }
+
+      // Hide sidebar on mobile after selecting
+      if (isMobile) {
+        setSidebarVisible(false);
+      }
+
+      // Clear the navigation state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, chatPartners, loading, isMobile, navigate, location.pathname]);
 
   const connectWebSocket = () => {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -934,8 +966,8 @@ const MessagesPage = () => {
                 <div style={styles.chatAvatar}>{getInitials(selectedPartner.name)}</div>
                 <div>
                   {selectedPartner.role === 'tutor' ? (
-                    <h2 
-                      style={{...styles.chatName, cursor: 'pointer', textDecoration: 'none'}}
+                    <h2
+                      style={{ ...styles.chatName, cursor: 'pointer', textDecoration: 'none' }}
                       onClick={() => navigate(`/tutor/${selectedPartner.id}`)}
                       onMouseEnter={(e) => e.target.style.textDecoration = 'underline'}
                       onMouseLeave={(e) => e.target.style.textDecoration = 'none'}
