@@ -72,8 +72,8 @@ const HomePage = () => {
     const fetchTutorProfile = async () => {
       if (user?.isTutor) {
         try {
-          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-          const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+          const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+          const response = await fetch(`${apiBaseUrl}/api/search/tutors/${user.id}`);
           if (response.ok) {
             const data = await response.json();
             // Backend returns hourly_rate_cents, convert to dollars for display
@@ -101,7 +101,7 @@ const HomePage = () => {
   // Handle Profile Update
   const handleProfileUpdate = async () => {
     setIsSavingProfile(true);
-    const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+    const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
     try {
       const updates = [];
 
@@ -167,7 +167,7 @@ const HomePage = () => {
       // Fetch actual recurring availability slots from the dedicated endpoint
       console.log('Fetching recurring availability slots from backend...');
       const response = await fetch(
-        `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+        `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -212,7 +212,7 @@ const HomePage = () => {
 
     try {
       setIsLoadingCourses(true);
-      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}`);
+      const response = await fetch(`${apiBaseUrl}/api/search/tutors/${user.id}`);
 
       if (!response.ok) {
         console.warn('Failed to fetch tutor courses:', response.status);
@@ -238,7 +238,7 @@ const HomePage = () => {
     }
     setIsSearchingCourses(true);
     try {
-      const response = await fetch(`${apiBaseUrl}/search/courses?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`${apiBaseUrl}/api/search/courses?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       setCourseSearchResults(data.items || []);
     } catch (error) {
@@ -250,7 +250,7 @@ const HomePage = () => {
 
   const requestAddCourse = async (courseId) => {
     try {
-      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses`, {
+      const response = await fetch(`${apiBaseUrl}/api/search/tutors/${user.id}/courses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ course_id: courseId })
@@ -276,7 +276,7 @@ const HomePage = () => {
   const removeCourse = async (courseId) => {
     if (!window.confirm("Are you sure you want to remove this course?")) return;
     try {
-      const response = await fetch(`${apiBaseUrl}/search/tutors/${user.id}/courses/${courseId}`, {
+      const response = await fetch(`${apiBaseUrl}/api/search/tutors/${user.id}/courses/${courseId}`, {
         method: 'DELETE'
       });
       if (response.ok) {
@@ -308,12 +308,12 @@ const HomePage = () => {
         studentConfirmedResponse,
         studentPendingResponse
       ] = await Promise.all([
-        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
-        fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}&status=pending`),
-        // Fetch confirmed bookings where user is student
-        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=confirmed&timezone_offset=${timezoneOffset}`),
-        // Also fetch pending bookings where user is student
-        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=pending&timezone_offset=${timezoneOffset}`)
+        fetch(`${apiBaseUrl}/api/schedule/bookings?tutor_id=${user.id}&status=confirmed`),
+        fetch(`${apiBaseUrl}/api/schedule/bookings?tutor_id=${user.id}&status=pending`),
+        // Note: For students, pass client's timezone offset (in minutes) so user sees days correctly
+        fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${user.id}&status=confirmed&timezone_offset=${timezoneOffset}`),
+        // For pending student bookings, no timezone needed (or can be passed if backend uses it)
+        fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${user.id}&status=pending&timezone_offset=${timezoneOffset}`)
       ]);
 
       if (!confirmedResponse.ok || !pendingResponse.ok || !studentConfirmedResponse.ok || !studentPendingResponse.ok) {
@@ -375,8 +375,8 @@ const HomePage = () => {
 
       // Fetch both confirmed and pending bookings
       const [confirmedResponse, pendingResponse] = await Promise.all([
-        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=confirmed`),
-        fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}&status=pending`)
+        fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${user.id}&status=confirmed`),
+        fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${user.id}&status=pending`)
       ]);
 
       if (!confirmedResponse.ok || !pendingResponse.ok) {
@@ -543,7 +543,7 @@ const HomePage = () => {
         });
 
         const response = await fetch(
-          `${apiBaseUrl}/search/tutors?${params.toString()}`
+          `${apiBaseUrl}/api/search/tutors?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'tutor', ...item }))];
@@ -557,7 +557,7 @@ const HomePage = () => {
         });
 
         const response = await fetch(
-          `${apiBaseUrl}/search/courses?${params.toString()}`
+          `${apiBaseUrl}/api/search/courses?${params.toString()}`
         );
         const data = await response.json();
         results = [...results, ...(data.items || []).map(item => ({ _kind: 'course', ...item }))];
@@ -1655,7 +1655,7 @@ const HomePage = () => {
       // STEP 1: Fetch all existing slots for this tutor
       console.log('STEP 1: Fetching all existing slots...');
       const allSlotsResponse = await fetch(
-        `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+        `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -1782,7 +1782,7 @@ const HomePage = () => {
 
           try {
             const deleteResponse = await fetch(
-              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots/${slotId}`,
+              `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots/${slotId}`,
               {
                 method: 'DELETE',
                 headers: {
@@ -1842,7 +1842,7 @@ const HomePage = () => {
             console.log('Creating before slot:', JSON.stringify(beforeSlot, null, 2));
 
             const beforeResponse = await fetch(
-              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+              `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots`,
               {
                 method: 'POST',
                 headers: {
@@ -1876,7 +1876,7 @@ const HomePage = () => {
             console.log('Creating after slot:', JSON.stringify(afterSlot, null, 2));
 
             const afterResponse = await fetch(
-              `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+              `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots`,
               {
                 method: 'POST',
                 headers: {
@@ -1947,7 +1947,7 @@ const HomePage = () => {
 
         try {
           const createResponse = await fetch(
-            `${apiBaseUrl}/schedule/tutors/${user.id}/availability-slots`,
+            `${apiBaseUrl}/api/schedule/tutors/${user.id}/availability-slots`,
             {
               method: 'POST',
               headers: {

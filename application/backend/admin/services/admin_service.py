@@ -18,7 +18,7 @@ from chat.models.chat_message import ChatMessage
 from chat.models.chat_media import ChatMedia
 import re
 
-DEFAULT_TUTOR_IMAGE = "/static/images/default_photo.jpg"
+DEFAULT_TUTOR_IMAGE = "/media/photos/profile/default_photo.jpg"
 #----------------------------------------------------------
 # Admin: Manage tutors
 

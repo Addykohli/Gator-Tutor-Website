@@ -37,7 +37,7 @@ from schedule.schemas.availability_schemas import (
 )
 
 
-router = APIRouter(prefix="/schedule", tags=["schedule"])
+router = APIRouter(prefix="/api/schedule", tags=["schedule"])
 
 
 # ============================================================================

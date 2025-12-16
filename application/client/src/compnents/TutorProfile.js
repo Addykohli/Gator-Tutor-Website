@@ -45,9 +45,9 @@ const TutorProfile = () => {
     const fetchAllTutorBookings = async () => {
       if (!tutorId) return;
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
         // Fetch bookings where tutor is the tutor (not student)
-        const response = await fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${tutorId}`);
+        const response = await fetch(`${apiBaseUrl}/api/schedule/bookings?tutor_id=${tutorId}`);
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data)) {
@@ -78,7 +78,7 @@ const TutorProfile = () => {
       if (!tutorId || user?.role !== 'admin') return;
 
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
         const response = await fetch(`${apiBaseUrl}/api/admin/all-tutor-course-requests`);
         if (response.ok) {
           const data = await response.json();
@@ -102,7 +102,7 @@ const TutorProfile = () => {
   const handleRemoveCourse = async (courseId) => {
     if (!window.confirm('Are you sure you want to remove this course from the tutor?')) return;
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
       const response = await fetch(`${apiBaseUrl}/api/admin/tutor/${tutorId}/course/${courseId}`, {
         method: 'DELETE',
         headers: {
@@ -129,7 +129,7 @@ const TutorProfile = () => {
   const handleRequestAction = async (requestId, action) => {
     if (!window.confirm(`Are you sure you want to ${action} this request?`)) return;
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
       const response = await fetch(`${apiBaseUrl}/api/admin/tutor-course-request/${requestId}/${action}`, {
         method: 'PATCH'
       });
@@ -145,7 +145,7 @@ const TutorProfile = () => {
         // If approved, refresh tutor data to show new course
         if (action === 'approve') {
           // Re-fetch tutor data
-          const tutorRes = await fetch(`${apiBaseUrl}/search/tutors/${tutorId}`);
+          const tutorRes = await fetch(`${apiBaseUrl}/api/search/tutors/${tutorId}`);
           if (tutorRes.ok) {
             const tutorData = await tutorRes.json();
             setTutor(tutorData);
@@ -206,8 +206,8 @@ const TutorProfile = () => {
         setIsLoading(true);
         setError(null);
 
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-        const response = await fetch(`${apiBaseUrl}/search/tutors/${tutorId}`);
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+        const response = await fetch(`${apiBaseUrl}/api/search/tutors/${tutorId}`);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -243,12 +243,12 @@ const TutorProfile = () => {
       if (!user || !user.id) return;
 
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
 
         // Fetch bookings where user is student AND where user is tutor
         const [studentResponse, tutorResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/schedule/bookings?student_id=${user.id}`),
-          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${user.id}`)
+          fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${user.id}`),
+          fetch(`${apiBaseUrl}/api/schedule/bookings?tutor_id=${user.id}`)
         ]);
 
         let allBookings = [];
@@ -289,12 +289,12 @@ const TutorProfile = () => {
       if (!tutorId) return;
 
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
 
         // Fetch bookings where tutor is student AND where tutor is tutor
         const [studentResponse, tutorResponse] = await Promise.all([
-          fetch(`${apiBaseUrl}/schedule/bookings?student_id=${tutorId}`),
-          fetch(`${apiBaseUrl}/schedule/bookings?tutor_id=${tutorId}`)
+          fetch(`${apiBaseUrl}/api/schedule/bookings?student_id=${tutorId}`),
+          fetch(`${apiBaseUrl}/api/schedule/bookings?tutor_id=${tutorId}`)
         ]);
 
         let allBookings = [];
@@ -355,9 +355,9 @@ const TutorProfile = () => {
     const endStr = formatDateLocal(endDate);
 
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
       const response = await fetch(
-        `${apiBaseUrl}/schedule/tutors/${tutorId}/availability-range?start_date=${startStr}&end_date=${endStr}`
+        `${apiBaseUrl}/api/schedule/tutors/${tutorId}/availability-range?start_date=${startStr}&end_date=${endStr}`
       );
 
       if (response.ok) {
@@ -390,9 +390,9 @@ const TutorProfile = () => {
         setIsLoadingSlots(true);
         setSelectedTime('');
 
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
         const response = await fetch(
-          `${apiBaseUrl}/schedule/tutors/${tutorId}/availability?date=${selectedDate}`
+          `${apiBaseUrl}/api/schedule/tutors/${tutorId}/availability?date=${selectedDate}`
         );
 
         if (!response.ok) {
@@ -552,9 +552,9 @@ const TutorProfile = () => {
 
         // Try to fetch course by department_code and course_number
         try {
-          const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+          const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
           const courseResponse = await fetch(
-            `${apiBaseUrl}/search/courses?department_code=${selectedCourseObj.department_code}&course_number=${selectedCourseObj.course_number}&limit=1`
+            `${apiBaseUrl}/api/search/courses?department_code=${selectedCourseObj.department_code}&course_number=${selectedCourseObj.course_number}&limit=1`
           );
 
           if (courseResponse.ok) {
@@ -613,11 +613,11 @@ const TutorProfile = () => {
 
       console.log('Sending booking data:', bookingData);
 
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-      console.log('Sending booking request to:', `${apiBaseUrl}/schedule/bookings`);
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+      console.log('Sending booking request to:', `${apiBaseUrl}/api/schedule/bookings`);
       console.log('Request payload:', bookingData);
 
-      const response = await fetch(`${apiBaseUrl}/schedule/bookings`, {
+      const response = await fetch(`${apiBaseUrl}/api/schedule/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -168,7 +168,7 @@ export default function SearchPage() {
   // Remove course from tutor (Admin only)
   const handleRemoveCourse = async (tutorId, courseId) => {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
       const response = await fetch(`${apiBaseUrl}/api/admin/tutor/${tutorId}/course/${courseId}`, {
         method: 'DELETE',
         headers: {
@@ -200,7 +200,7 @@ export default function SearchPage() {
   // Demote tutor to student (Admin only)
   const handleDemoteTutor = async (userId) => {
     try {
-      const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+      const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
       const response = await fetch(`${apiBaseUrl}/api/admin/demote/${userId}`, {
         method: 'PATCH',
         headers: {
@@ -587,8 +587,8 @@ export default function SearchPage() {
   useEffect(() => {
     const fetchFilters = async () => {
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
-        const response = await fetch(`${apiBaseUrl}/search/filters`);
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
+        const response = await fetch(`${apiBaseUrl}/api/search/filters`);
         if (response.ok) {
           const data = await response.json();
           setFilterOptions(data);
@@ -634,7 +634,7 @@ export default function SearchPage() {
       setError("");
 
       try {
-        const apiBaseUrl = process.env.REACT_APP_API_URL || '';
+        const apiBaseUrl = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '');
 
         // Build the appropriate endpoint and parameters
         // Fetch a larger number for client-side pagination
@@ -654,11 +654,11 @@ export default function SearchPage() {
         });
 
         if (searchType === 'tutor') {
-          endpoint = '/search/tutors';
+          endpoint = '/api/search/tutors';
         } else if (searchType === 'course') {
-          endpoint = '/search/courses';
+          endpoint = '/api/search/courses';
         } else {
-          endpoint = '/search/all';
+          endpoint = '/api/search/all';
         }
 
         fetch(`${apiBaseUrl}${endpoint}?${params.toString()}`)

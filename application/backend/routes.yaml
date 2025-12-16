@@ -5,11 +5,11 @@ server:
   nginx_site: team08
 
 routes:
-  - prefix: /search
-    websocket: false
-  - prefix: /schedule
-    websocket: false
   - prefix: /api
+    websocket: false
+  - prefix: /api/search
+    websocket: false
+  - prefix: /api/schedule
     websocket: false
   - prefix: /api/admin
     websocket: false

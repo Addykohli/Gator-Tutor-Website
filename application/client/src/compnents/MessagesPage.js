@@ -1,10 +1,12 @@
+
 import { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
 import { getMediaUrl } from '../media_handling';
 
-const CHAT_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const CHAT_API_BASE = process.env.REACT_APP_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:8000' : `http://${window.location.hostname}`);
 
 const userCache = {};
 
@@ -63,8 +65,8 @@ const MessagesPage = () => {
   const [unreadPartners, setUnreadPartners] = useState({});
 
   const hasUnreadMessages = (partnerId) => {
-  return unreadPartners[partnerId] === true;
-};
+    return unreadPartners[partnerId] === true;
+  };
   const [partnerLastMessageTime, setPartnerLastMessageTime] = useState({});
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [allUsers, setAllUsers] = useState([]);
@@ -137,6 +139,14 @@ const MessagesPage = () => {
     fetchChatPartners();
     connectWebSocket();
 
+    // Restore selected partner from localStorage on mount/refresh
+    const savedPartnerId = localStorage.getItem('selectedPartnerId');
+    if (savedPartnerId) {
+      const partnerId = parseInt(savedPartnerId, 10);
+      setSelectedPartnerId(partnerId);
+      fetchMessages(partnerId);
+    }
+
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
@@ -195,10 +205,10 @@ const MessagesPage = () => {
         const userIds = await response.json();
         const partnersPromises = userIds.map(id => fetchUserInfo(id));
         const partners = await Promise.all(partnersPromises);
-  
+
         const unreadStatus = {};
         const lastMsgTimes = {};
-        
+
         for (const partner of partners) {
           try {
             const msgResponse = await fetch(`${CHAT_API_BASE}/api/chat/chatroomhistory/${currentUserId}/${partner.id}`);
@@ -278,7 +288,13 @@ const MessagesPage = () => {
     setSelectedPartnerId(partner.id);
     setSending(false);
     fetchMessages(partner.id);
-    
+
+    // Save to localStorage for persistence across refreshes
+    localStorage.setItem('selectedPartnerId', partner.id.toString());
+
+    // Mark messages as read in the database for persistence across refreshes
+    localStorage.setItem('selectedPartnerId', partner.id.toString());
+
     // Mark messages as read in the database
     try {
       await fetch(`${CHAT_API_BASE}/api/chat/messages/mark-read?receiver_id=${currentUserId}&sender_id=${partner.id}`, {
@@ -289,7 +305,7 @@ const MessagesPage = () => {
     } catch (error) {
       console.error('Error marking messages as read:', error);
     }
-    
+
     // On mobile, hide sidebar when chat is selected
     if (isMobile) {
       setSidebarVisible(false);
@@ -416,13 +432,13 @@ const MessagesPage = () => {
   };
 
   const filteredPartners = chatPartners
-  .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
-  .sort((a, b) => {
-    // Sort by last message time (most recent first)
-    const aTime = partnerLastMessageTime[a.id] || 0;
-    const bTime = partnerLastMessageTime[b.id] || 0;
-    return bTime - aTime;
-  });
+    .filter(partner => partner.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      // Sort by last message time (most recent first)
+      const aTime = partnerLastMessageTime[a.id] || 0;
+      const bTime = partnerLastMessageTime[b.id] || 0;
+      return bTime - aTime;
+    });
 
   const selectedPartner = chatPartners.find(p => p.id === selectedPartnerId) ||
     allUsers.find(u => u.id === selectedPartnerId);

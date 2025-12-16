@@ -59,7 +59,7 @@ const ReportsPage = () => {
                         }
                     });
 
-                    fetch('/schedule/bookings')
+                    fetch('/api/schedule/bookings')
                         .then(res => res.ok ? res.json() : [])
                         .then(allBookings => {
                             reportsData.forEach(report => {
