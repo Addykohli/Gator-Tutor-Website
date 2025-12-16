@@ -9,6 +9,19 @@ server {
     root {{ server.static_root }};
     index index.html;
 
+    # Serve media files directly (before API routes)
+    location /media/ {
+        alias /home/atharva/media/;
+        expires 30d;
+        add_header Cache-Control "public";
+        autoindex off;
+        
+        # Security: prevent directory listing
+        location ~ /\. {
+            deny all;
+        }
+    }
+
 {% for route in routes|sort(attribute='prefix', reverse=True) %}
     # Proxy {{ route.prefix }} routes
     location {{ route.prefix }}/ {

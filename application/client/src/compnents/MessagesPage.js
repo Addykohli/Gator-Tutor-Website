@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Header from './Header';
 import Footer from './Footer';
 import { useAuth } from '../Context/Context';
+import { getMediaUrl } from '../media_handling';
 
 const CHAT_API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -391,7 +392,20 @@ const MessagesPage = () => {
             content: messageContent,
           }));
         } else {
-          // ... rest of the code
+          const response = await fetch(`${CHAT_API_BASE}/api/chat/send?user_id=${currentUserId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              receiver_id: selectedPartnerId,
+              content: messageContent,
+            }),
+          });
+
+          if (!response.ok) {
+            console.error('Failed to send message');
+          }
         }
       }
     } catch (error) {
@@ -433,9 +447,7 @@ const MessagesPage = () => {
   const renderMedia = (message) => {
     if (!message.media_path) return null;
 
-    const mediaUrl = message.media_path.startsWith('http')
-      ? message.media_path
-      : `${CHAT_API_BASE}${message.media_path}`;
+    const mediaUrl = getMediaUrl(message.media_path);
 
     if (message.media_type?.startsWith('image/')) {
       return (

@@ -1,21 +1,16 @@
-from chat.schemas.chat_schemas import MessageInfo, MediaMessageInfo, MessageResponse
+from chat.schemas.chat_schemas import MessageInfo, MessageResponse
 from chat.services.chat_service import send_message, send_message_with_media, get_chat, get_user_chats
 from chat.models.chat_message import ChatMessage
 from auth.services.auth_service import get_user_by_id
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from fastapi import WebSocket, WebSocketDisconnect
 from chat.services.connection_manager import manager
 from search.database import get_db
-import os
-import uuid
+from media_handling.service import save_media_file
 from typing import Optional
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
-
-UPLOAD_DIR = "uploads/chat_media"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 @router.post("/send", response_model=MessageResponse)
 def send_endpoint(req: MessageInfo, db: Session = Depends(get_db), user_id: int = None):
@@ -74,18 +69,11 @@ async def send_media_endpoint(
     if not sender:
         raise HTTPException(status_code=404, detail="sender id not found")
     
-    file_ext = os.path.splitext(file.filename)[1]
-    unique_filename = f"{uuid.uuid4()}{file_ext}"
-    file_path = os.path.join(UPLOAD_DIR, unique_filename)
-    
-    with open(file_path, "wb") as f:
-        file_content = await file.read()
-        f.write(file_content)
-    
-    media_url = f"/api/chat/media/{unique_filename}"
+    # Save file using media service (saves to /home/atharva/media/ and returns /media/... path)
+    media_path = await save_media_file(file, context="chat")
     
     message, media = send_message_with_media(
-        db, user_id, receiver_id, content or "", media_url, file.content_type
+        db, user_id, receiver_id, content or "", media_path, file.content_type
     )
     
     return MessageResponse(
@@ -98,13 +86,6 @@ async def send_media_endpoint(
         created_at=message.created_at,
         is_read=message.is_read
     )
-
-@router.get("/media/{filename}")
-async def get_media(filename: str):
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    if not os.path.exists(file_path):
-        raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(file_path)
 
 @router.get("/chatroomhistory/{user1}/{user2}")
 def get_chat_endpoint(user1: int, user2: int, db: Session = Depends(get_db)):

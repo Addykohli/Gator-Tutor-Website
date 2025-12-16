@@ -1,12 +1,8 @@
 from chat.models.chat_message import ChatMessage
 from chat.models.chat_media import ChatMedia
-from chat.schemas.chat_schemas import MessageInfo, MediaMessageInfo
+from chat.schemas.chat_schemas import MessageInfo
 from sqlalchemy.orm import Session
-import os
-import uuid
 from datetime import datetime
-
-UPLOAD_DIR = "uploads/chat_media"
 
 def send_message(db: Session, sender_id: int, req: MessageInfo):
     if isinstance(req, dict):
