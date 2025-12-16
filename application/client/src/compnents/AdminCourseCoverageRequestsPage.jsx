@@ -16,7 +16,7 @@ const AdminCourseCoverageRequestsPage = () => {
 
   const apiBaseUrl = window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
-    : '/api';
+    : '';
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {

@@ -21,7 +21,7 @@ const AdminTutorApplicationsPage = () => {
 
   const apiBaseUrl = window.location.hostname === 'localhost'
     ? 'http://localhost:8000'
-    : '/api';
+    : '';
 
   // Handle window resize for mobile detection
   useEffect(() => {
