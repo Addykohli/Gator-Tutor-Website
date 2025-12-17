@@ -27,7 +27,8 @@ from admin.services.admin_service import (
     get_user_id_by_name,
     create_report,
     get_user_reports,
-    drop_user
+    drop_user, 
+    create_course
 )
 from pydantic import BaseModel
 from typing import Optional
@@ -106,6 +107,22 @@ async def get_all_courses(db: Session = Depends(get_db)):
         } for c in courses]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch courses: {str(e)}")
+    
+
+from fastapi import Body
+
+from fastapi import Body
+
+@router.post("/addcourse", response_model=CourseResponse)
+def add_course_endpoint(
+    department_code: str = Body(...),
+    course_number: str = Body(...),
+    title: str = Body(...),
+    db: Session = Depends(get_db)
+):
+    return create_course(db, department_code, course_number, title)
+
+
 #----------------------------------------------------------
 # Tutor Course Request Endpoints (Restored)
 

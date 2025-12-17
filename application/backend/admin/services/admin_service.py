@@ -273,7 +273,26 @@ def deactivate_course(db:Session, course_id:int):
     db.commit()
     return course
 
-    
+def create_course(db: Session, department_code: str, course_number: str, title: str):
+    existing = db.query(Course).filter(
+        Course.department_code == department_code,
+        Course.course_number == course_number
+    ).first()
+
+    if existing:
+        raise HTTPException(status_code=400, detail="Course already exists")
+    #adds entry to course table
+    course = Course(
+        department_code=department_code,
+        course_number=course_number,
+        title=title,
+        is_active=True
+    )
+
+    db.add(course)
+    db.commit()
+    db.refresh(course)
+    return course
 #----------------------------------------------------------
 # Admin: Reports
 
