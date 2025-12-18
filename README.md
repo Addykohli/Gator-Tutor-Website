@@ -39,6 +39,7 @@ To ensure the platform remains exclusive and safe for the school community, **re
 ## 👥 Dev Contributors 
 
 | **Name** | **GitHub** | **Role** |
+| :--- | :--- | :--- |
 | **Kohli Addy** | Addykohli | Frontend & Ai Developer |
 | **Walawalkar Atharva** | Atharva2099 | Backend Developer |
 | **Zeledon Aketzali** | AketzaliZ | Backend Developer |
