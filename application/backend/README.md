@@ -26,3 +26,6 @@ uv pip install -r requirements.txt
 
 # Run the app
 uv run uvicorn main:app --reload --host 127.0.0.1 --port 8000
+
+#tunnel to db
+./run/start-db-tunnel.ps1 ubuntu

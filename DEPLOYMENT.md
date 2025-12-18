@@ -23,7 +23,7 @@ Internet → Nginx (Port 80) → FastAPI (Unix Socket) → MySQL (localhost:3306
 
 ## Directory Structure on Server
 
-### Frontend (Static Files)
+### Frontend 
 - **Location:** `/home/atharva/csc648-fa25-145-team08/application/client/build`
 - **Served by:** Nginx
 - **URL:** `http://3.101.155.82/`

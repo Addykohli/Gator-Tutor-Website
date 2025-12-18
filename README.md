@@ -1,25 +1,44 @@
-# csc648 Repository
+# GatorTutor - Tutoring Platform
 
-## Please when ready add your teams application URL or IP to the repository description. This will help with grading. Teams are expected to keep this value up to date.
+Welcome to the **GatorTutor** repository, a dedicated peer-to-peer tutoring marketplace built for the San Francisco State University (SFSU) community. This full-stack web application connects students seeking academic assistance with qualified peer tutors in a secure and user-friendly environment.
 
-## Please do the following steps before completing Milestone 0.
-1. Change the name of the repository. All that needs to change is the NN to your respective team number. Team numbers whose value is less than 10, please pad with a 0. Ex team 1 is Team01 team 11 is Team11. Please make sure to also remove the username from the repository as well. Teams with incorrectly name repository will have points deducted from their milestone 0 grades.
-      - Please follow the naming convention assigned by your instructor.
+## 🚀 About The App
+GatorTutor simplifies the process of finding academic help. Whether you're a student struggling or a Tutor looking to share your knowledge, our platform manages the entire workflow — from discovery to booking and communication.
 
-1. PLEASE REMOVE THE USERNAME FROM THE REPOSITORY NAME!!!
+## ✨ Key Features
 
-2. Add ALL members of your team to this repository. For it to count, they must ACCEPT the invite.
+### 🔍 Advanced Search & AI Discovery
+- **Smart Filters**: Easily find tutors by Department, Course (e.g., CSC 648), Hourly Rate, and Availability, reccomendations based on your personal schedule.
+- **AI Assistant**: Features a cutting-edge **AI integration (GPT oss via OpenRouter)** that allows users to perform natural language searches (e.g., "Find me a biology tutor available on weekends and fits my schedule for under $25") which are intelligently converted to database queries.
 
-3. Fill out the table below
+### 📅 Session Management
+- **Booking System**: Students can request sessions, and Tutors can Approve/Deny them.
+- **Schedule Management**: "My Schedule" view for both students and tutors to track upcoming and past appointments.
+- **Availability**: Tutors can set their weekly availability slots.
 
+### 💬 Communication
+- **Real-Time Messaging**: Integrated chat feature allows students and tutors to discuss needs before booking a session.
 
-|    Student Name    |      School Email      | GitHub Username |
-|    :---:           |     :---:              |     :---:       |
-| Kojiro Miura       | kmiura@sfsu.edu        | KM336           |
-| Walawalkar Atharva | awalawalkar@sfsu.edu   | Atharva2099     |
-| Kohli Addy         | akohli@sfsu.edu        | addykohli       |
-| Basnet Krinjal     | kbasnet1@sfsu.edu      | SScodesKrinjal  |
-| Tobgyal Sonam      | stobgyal@mail.sfsu.edu | stststststststs |
-| Zeledon Aketzali   | azeledon@mail.sfsu.edu | AketzaliZ       |
+### 🛡️ Admin & Moderation
+- **Tutor Verification**: Admins review and approve Tutor applications to ensure quality.
+- **Course Validation**: Tutors must request approval to teach specific courses.
+- **Reporting System**: Users can report issues, which are managed via the Admin Dashboard.
 
-## NO code needs to be stored in the root of your repository. You may rename the application folder if you like to your team's application name. But all source code related to your team's application should be stored inside the application folder.
+### 👤 SFSU Pseudo-Email Signup
+To ensure the platform remains exclusive and safe for the school community, **registration is restricted to SFSU domains**.
+- **Requirement**: You **MUST** sign up using a puesdo `@sfsu.edu` email address.
+- **Validation**: The system automatically rejects any non-SFSU email domains during the registration process, acting as a pseudo-verification step (simulating institutional SSO).
+
+## 🛠 Tech Stack
+- **Frontend**: React.js, CSS Modules
+- **Backend**: FastAPI (Python), Uvicorn
+- **Database**: MySQL
+- **AI/ML**: OpenRouter API (DeepSeek R1)
+- **Deployment**: AWS EC2, Nginx
+
+## 👥 Dev Contributors 
+
+| **Name** | **GitHub** | **Role** |
+| **Kohli Addy** | Addykohli | Frontend & Ai Developer |
+| **Walawalkar Atharva** | Atharva2099 | Backend Developer |
+| **Zeledon Aketzali** | AketzaliZ | Backend Developer |
