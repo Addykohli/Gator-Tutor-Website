@@ -686,9 +686,6 @@ const TutorProfile = () => {
   if (isLoading) {
     return (
       <div style={{ textAlign: 'center', padding: '2rem' }}>
-        <div className="spinner-border text-primary" role="status">
-          <span className="visually-hidden">Loading...</span>
-        </div>
         <p>Loading tutor profile...</p>
       </div>
     );
