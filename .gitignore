@@ -7,13 +7,24 @@ build/
 venv/
 .venv/
 __pycache__/
-# .env
+.env
 *.log
 .idea/
 # Build artifacts
 client-build-*.tar.gz
 client-build.tar.gz
 *.tar
+*.tar.gz
+*.pem
+
+# Temporary Scripts
+refactor_gator.py
+server.env
+application/backend/check_schema.py
+application/backend/fix_db_column.py
+application/backend/fix_db_column_v2.py
+application/backend/rename_column.py
+application/backend/migrate_emails.py
 
 # Media uploads (should never be in repo - stored on server at /home/atharva/media/)
 uploads/
