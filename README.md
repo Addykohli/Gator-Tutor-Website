@@ -40,6 +40,6 @@ GatorTutor simplifies the process of finding academic help. Whether you're a stu
 
 | **Name** | **GitHub** | **Role** |
 | :--- | :--- | :--- |
-| **Kohli Addy** | Addykohli | Frontend & Ai Developer |
-| **Walawalkar Atharva** | Atharva2099 | Backend Developer |
-| **Zeledon Aketzali** | AketzaliZ | Backend Developer |
+| **Addy Kohli** | Addykohli | Frontend & Ai Developer |
+| **Atharva Walawalkar** | Atharva2099 | Backend Developer |
+| **Aketzali Zeledon** | AketzaliZ | Backend Developer |
