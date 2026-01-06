@@ -221,7 +221,7 @@ const TutorProfile = () => {
 
       } catch (err) {
         console.error('Error fetching tutor data:', err);
-        setError('Failed to load tutor profile. Please try again later.');
+        setError('Failed to load tutor profile. Please try again later. Please try again!');
       } finally {
         setIsLoading(false);
       }
@@ -230,7 +230,7 @@ const TutorProfile = () => {
     if (tutorId) {
       fetchTutorData();
     } else {
-      setError('No tutor ID provided');
+      setError('No tutor ID provided. Please try again!');
       setIsLoading(false);
     }
   }, [tutorId]);
@@ -587,9 +587,9 @@ const TutorProfile = () => {
       let meetingLink = 'In-person meeting';
       if (sessionType === 'online') {
         // Generate a unique Jitsi Meet URL using guifi.net (no auth required)
-        // Format: https://meet.guifi.net/SFSU-Tutor-<TutorID>-<StudentID>-<Timestamp>
+        // Format: https://meet.guifi.net/Gator-Tutor-<TutorID>-<StudentID>-<Timestamp>
         const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-        meetingLink = `https://meet.guifi.net/SFSU-Tutor-${tutor.id}-${user.id}-${uniqueId}`;
+        meetingLink = `https://meet.guifi.net/Gator-Tutor-${tutor.id}-${user.id}-${uniqueId}`;
       }
 
       const bookingData = {

@@ -23,7 +23,7 @@ const fetchUserInfo = async (userId) => {
       const userInfo = {
         id: userData.user_id,
         name: `${userData.first_name} ${userData.last_name}`,
-        email: userData.sfsu_email,
+        email: userData.email,
         role: userData.role || 'User',
       };
       userCache[userId] = userInfo;
@@ -286,7 +286,7 @@ const MessagesPage = () => {
           .map(u => ({
             id: u.user_id,
             name: `${u.first_name} ${u.last_name}`,
-            email: u.sfsu_email,
+            email: u.email,
             role: u.role || 'User',
           }));
         setAllUsers(formattedUsers);

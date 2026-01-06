@@ -2,7 +2,7 @@
 
 ## Production Server Information
 
-**Server IP:** `3.101.155.82`  
+**Server IP:** `18.220.232.53`  
 **OS:** Ubuntu 22.04 LTS  
 **Web Server:** Nginx  
 **Application Server:** Uvicorn (FastAPI)  
@@ -16,7 +16,7 @@
 Internet → Nginx (Port 80) → FastAPI (Unix Socket) → MySQL (localhost:3306)
                 ↓
          Static Files (/var/www)
-         Media Files (/home/atharva/media)
+         Media Files (/home/addy/media)
 ```
 
 ---
@@ -24,26 +24,26 @@ Internet → Nginx (Port 80) → FastAPI (Unix Socket) → MySQL (localhost:3306
 ## Directory Structure on Server
 
 ### Frontend 
-- **Location:** `/home/atharva/csc648-fa25-145-team08/application/client/build`
+- **Location:** `/home/addy/csc648-fa25-145-team08/application/client/build`
 - **Served by:** Nginx
-- **URL:** `http://3.101.155.82/`
+- **URL:** `http://18.220.232.53/`
 
 ### Backend (FastAPI Application)
-- **Location:** `/home/atharva/csc648-fa25-145-team08/application/backend`
-- **Virtual Environment:** `/home/atharva/csc648-fa25-145-team08/application/backend/.venv`
+- **Location:** `/home/addy/csc648-fa25-145-team08/application/backend`
+- **Virtual Environment:** `/home/addy/csc648-fa25-145-team08/application/backend/.venv`
 - **Service:** `uvicorn-team08.service` (systemd)
 - **Socket:** `/run/uvicorn-team08/uvicorn-team08.sock`
-- **URL:** `http://3.101.155.82/api/*`
+- **URL:** `http://18.220.232.53/api/*`
 
 ### Media Files
-- **Location:** `/home/atharva/media/`
+- **Location:** `/home/addy/media/`
 - **Served by:** Nginx (direct file serving)
-- **URL:** `http://3.101.155.82/media/*`
+- **URL:** `http://18.220.232.53/media/*`
 - **Subdirectories:**
-  - `/home/atharva/media/photos/` - Images
-  - `/home/atharva/media/videos/` - Videos
-  - `/home/atharva/media/pdfs/` - PDF files
-  - `/home/atharva/media/default_silhouette.png` - Default profile image
+  - `/home/addy/media/photos/` - Images
+  - `/home/addy/media/videos/` - Videos
+  - `/home/addy/media/pdfs/` - PDF files
+  - `/home/addy/media/default_silhouette.png` - Default profile image
 
 ### Database
 - **Host:** `localhost` (on the server)
@@ -55,10 +55,10 @@ Internet → Nginx (Port 80) → FastAPI (Unix Socket) → MySQL (localhost:3306
 ### Nginx Configuration
 - **Config File:** `/etc/nginx/sites-available/team08`
 - **Symlink:** `/etc/nginx/sites-enabled/team08`
-- **Generated From:** `/home/atharva/csc648-fa25-145-team08/application/backend/scripts/generate_nginx_config.py`
+- **Generated From:** `/home/addy/csc648-fa25-145-team08/application/backend/scripts/generate_nginx_config.py`
 
 ### Backups
-- **Location:** `/home/atharva/backup_2/`
+- **Location:** `/home/addy/backup_2/`
 - **Contents:**
   - `backend_YYYYMMDD_HHMMSS.tar.gz`
   - `frontend_YYYYMMDD_HHMMSS.tar.gz`
@@ -70,7 +70,7 @@ Internet → Nginx (Port 80) → FastAPI (Unix Socket) → MySQL (localhost:3306
 
 ### Prerequisites
 1. SSH access to the server
-2. SSH key: `credentials/access_keys/csc648-team-08-key.pem`
+2. SSH key: `SecondEC2Key.pem`
 3. Node.js and npm installed locally
 4. Python 3.10+ with venv
 
@@ -101,19 +101,19 @@ tar -czf ../../../frontend-deploy.tar.gz .
 
 ```bash
 # From project root
-scp -i credentials/access_keys/csc648-team-08-key.pem backend-deploy.tar.gz ubuntu@3.101.155.82:~/
-scp -i credentials/access_keys/csc648-team-08-key.pem frontend-deploy.tar.gz ubuntu@3.101.155.82:~/
+scp -i SecondEC2Key.pem backend-deploy.tar.gz ubuntu@18.220.232.53:~/
+scp -i SecondEC2Key.pem frontend-deploy.tar.gz ubuntu@18.220.232.53:~/
 ```
 
 ### Step 5: Deploy Backend on Server
 
 ```bash
-ssh -i credentials/access_keys/csc648-team-08-key.pem ubuntu@3.101.155.82
+ssh -i SecondEC2Key.pem ubuntu@18.220.232.53
 
 # Extract backend
-cd /home/atharva/csc648-fa25-145-team08/application/backend
+cd /home/addy/csc648-fa25-145-team08/application/backend
 sudo tar -xzf ~/backend-deploy.tar.gz
-sudo chown -R atharva:atharva .
+sudo chown -R addy:addy .
 
 # Restart backend service
 sudo systemctl restart uvicorn-team08.service
@@ -126,10 +126,10 @@ rm ~/backend-deploy.tar.gz
 
 ```bash
 # Still on server
-TARGET_DIR="/home/atharva/csc648-fa25-145-team08/application/client/build"
+TARGET_DIR="/home/addy/csc648-fa25-145-team08/application/client/build"
 sudo rm -rf "$TARGET_DIR"/*
 sudo tar -xzf ~/frontend-deploy.tar.gz -C "$TARGET_DIR"
-sudo chown -R atharva:atharva "$TARGET_DIR"
+sudo chown -R addy:addy "$TARGET_DIR"
 sudo chmod -R 755 "$TARGET_DIR"
 
 # Reload Nginx
@@ -149,8 +149,8 @@ sudo systemctl status uvicorn-team08.service
 sudo systemctl status nginx
 
 # Test endpoints
-curl http://3.101.155.82/api/health
-curl http://3.101.155.82/
+curl http://18.220.232.53/api/health
+curl http://18.220.232.53/
 ```
 
 ---
@@ -158,7 +158,7 @@ curl http://3.101.155.82/
 ## Environment Variables
 
 ### Backend `.env` File
-**Location:** `/home/atharva/csc648-fa25-145-team08/application/backend/.env`
+**Location:** `/home/addy/csc648-fa25-145-team08/application/backend/.env`
 
 **Required Variables:**
 ```bash
@@ -174,8 +174,8 @@ OPENROUTER_MODEL=openai/gpt-oss-20b
 
 **Permissions:**
 ```bash
-sudo chmod 644 /home/atharva/csc648-fa25-145-team08/application/backend/.env
-sudo chown atharva:atharva /home/atharva/csc648-fa25-145-team08/application/backend/.env
+sudo chmod 644 /home/addy/csc648-fa25-145-team08/application/backend/.env
+sudo chown addy:addy /home/addy/csc648-fa25-145-team08/application/backend/.env
 ```
 
 ---
@@ -233,7 +233,7 @@ sudo tail -f /var/log/nginx/access.log
 
 1. **Frontend (React App)**
    - Path: `/`
-   - Serves from: `/home/atharva/csc648-fa25-145-team08/application/client/build`
+   - Serves from: `/home/addy/csc648-fa25-145-team08/application/client/build`
    - Fallback: `index.html` (for React Router)
 
 2. **API Routes**
@@ -243,7 +243,7 @@ sudo tail -f /var/log/nginx/access.log
 
 3. **Media Files**
    - Path: `/media/*`
-   - Serves from: `/home/atharva/media/`
+   - Serves from: `/home/addy/media/`
    - Cache: 30 days
    - Direct file serving (no backend involved)
 
@@ -254,8 +254,8 @@ sudo tail -f /var/log/nginx/access.log
 ### Regenerating Nginx Configuration
 
 ```bash
-cd /home/atharva/csc648-fa25-145-team08/application/backend
-sudo -u atharva .venv/bin/python scripts/generate_nginx_config.py
+cd /home/addy/csc648-fa25-145-team08/application/backend
+sudo -u addy .venv/bin/python scripts/generate_nginx_config.py
 
 # Copy to Nginx
 sudo cp deployment/nginx.conf /etc/nginx/sites-available/team08
@@ -279,7 +279,7 @@ mysql -h localhost -u team08 -p team08_db
 
 ```bash
 # Create SSH tunnel
-ssh -i credentials/access_keys/csc648-team-08-key.pem -L 3306:127.0.0.1:3306 ubuntu@3.101.155.82 -N
+ssh -i SecondEC2Key.pem -L 3306:127.0.0.1:3306 ubuntu@18.220.232.53 -N
 
 # In another terminal, connect to database
 mysql -h 127.0.0.1 -P 3306 -u team08 -p team08_db
@@ -312,7 +312,7 @@ sudo systemctl status nginx
 sudo tail -f /var/log/nginx/error.log
 
 # Verify files exist
-ls -la /home/atharva/csc648-fa25-145-team08/application/client/build/
+ls -la /home/addy/csc648-fa25-145-team08/application/client/build/
 
 # Check Nginx configuration
 sudo nginx -t
@@ -322,10 +322,10 @@ sudo nginx -t
 
 ```bash
 # Check media directory permissions
-ls -la /home/atharva/media/
+ls -la /home/addy/media/
 
 # Ensure Nginx can read files
-sudo chmod -R 755 /home/atharva/media/
+sudo chmod -R 755 /home/addy/media/
 
 # Check Nginx configuration for /media/ location
 sudo cat /etc/nginx/sites-available/team08 | grep -A 10 "location /media/"
@@ -348,13 +348,13 @@ mysql -h localhost -u team08 -p team08_db
 
 ```bash
 # Check if .env file exists and has correct permissions
-ls -la /home/atharva/csc648-fa25-145-team08/application/backend/.env
+ls -la /home/addy/csc648-fa25-145-team08/application/backend/.env
 
 # Verify API key is loaded
 sudo journalctl -u uvicorn-team08.service | grep -i openrouter
 
 # Test AI endpoint
-curl http://3.101.155.82/api/ai/health
+curl http://18.220.232.53/api/ai/health
 ```
 
 ---
@@ -368,19 +368,19 @@ If a deployment fails, you can restore from backups:
 sudo systemctl stop uvicorn-team08.service
 
 # Restore backend
-cd /home/atharva/csc648-fa25-145-team08/application/backend
+cd /home/addy/csc648-fa25-145-team08/application/backend
 sudo rm -rf *
-sudo tar -xzf /home/atharva/backup_2/backend_YYYYMMDD_HHMMSS.tar.gz
-sudo chown -R atharva:atharva .
+sudo tar -xzf /home/addy/backup_2/backend_YYYYMMDD_HHMMSS.tar.gz
+sudo chown -R addy:addy .
 
 # Restore frontend
-TARGET_DIR="/home/atharva/csc648-fa25-145-team08/application/client/build"
+TARGET_DIR="/home/addy/csc648-fa25-145-team08/application/client/build"
 sudo rm -rf "$TARGET_DIR"/*
-sudo tar -xzf /home/atharva/backup_2/frontend_YYYYMMDD_HHMMSS.tar.gz -C "$TARGET_DIR"
-sudo chown -R atharva:atharva "$TARGET_DIR"
+sudo tar -xzf /home/addy/backup_2/frontend_YYYYMMDD_HHMMSS.tar.gz -C "$TARGET_DIR"
+sudo chown -R addy:addy "$TARGET_DIR"
 
 # Restore Nginx config
-sudo cp /home/atharva/backup_2/nginx_team08_YYYYMMDD_HHMMSS /etc/nginx/sites-available/team08
+sudo cp /home/addy/backup_2/nginx_team08_YYYYMMDD_HHMMSS /etc/nginx/sites-available/team08
 
 # Restart services
 sudo systemctl start uvicorn-team08.service
@@ -394,7 +394,7 @@ sudo nginx -t && sudo systemctl reload nginx
 1. **SSH Key:** Keep `csc648-team-08-key.pem` secure and never commit to git
 2. **`.env` File:** Never commit to git, contains sensitive API keys
 3. **Database Password:** Stored in backend config, not exposed to frontend
-4. **File Permissions:** Media files are world-readable (755), backend code is not (owned by atharva)
+4. **File Permissions:** Media files are world-readable (755), backend code is not (owned by addy)
 5. **Nginx:** Configured to prevent directory listing and access to hidden files
 
 ---
@@ -430,7 +430,7 @@ htop
 df -h
 
 # Check specific directory
-du -sh /home/atharva/media/
+du -sh /home/addy/media/
 ```
 
 ### Check Application Logs
@@ -456,12 +456,12 @@ cd application/client && npm run build
 cd ../backend && tar --exclude='.venv' --exclude='__pycache__' -czf ../../backend.tar.gz .
 cd ../client/build && tar -czf ../../../frontend.tar.gz .
 cd ../../..
-scp -i credentials/access_keys/csc648-team-08-key.pem backend.tar.gz frontend.tar.gz ubuntu@3.101.155.82:~/
+scp -i SecondEC2Key.pem backend.tar.gz frontend.tar.gz ubuntu@18.220.232.53:~/
 
 # On server
-ssh -i credentials/access_keys/csc648-team-08-key.pem ubuntu@3.101.155.82
-cd /home/atharva/csc648-fa25-145-team08/application/backend && sudo tar -xzf ~/backend.tar.gz && sudo chown -R atharva:atharva .
-cd ../client/build && sudo rm -rf * && sudo tar -xzf ~/frontend.tar.gz && sudo chown -R atharva:atharva .
+ssh -i SecondEC2Key.pem ubuntu@18.220.232.53
+cd /home/addy/csc648-fa25-145-team08/application/backend && sudo tar -xzf ~/backend.tar.gz && sudo chown -R addy:addy .
+cd ../client/build && sudo rm -rf * && sudo tar -xzf ~/frontend.tar.gz && sudo chown -R addy:addy .
 sudo systemctl restart uvicorn-team08.service && sudo systemctl reload nginx
 ```
 

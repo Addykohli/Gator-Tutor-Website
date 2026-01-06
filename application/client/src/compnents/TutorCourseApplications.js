@@ -42,7 +42,7 @@ const TutorCourseApplications = () => {
             })
             .catch(err => {
                 console.error("Error fetching requests:", err);
-                setError(err.message);
+                setError(err.message + " Please try again!");
                 setLoading(false);
             });
     };

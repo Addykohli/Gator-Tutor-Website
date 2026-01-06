@@ -55,7 +55,7 @@ def test_db(test_engine):
 def test_user(test_db: Session):
     """Create a test user and return it."""
     user = User(
-        sfsu_email="test.user@sfsu.edu",
+        email="test.user@gmail.com",
         first_name="Test",
         last_name="User",
         role="student",
@@ -71,7 +71,7 @@ def test_user(test_db: Session):
 def test_user_a(test_db: Session):
     """Create test user A."""
     user = User(
-        sfsu_email="user.a@sfsu.edu",
+        email="user.a@gmail.com",
         first_name="User",
         last_name="A",
         role="student",
@@ -87,7 +87,7 @@ def test_user_a(test_db: Session):
 def test_user_b(test_db: Session):
     """Create test user B."""
     user = User(
-        sfsu_email="user.b@sfsu.edu",
+        email="user.b@gmail.com",
         first_name="User",
         last_name="B",
         role="student",
@@ -103,7 +103,7 @@ def test_user_b(test_db: Session):
 def test_tutor_user(test_db: Session):
     """Create a test tutor user with tutor profile."""
     user = User(
-        sfsu_email="tutor.test@sfsu.edu",
+        email="tutor.test@gmail.com",
         first_name="Tutor",
         last_name="Test",
         role="tutor",

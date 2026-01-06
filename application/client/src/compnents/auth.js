@@ -21,7 +21,7 @@ export const getCurrentUser = () => {
         role: user.role ? user.role.toLowerCase() : null,
         first_name: user.first_name || '',
         last_name: user.last_name || '',
-        sfsu_email: user.sfsu_email || user.email || ''
+        email: user.email || user.email || ''
       };
     } catch (err) {
       console.error('Error parsing user data:', err);

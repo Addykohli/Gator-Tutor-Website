@@ -16,20 +16,20 @@ The `conftest.py` file sets up pytest fixtures that are shared across all test f
 #### User Fixtures
 
 - **`test_user`**: Creates a standard test user with:
-  - Email: `test.user@sfsu.edu`
+  - Email: `test.user@gmail.com`
   - Role: `student`
   - `is_deleted`: `False`
 
 - **`test_user_a`**: Creates test user A for chat tests
-  - Email: `user.a@sfsu.edu`
+  - Email: `user.a@gmail.com`
   - Role: `student`
 
 - **`test_user_b`**: Creates test user B for chat tests
-  - Email: `user.b@sfsu.edu`
+  - Email: `user.b@gmail.com`
   - Role: `student`
 
 - **`test_tutor_user`**: Creates a tutor user with an associated tutor profile
-  - Email: `tutor.test@sfsu.edu`
+  - Email: `tutor.test@gmail.com`
   - Role: `tutor`
   - Includes a `TutorProfile` with status `approved`
 

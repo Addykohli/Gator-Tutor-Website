@@ -207,7 +207,7 @@ def get_all_course_requests(db: Session):
             "status": course_req.status,
             "created_at": course_req.created_at,
             "updated_at": course_req.updated_at,
-            "email": user.sfsu_email,
+            "email": user.email,
             "user_name": f"{user.first_name} {user.last_name}"
         }
         requests_with_user_info.append(CourseRequestResponse(**req_dict))
@@ -217,7 +217,7 @@ def get_all_course_requests(db: Session):
 #adding course_request entry to db table
 def create_course_request(db: Session, data: CourseRequestCreate):
     # get user by email
-    user = db.query(User).filter(User.sfsu_email == data.email).first()
+    user = db.query(User).filter(User.email == data.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
@@ -272,7 +272,7 @@ def update_course_request_status(db: Session, request_id: int, status: str):
 
 
 
-#update course status to active/inactive (some SFSU courses are based on semester)
+#update course status to active/inactive (some Gator courses are based on semester)
 def deactivate_course(db:Session, course_id:int):
     course = db.query(Course).filter(Course.course_id==course_id).first()
     if not course:
@@ -380,7 +380,7 @@ def drop_user(db: Session, user_id: int, role: str = None):
             detail=f"User role mismatch. Expected {role}, but user has role {user.role}"
         )
     
-    user_email = user.sfsu_email
+    user_email = user.email
     user_name = f"{user.first_name} {user.last_name}"
     user_role = user.role
     
@@ -388,7 +388,7 @@ def drop_user(db: Session, user_id: int, role: str = None):
     user.is_deleted = True
     
     # Anonymize email to prevent reuse (keeps unique constraint happy)
-    user.sfsu_email = f"deleted_{user_id}_{user.sfsu_email}"
+    user.email = f"deleted_{user_id}_{user.email}"
     
     # If tutor, deactivate their profile
     if user.role in ["tutor", "both"]:
@@ -420,8 +420,39 @@ def drop_user(db: Session, user_id: int, role: str = None):
     return {
         "message": f"User {user_name} ({user_email}) successfully deleted",
         "deleted_user_id": user_id,
-        "deleted_email": user.sfsu_email,
+        "deleted_email": user.email,
         "deleted_name": user_name,
         "deleted_role": user_role,
         "related_records_deleted": related_records
     }
+
+def demote_tutor(db: Session, tutor_id: int):
+    """
+    Demote a tutor to student status.
+    Removes their TutorProfile and changes user role to 'student'.
+    """
+    # Find user
+    user = db.query(User).filter(User.user_id == tutor_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if they are actually a tutor
+    if user.role not in ["tutor", "both"]:
+        raise HTTPException(status_code=400, detail="User is not a tutor")
+
+    # Delete TutorProfile
+    tutor_profile = db.query(TutorProfile).filter(TutorProfile.tutor_id == tutor_id).first()
+    if tutor_profile:
+        db.delete(tutor_profile)
+    
+    # Update User role
+    user.role = "student"
+    
+    try:
+        db.commit()
+        db.refresh(user)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+    
+    return {"message": f"Tutor {user.first_name} {user.last_name} has been demoted to student."}

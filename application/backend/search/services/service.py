@@ -568,7 +568,7 @@ def get_tutor_by_id(db: Session, tutor_id: int) -> Dict[str, Any] | None:
         "id": tutor.tutor_id,
         "first_name": tutor.user.first_name,
         "last_name": tutor.user.last_name,
-        "email": tutor.user.sfsu_email,
+        "email": tutor.user.email,
         "hourly_rate_cents": tutor.hourly_rate_cents,
         "bio": tutor.bio,
         "courses": courses,

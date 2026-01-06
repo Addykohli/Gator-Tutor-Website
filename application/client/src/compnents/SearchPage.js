@@ -690,13 +690,13 @@ export default function SearchPage() {
           })
           .catch(e => {
             console.error("Search error:", e);
-            setError(e.message || "Failed to fetch search results");
+            setError((e.message || "Failed to fetch search results") + " Please try again!");
             setStatus("error");
           });
 
       } catch (e) {
         console.error("Search error:", e);
-        setError(e.message || "Failed to process search results");
+        setError((e.message || "Failed to process search results") + " Please try again!");
         setStatus("error");
       }
     };
@@ -864,7 +864,7 @@ export default function SearchPage() {
                       startChatWith: {
                         id: tutorId,
                         name: fullName,
-                        email: item.sfsu_email || item.email || '',
+                        email: item.email || item.email || '',
                         role: 'Tutor'
                       }
                     }
@@ -1266,7 +1266,7 @@ export default function SearchPage() {
                 last_name: row.last_name || '',
                 name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
                 hourly_rate_cents: row.hourly_rate_cents || 0,
-                sfsu_email: row.sfsu_email || row.email || `${(row.first_name || '').toLowerCase()}.${(row.last_name || '').toLowerCase()}@sfsu.edu`,
+                email: row.email || row.email || `${(row.first_name || '').toLowerCase()}.${(row.last_name || '').toLowerCase()}@gmail.com`,
                 courses: [],
                 // Add any other fields from the query
                 ...row

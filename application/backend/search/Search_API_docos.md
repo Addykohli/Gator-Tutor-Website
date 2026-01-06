@@ -270,7 +270,7 @@ curl "http://127.0.0.1:8000/search/tutors/1"
   "id": 1,
   "first_name": "John",
   "last_name": "Doe",
-  "email": "john.doe@mail.sfsu.edu",
+  "email": "john.doe@mail.gator.edu",
   "hourly_rate_cents": 3000,
   "bio": "Experienced tutor in computer science...",
   "courses": [

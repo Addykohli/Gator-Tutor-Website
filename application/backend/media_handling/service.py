@@ -1,6 +1,6 @@
 """
 Media service for handling file uploads and storage.
-Files are stored on the server at /home/atharva/media/ and served by nginx at /media/
+Files are stored on the server at /home/addy/media/ and served by nginx at /media/
 """
 import os
 import uuid
@@ -14,7 +14,7 @@ if os.getenv("MEDIA_ROOT"):
 elif os.name == 'nt':  # Windows
     MEDIA_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "multimedia")
 else:
-    MEDIA_ROOT = "/home/atharva/media"
+    MEDIA_ROOT = "/home/addy/media"
 
 # Supported image extensions
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"}

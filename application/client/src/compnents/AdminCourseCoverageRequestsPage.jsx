@@ -39,7 +39,7 @@ const AdminCourseCoverageRequestsPage = () => {
       const data = await response.json();
       setRequests(Array.isArray(data) ? data : data.requests || []);
     } catch (err) {
-      setError(err.message);
+      setError(err.message + " Please try again!");
     } finally {
       setLoading(false);
     }

@@ -175,7 +175,7 @@ List all tutor applications in the system.
     "application_id": 1,
     "user_id": 2,
     "full_name": "Erin Low",
-    "email": "erin.low@sfsu.edu",
+    "email": "erin.low@gmail.com",
     "gpa": 3.0,
     "courses": "BIO 100",
     "bio": "I want to tutor",
@@ -186,7 +186,7 @@ List all tutor applications in the system.
     "application_id": 2,
     "user_id": 5,
     "full_name": "Nina Pak",
-    "email": "nina.pak@sfsu.edu",
+    "email": "nina.pak@gmail.com",
     "gpa": 3.5,
     "courses": "CHEM 100",
     "bio": "CHEM Major.",
@@ -478,9 +478,9 @@ DELETE /api/admin/drop-user/123?role=student
 
 ```json
 {
-  "message": "User John Doe (john.doe@sfsu.edu) successfully deleted",
+  "message": "User John Doe (john.doe@gmail.com) successfully deleted",
   "deleted_user_id": 123,
-  "deleted_email": "deleted_123_john.doe@sfsu.edu",
+  "deleted_email": "deleted_123_john.doe@gmail.com",
   "deleted_name": "John Doe",
   "deleted_role": "student"
 }

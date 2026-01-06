@@ -102,7 +102,7 @@ const ReportsPage = () => {
                 });
             })
             .catch(err => {
-                setError(err.message);
+                setError(err.message + " Please try again!");
                 setLoading(false);
             });
     };

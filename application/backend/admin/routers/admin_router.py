@@ -213,7 +213,8 @@ def get_all_students(db: Session = Depends(get_db)):
     ).filter(
         and_(
             User.is_deleted == False,
-            TutorProfile.tutor_id == None  # Not a tutor
+            TutorProfile.tutor_id == None,  # Not a tutor
+            User.role != 'admin'  # Not an admin
         )
     )
     
@@ -241,7 +242,7 @@ def get_all_students(db: Session = Depends(get_db)):
             "user_id": student.user_id,
             "first_name": student.first_name,
             "last_name": student.last_name,
-            "email": student.sfsu_email,
+            "email": student.email,
             "role": student.role,
             "total_sessions": total_sessions,
             "pending_sessions": pending_sessions,
@@ -249,4 +250,30 @@ def get_all_students(db: Session = Depends(get_db)):
         })
     
     return {"items": result}
+
+
+#----------------------------------------------------------
+# Admin: Demote Tutor Endpoint (New)
+
+from admin.services.admin_service import demote_tutor
+
+@router.patch("/demote/{tutor_id}")
+def demote_tutor_endpoint(tutor_id: int, db: Session = Depends(get_db)):
+    """
+    Demote a tutor to student status.
+    """
+    return demote_tutor(db, tutor_id)
+
+
+#----------------------------------------------------------
+# Admin: Deactivate Course Endpoint
+
+from admin.services.admin_service import deactivate_course
+
+@router.patch("/deactivate/{course_id}")
+def deactivate_course_endpoint(course_id: int, db: Session = Depends(get_db)):
+    """
+    Deactivate a course so it doesn't appear in searches.
+    """
+    return deactivate_course(db, course_id)
 

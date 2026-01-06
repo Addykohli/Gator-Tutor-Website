@@ -38,7 +38,7 @@ const RegisteredStudentsPage = () => {
                 setStudents(data.items || []);
             } catch (err) {
                 console.error('Error fetching students:', err);
-                setError(err.message);
+                setError(err.message + " Please try again!");
             } finally {
                 setIsLoading(false);
             }

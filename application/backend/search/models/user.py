@@ -13,7 +13,7 @@ class User(Base):
     
     Attributes:
         user_id: Primary key
-        sfsu_email: SFSU email address (unique)
+        email: User's email address (unique)
         first_name: User's first name
         last_name: User's last name
         role: User role (tutor, student, admin)
@@ -24,7 +24,7 @@ class User(Base):
     __tablename__ = "users"
 
     user_id = Column(Integer, primary_key=True, index=True)
-    sfsu_email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), unique=True, nullable=False, index=True)
     first_name = Column(String(100), nullable=False, index=True)
     last_name = Column(String(100), nullable=False, index=True)
     role = Column(Enum("tutor", "student", "admin", "both", name="user_role"), nullable=False)
@@ -42,5 +42,5 @@ class User(Base):
     )
 
     def __repr__(self):
-        return f"<User(user_id={self.user_id}, email={self.sfsu_email}, name={self.first_name} {self.last_name})>"
+        return f"<User(user_id={self.user_id}, email={self.email}, name={self.first_name} {self.last_name})>"
 

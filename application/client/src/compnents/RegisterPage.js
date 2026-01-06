@@ -244,13 +244,13 @@ const RegisterPage = () => {
                 {...register("email", {
                   required: "Email is required",
                   pattern: {
-                    value: /^[^@\s]+@sfsu\.edu$/i,
-                    message: "Email must be a valid SFSU email address (e.g., username@sfsu.edu)"
+                    value: /^[^@\s]+@gmail\.com$/i,
+                    message: "Email must be a valid Gmail address (e.g., username@gmail.com)"
                   },
                   validate: {
                     notEmptyUsername: value => {
                       const parts = value.split('@');
-                      return (parts[0] && parts[0].trim() !== '') || "Email must have a username before @sfsu.edu";
+                      return (parts[0] && parts[0].trim() !== '') || "Email must have a username before @gmail.com";
                     }
                   }
                 })}

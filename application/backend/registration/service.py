@@ -8,7 +8,7 @@ def email_exists(db: Session, email: str) -> bool:
     if not email:
         return False
 
-    existing = db.query(User).filter(func.lower(User.sfsu_email) == func.lower(email)).first()
+    existing = db.query(User).filter(func.lower(User.email) == func.lower(email)).first()
     return existing is not None
 
 
@@ -17,7 +17,7 @@ def create_user(db: Session, first_name: str, last_name: str, email: str, passwo
     password_hash = pwd_context.hash(password)
 
     user = User(
-        sfsu_email=email,
+        email=email,
         first_name=first_name,
         last_name=last_name,
         role="student",

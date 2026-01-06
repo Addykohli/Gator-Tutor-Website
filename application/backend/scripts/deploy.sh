@@ -10,10 +10,10 @@ BUILD_DIR="$PROJECT_ROOT/build"
 
 # Configuration (adjust as needed)
 SERVER_USER="ubuntu"
-SERVER_HOST="3.101.155.82"
-SERVER_HOME="/home/atharva"
-APP_DIR="/home/atharva/csc648-fa25-145-team08/application"
-SSH_KEY="${PROJECT_ROOT}/../../credentials/access_keys/csc648-team-08-key.pem"
+SERVER_HOST="18.220.232.53"
+SERVER_HOME="/home/addy"
+APP_DIR="/home/addy/csc648-fa25-145-team08/application"
+SSH_KEY="${PROJECT_ROOT}/SecondEC2Key.pem"
 
 # Colors for output
 RED='\033[0;31m'
@@ -87,16 +87,16 @@ mkdir -p "\$EXTRACT_DIR"
 tar -xzf "\${SERVER_HOME}/\${PACKAGE_NAME}" -C "\$EXTRACT_DIR"
 
 echo "Creating media directories..."
-mkdir -p /home/atharva/media/photos/profile
-mkdir -p /home/atharva/media/photos/chat
-mkdir -p /home/atharva/media/videos/chat
-mkdir -p /home/atharva/media/pdfs/chat
-chmod 755 /home/atharva/media
-chmod -R 755 /home/atharva/media/*
+mkdir -p /home/addy/media/photos/profile
+mkdir -p /home/addy/media/photos/chat
+mkdir -p /home/addy/media/videos/chat
+mkdir -p /home/addy/media/pdfs/chat
+chmod 755 /home/addy/media
+chmod -R 755 /home/addy/media/*
 
 # Copy default tutor profile image if it doesn't exist
-if [ ! -f /home/atharva/media/photos/profile/default_photo.jpg ]; then
-    echo "Warning: default_photo.jpg not found. Please ensure it exists at /home/atharva/media/photos/profile/default_photo.jpg"
+if [ ! -f /home/addy/media/photos/profile/default_photo.jpg ]; then
+    echo "Warning: default_photo.jpg not found. Please ensure it exists at /home/addy/media/photos/profile/default_photo.jpg"
 fi
 
 # Migrate old uploads to new structure
@@ -134,7 +134,7 @@ if [ -d "\$OLD_UPLOADS" ] && [ "\$(ls -A \$OLD_UPLOADS 2>/dev/null)" ]; then
         if [ -f "\$file" ]; then
             filename=\$(basename "\$file")
             category=\$(get_file_category "\$filename")
-            dest_dir="/home/atharva/media/\${category}/chat"
+            dest_dir="/home/addy/media/\${category}/chat"
             dest_path="\${dest_dir}/\${filename}"
             
             # Move file to appropriate category directory

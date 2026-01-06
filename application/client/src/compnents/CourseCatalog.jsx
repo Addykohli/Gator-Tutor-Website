@@ -40,7 +40,7 @@ const CourseCatalog = () => {
             const data = await response.json();
             setCourses(Array.isArray(data) ? data : []);
         } catch (err) {
-            setError(err.message);
+            setError(err.message + " Please try again!");
         } finally {
             setLoading(false);
         }
@@ -98,14 +98,15 @@ const CourseCatalog = () => {
 
             if (!response.ok) throw new Error('Failed to deactivate course');
 
-            const updatedCourse = await response.json();
+            // Verify success, then update state locally to ensure object structure acts as expected
+            const updatedData = await response.json();
             setCourses(prev =>
-                prev.map(c => c.course_id === courseId ? updatedCourse : c)
+                prev.map(c => c.course_id === courseId ? { ...c, is_active: false } : c)
             );
             setSuccessMessage(`Course deactivated successfully!`);
             setTimeout(() => setSuccessMessage(''), 3000);
         } catch (err) {
-            setError(err.message);
+            setError(err.message + " Please try again!");
         }
     };
 

@@ -184,12 +184,12 @@ const LoginPage = () => {
             <div style={styles.inputContainer}>
               <input
                 type="email"
-                placeholder="SFSU Email"
+                placeholder="Gmail Email"
                 {...register("email", {
-                  required: "SFSU Email is required",
+                  required: "Gmail Email is required",
                   pattern: {
-                    value: /^[a-zA-Z0-9._%+-]+@sfsu\.edu$/,
-                    message: "Please use your SFSU email address (@sfsu.edu)"
+                    value: /^[a-zA-Z0-9._%+-]+@gmail\.com$/,
+                    message: "Please use your Gmail address (@gmail.com)"
                   }
                 })}
                 style={{ ...styles.inputField, ...styles.usernameField }}

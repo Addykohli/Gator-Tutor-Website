@@ -5,14 +5,14 @@ from passlib.context import CryptContext
 import hashlib
 '''
 Known User 
-email: tim.jim@sfsu.edu
+email: tim.jim@gmail.com
 pw: test12
 '''
 pwd_context = CryptContext(schemes =["argon2"], deprecated="auto")
 
 def get_user(db: Session, email:str):
     return db.query(User).filter(
-        func.lower(User.sfsu_email) == func.lower(email),
+        func.lower(User.email) == func.lower(email),
         User.is_deleted == False
     ).first()
 

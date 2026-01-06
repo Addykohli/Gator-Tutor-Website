@@ -89,7 +89,7 @@ const SessionsPage = () => {
         setLoading(false);
       })
       .catch(err => {
-        setError(err.message);
+        setError(err.message + " Please try again!");
         setLoading(false);
       });
   }, [user]);
@@ -167,7 +167,7 @@ const SessionsPage = () => {
       if (!res.ok) throw new Error('Could not cancel booking');
       setBookings(cur => cur.map(b => b.booking_id === bookingId ? { ...b, status: 'cancelled' } : b));
     } catch (e) {
-      setError(e.message || 'Error cancelling');
+      setError((e.message || 'Error cancelling') + " Please try again!");
     } finally {
       setLoading(false);
     }

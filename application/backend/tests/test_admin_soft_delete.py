@@ -15,7 +15,7 @@ def test_create_and_verify_user(test_db: Session, test_user: User):
     # Verify user exists
     found_user = test_db.query(User).filter(User.user_id == test_user.user_id).first()
     assert found_user is not None
-    assert found_user.sfsu_email == "test.user@sfsu.edu"
+    assert found_user.email == "test.user@gmail.com"
     assert found_user.is_deleted == False
 
 
@@ -46,20 +46,20 @@ def test_drop_user_preserves_user_in_database(test_db: Session, test_user: User)
 
 def test_drop_user_anonymizes_email(test_db: Session, test_user: User):
     """Test: Verify email is anonymized after soft delete."""
-    original_email = test_user.sfsu_email
+    original_email = test_user.email
     
     # Drop the user
     drop_user(test_db, test_user.user_id)
     
     # Refresh and verify email is anonymized
     test_db.refresh(test_user)
-    assert test_user.sfsu_email != original_email
-    assert test_user.sfsu_email.startswith(f"deleted_{test_user.user_id}_")
+    assert test_user.email != original_email
+    assert test_user.email.startswith(f"deleted_{test_user.user_id}_")
 
 
 def test_deleted_user_cannot_login(test_db: Session, test_user: User):
     """Test: Verify user cannot login (via get_user() with is_deleted=False filter)."""
-    original_email = test_user.sfsu_email
+    original_email = test_user.email
     
     # Drop the user
     drop_user(test_db, test_user.user_id)
@@ -94,7 +94,7 @@ def test_drop_user_with_role_verification(test_db: Session, test_user: User):
     
     # Should fail with incorrect role (but user is already deleted, so create new one)
     test_user2 = User(
-        sfsu_email="test.user2@sfsu.edu",
+        email="test.user2@gmail.com",
         first_name="Test",
         last_name="User2",
         role="student",

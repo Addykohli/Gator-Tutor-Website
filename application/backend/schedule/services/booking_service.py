@@ -105,7 +105,7 @@ def get_tutor_bookings(db: Session, tutor_id: int) -> List[Booking]:
         # Populate student_name and student_email
         if booking.student:
             booking.student_name = f"{booking.student.first_name} {booking.student.last_name}"
-            booking.student_email = booking.student.sfsu_email
+            booking.student_email = booking.student.email
     
     return bookings
 
@@ -135,7 +135,7 @@ def get_bookings(db: Session, student_id: Optional[int] = None, tutor_id: Option
             booking.tutor_name = f"{booking.tutor_profile.user.first_name} {booking.tutor_profile.user.last_name}"
         if booking.student:
             booking.student_name = f"{booking.student.first_name} {booking.student.last_name}"
-            booking.student_email = booking.student.sfsu_email
+            booking.student_email = booking.student.email
         if booking.course:
             booking.course_title = booking.course.title
             

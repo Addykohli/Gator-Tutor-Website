@@ -228,7 +228,7 @@ const CourseCoverageRequestPage = () => {
               <form onSubmit={handleSubmit(onSubmit)}>
                 <div style={styles.formGroup}>
                   <label style={styles.formLabel}>
-                    SFSU Course Number<span style={styles.required}>*</span>
+                    Gator Course Number<span style={styles.required}>*</span>
                   </label>
                   <input
                     type="text"

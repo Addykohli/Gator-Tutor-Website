@@ -9,6 +9,12 @@ router = APIRouter(prefix="/api", tags=["registration"])
 
 @router.post("/register", response_model=RegistrationResponse, status_code=status.HTTP_201_CREATED)
 def register_user(data: RegistrationRequest, db: Session = Depends(get_db)):
+    if not data.email.lower().endswith("@gmail.com"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only @gmail.com emails are allowed based on new requirements."
+        )
+
     if email_exists(db, data.email):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -24,6 +30,6 @@ def register_user(data: RegistrationRequest, db: Session = Depends(get_db)):
 
     return RegistrationResponse(
         user_id=user.user_id,
-        email=user.sfsu_email,
+        email=user.email,
         message="registration was successful"
     )

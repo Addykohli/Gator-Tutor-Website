@@ -53,7 +53,7 @@ const AppointmentRequestsPage = () => {
         return {
           ...booking,
           student_name: booking.student_name || `Student #${booking.student_id}`,
-          student_email: booking.student_email || `student-${booking.student_id}@sfsu.edu`
+          student_email: booking.student_email || `student-${booking.student_id}@gmail.com`
         };
       });
 
@@ -75,7 +75,7 @@ const AppointmentRequestsPage = () => {
 
     } catch (err) {
       console.error('Error fetching appointment requests:', err);
-      setError(err.message);
+      setError(err.message + " Please try again!");
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ const AppointmentRequestsPage = () => {
       return true;
     } catch (err) {
       console.error(`Error ${status}ing booking:`, err);
-      setError(err.message);
+      setError(err.message + " Please try again!");
       return false;
     }
   };

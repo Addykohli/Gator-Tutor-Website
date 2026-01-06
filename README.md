@@ -1,6 +1,6 @@
 # GatorTutor - Tutoring Platform
 
-Welcome to the **GatorTutor** repository, a dedicated peer-to-peer tutoring marketplace built for the San Francisco State University (SFSU) community. This full-stack web application connects students seeking academic assistance with qualified peer tutors in a secure and user-friendly environment.
+Welcome to the **GatorTutor** repository, a dedicated peer-to-peer tutoring marketplace. This full-stack web application connects students seeking academic assistance with qualified peer tutors in a secure and user-friendly environment.
 
 ## 🚀 About The App
 GatorTutor simplifies the process of finding academic help. Whether you're a student struggling or a Tutor looking to share your knowledge, our platform manages the entire workflow — from discovery to booking and communication.
@@ -24,10 +24,10 @@ GatorTutor simplifies the process of finding academic help. Whether you're a stu
 - **Course Validation**: Tutors must request approval to teach specific courses.
 - **Reporting System**: Users can report issues, which are managed via the Admin Dashboard.
 
-### 👤 SFSU Pseudo-Email Signup
-To ensure the platform remains exclusive and safe for the school community, **registration is restricted to SFSU domains**.
-- **Requirement**: You **MUST** sign up using a puesdo `@sfsu.edu` email address.
-- **Validation**: The system automatically rejects any non-SFSU email domains during the registration process, acting as a pseudo-verification step (simulating institutional SSO).
+### 👤  Pseudo-Gmail Signup
+
+- **Requirement**: You **MUST** sign up using a puesdo `@gmail.com` email address.
+- **Validation**: The system automatically rejects any non-Gmail email domains during the registration process, acting as a pseudo-verification step (simulating institutional SSO).
 
 ## 🛠 Tech Stack
 - **Frontend**: React.js, CSS Modules

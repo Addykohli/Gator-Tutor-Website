@@ -1,0 +1,23 @@
+[Unit]
+Description=Uvicorn instance to serve Gator Tutor FastAPI application
+After=network.target mysql.service
+
+[Service]
+Type=notify
+User=addy
+Group=addy
+WorkingDirectory=/home/addy/csc648-fa25-145-team08/application/backend
+Environment="PATH=/home/addy/csc648-fa25-145-team08/application/backend/.venv/bin"
+ExecStart=/home/addy/csc648-fa25-145-team08/application/backend/.venv/bin/uvicorn main:app --uds /run/uvicorn-team08/uvicorn-team08.sock --workers 2
+ExecReload=/bin/kill -s HUP $MAINPID
+KillMode=mixed
+TimeoutStopSec=5
+PrivateTmp=true
+Restart=always
+RestartSec=3
+
+# Automatically create /run/uvicorn-team08 owned by addy:addy
+RuntimeDirectory=uvicorn-team08
+
+[Install]
+WantedBy=multi-user.target
